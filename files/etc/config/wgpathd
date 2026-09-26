@@ -7,6 +7,7 @@ config wgpathd 'main'
 	option mesh_iface  'wg_mesh'
 	option hub_iface   'wg_hub'
 	option discovery   'http://10.10.0.1:7780/peers'
+	option mode        'observe'      # 'steer' to let wgpathd move endpoints
 
 # --- HUB (edge) — replace the block above with this ---
 #config wgpathd 'main'

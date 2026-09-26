@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * deps.create(): wire the real fs/ubus/uloop/clock/log + wg/probe/http components.
+ * deps.create(): wire the real fs/ubus/uloop/clock/log + the async exec runner.
  *
  * @module wgpathd.deps
  */

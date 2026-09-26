@@ -30,16 +30,6 @@ describe('context: with_context', () => {
 		});
 	});
 
-	it('exposes http_client as deps.http', () => {
-		let body = { peer: { direct: '[2001:db8::1]:51820' } };
-		with_context({ http_client: { data: { 'http://hub/peers': { body } } } }, (deps) => {
-			let res = deps.http.get('http://hub/peers');
-			assert.match(true, res.ok);
-			assert.match(200, res.data.status);
-			assert.match(body, json(res.data.body));
-		});
-	});
-
 	it('wires only the injected deps plus a no-op log', () => {
 		with_context({ clock: {} }, (deps) => {
 			assert.match([ 'clock', 'log' ], sort(keys(deps)));

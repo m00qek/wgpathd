@@ -8,14 +8,11 @@ import { mock } from 'utest';
 function build_deps(proxies) {
 	let deps = { log: function(level, msg) {} };
 
-	if (proxies.fs)          deps.fs    = proxies.fs;
-	if (proxies.uci)         deps.uci   = proxies.uci.cursor();
-	if (proxies.ubus)        deps.ubus  = proxies.ubus.connect();
-	if (proxies.uloop)       deps.uloop = proxies.uloop;
-	if (proxies.clock)       deps.clock = proxies.clock.create();
-	if (proxies.http_client) deps.http  = proxies.http_client.create();
-	if (proxies.wg)          deps.wg    = proxies.wg;
-	if (proxies.probe)       deps.probe = proxies.probe;
+	if (proxies.fs)    deps.fs    = proxies.fs;
+	if (proxies.uci)   deps.uci   = proxies.uci.cursor();
+	if (proxies.ubus)  deps.ubus  = proxies.ubus.connect();
+	if (proxies.uloop) deps.uloop = proxies.uloop;
+	if (proxies.clock) deps.clock = proxies.clock.create();
 
 	return deps;
 }

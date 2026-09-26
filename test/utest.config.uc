@@ -9,8 +9,5 @@ return {
 		ubus:        null,
 		uloop:       null,
 		clock:       { proxy: 'proxies/clock.uc' },
-		http_client: { proxy: 'proxies/http_client.uc' },
-		wg:          { proxy: 'proxies/wg.uc' },
-		probe:       { proxy: 'proxies/probe.uc' },
 	},
 };

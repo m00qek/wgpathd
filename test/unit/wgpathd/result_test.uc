@@ -53,7 +53,7 @@ describe('result: is', () => {
 
 describe('result: describe', () => {
 	it('appends string details as the cause', () => {
-		assert.match('HTTP_REQUEST_FAILED (TIMEOUT)', Result.describe(Result.err('HTTP_REQUEST_FAILED', 'TIMEOUT')));
+		assert.match('DISCOVERY_FETCH_FAILED (TIMEOUT)', Result.describe(Result.err('DISCOVERY_FETCH_FAILED', 'TIMEOUT')));
 	});
 
 	it('shows only the code without details', () => {
