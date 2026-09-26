@@ -1,0 +1,136 @@
+# Developer Onboarding
+
+In this tutorial we will run wgpathd's test suite, look at the tests for its decision core, build the OpenWrt package, and check that the package installs cleanly on a fresh OpenWrt. By the end we will have a working development loop and a package file we built ourselves.
+
+Everything runs in Docker containers based on official OpenWrt images. Nothing gets installed on our machine.
+
+---
+
+## Prerequisites
+
+- Docker, with permission to run containers as our user.
+- `make`.
+- A copy of the wgpathd repository.
+- About 6 GB of free disk space for the images, most of it for the OpenWrt SDK, and a network connection for the first run.
+
+## Step 1: Open the repository
+
+We start in the root of the repository:
+
+```bash
+cd wgpathd
+ls
+```
+
+We should see, among others, `src/`, `test/`, `files/`, `openwrt/` and a `Makefile`. The daemon's code is in `src/wgpathd/`; the files the package installs on a router are in `files/`.
+
+## Step 2: Run the whole test suite
+
+```bash
+make test
+```
+
+The first time, this builds a development image from the OpenWrt rootfs and installs ucode, its modules and the `utest` test runner into it. That takes a few minutes and prints Docker build output. Later runs start in seconds.
+
+Then the tests run. Each dot is one passing test, grouped by bundle, and the run ends with a summary like this:
+
+```
+Summary:
+
+  243 successes / 0 failures / 0 errors / 0 skipped / 0 ignored (9519 ms)
+  Seed:   1790463976344531689
+```
+
+The exact count grows as tests are added. What matters is `0 failures / 0 errors`. Notice the seed: some tests generate random inputs, and the seed identifies this run.
+
+## Step 3: Look at the decision core's tests
+
+wgpathd makes every path decision in one pure function, `decide`. Let's run only its tests, with one line per test:
+
+```bash
+make unit MODULES=test/unit/wgpathd/decide_test.uc VERBOSE=1
+```
+
+This time we see test names:
+
+```
+[test/unit/wgpathd/decide_test.uc] test/unit/wgpathd/decide_test.uc (61 tests)
+  [PASS] anchor (#17): echo fails but authenticated roams promote with the roam as target
+  [PASS] lying hub (#5): a bogus candidate fails its trial and backs off
+  [PASS] trial false positive: echo ok but the tunnel never answers
+  ...
+```
+
+Notice the numbers such as `#17` and `#5`. Each one is a row of the failure-mode catalog in the [design record](../design.md). The tests read like a list of the situations wgpathd must survive. The ones starting with `I1`, `I4` or `I5` are the property tests that use random inputs.
+
+Now let's run just the tests with "roam" in their name:
+
+```bash
+make unit FILTER='roam'
+```
+
+The summary shows only a dozen or so successes; the tests that did not match are counted as `ignored`. `FILTER` and `MODULES` are how we keep the loop fast while working on one area.
+
+## Step 4: Check the code compiles
+
+```bash
+make lint
+```
+
+This compiles every ucode file and syntax-checks every shell script. It prints nothing when all is well. CI runs `make lint` and `make test` on every push.
+
+## Step 5: Build the package
+
+```bash
+make package
+```
+
+The first run builds an image from the OpenWrt SDK and fetches feed metadata; this takes longer than the test image did. At the end we should see a line like:
+
+```
+'bin/packages/x86_64/base/wgpathd-0.1.0-r1.apk' -> '/artifacts/wgpathd-0.1.0-r1.apk'
+```
+
+Let's confirm the file is there:
+
+```bash
+ls bin/
+```
+
+```
+wgpathd-0.1.0-r1.apk
+```
+
+That is the package an operator installs on a hub or a spoke.
+
+## Step 6: Install it on a fresh OpenWrt
+
+```bash
+make package-check
+```
+
+This rebuilds the package, starts a clean OpenWrt rootfs container, installs the package with its dependencies, and runs a list of checks. The output should end like this:
+
+```
+ok   modules on default search path
+     -> wgpathd: invalid configuration: INTERFACE_MISSING (wg_mesh)
+ok   daemon with default config fails cleanly
+     -> wgpathd status: UBUS_CONNECT_FAILED
+ok   status without a daemon fails cleanly
+ok   init script enables
+ok   fw4 includes the nft file
+package-check: all passed
+```
+
+Notice the two lines starting with `->`. The container has no WireGuard interfaces and no ubus, so the daemon cannot start. The check makes sure it says so in one clear line instead of crashing. That line, `INTERFACE_MISSING (wg_mesh)`, is exactly what an operator would see in the log on a router that is missing its mesh interface.
+
+## What we did
+
+We ran the full test suite in an OpenWrt container, looked at the decision core's tests and how they map to the design's failure modes, narrowed a run with `MODULES` and `FILTER`, built the `.apk` in the OpenWrt SDK, and proved it installs and fails safely on a clean system.
+
+## Where to go next
+
+- [Architecture](../explanation/architecture.md) explains the pure core and the I/O shell that the tests are built around.
+- [How to run the tests](../how-to/developer/testing.md) covers `make watch` and the other options.
+- [How to build the package](../how-to/developer/packaging.md) covers other OpenWrt releases and changing what is packaged.
+- [Make targets](../reference/make-targets.md) lists every target and variable.

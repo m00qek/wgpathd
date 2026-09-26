@@ -1,0 +1,89 @@
+site_name: wgpathd
+site_description: Direct-or-relay path selection for WireGuard hub-and-spoke on OpenWrt.
+site_dir: bin/site
+
+exclude_docs: |
+  README.md
+  Makefile
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Welcome: index.md
+  - Tutorials:
+      - Overview: tutorials/index.md
+      - Developer Onboarding: tutorials/dev-onboarding.md
+  - How-to Guides:
+      - Overview: how-to/index.md
+      - Operators:
+          - Preparing the WireGuard Substrate: how-to/prepare-substrate.md
+          - Installing wgpathd: how-to/install.md
+          - Configuring the Hub: how-to/configure-hub.md
+          - Configuring a Spoke: how-to/configure-spoke.md
+          - Moving a Spoke from Observe to Steer: how-to/enable-steering.md
+          - Tuning Timing Parameters: how-to/tune-timing.md
+          - Inspecting Status and Troubleshooting: how-to/troubleshoot.md
+          - Removing wgpathd: how-to/uninstall.md
+      - Developer:
+          - Running Tests: how-to/developer/testing.md
+          - Building the Package: how-to/developer/packaging.md
+          - Writing Documentation: how-to/developer/documentation.md
+  - Reference:
+      - Overview: reference/index.md
+      - UCI Configuration: reference/uci-config.md
+      - Substrate Annotations: reference/substrate.md
+      - Timing Parameters: reference/parameters.md
+      - ubus Status: reference/ubus-status.md
+      - Discovery HTTP API: reference/discovery-api.md
+      - Log Messages: reference/log-messages.md
+      - Error Codes: reference/error-codes.md
+      - Firewall Rules: reference/firewall.md
+      - Files and Dependencies: reference/files.md
+      - Make Targets: reference/make-targets.md
+  - Explanation:
+      - Overview: explanation/index.md
+      - About wgpathd: explanation/about.md
+      - About the Path State Machine: explanation/state-machine.md
+      - About Discovery: explanation/discovery.md
+      - Trust Model: explanation/trust-model.md
+      - Architecture: explanation/architecture.md
+  - Project:
+      - Design Record: design.md
+      - Substrate Build History: history.md

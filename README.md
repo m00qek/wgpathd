@@ -8,6 +8,11 @@ path whenever at least one peer is reachable on public IPv6.** ucode, OpenWrt-na
   (requirements, state machine, failure-mode catalog, decision-core seam, e2e harness).
 - **Reference implementation** for structure/conventions: `../luci-sso`.
 
+## Documentation
+User and developer docs live in [`docs/`](docs/index.md) (MkDocs Material, Diátaxis):
+tutorials, how-to guides, reference and explanation. Preview with `make docs-serve`
+(http://localhost:8000) or build with `make docs`; both run in Docker.
+
 ## Layout
 - `src/wgpathd/` — ucode modules (pure `decide` core + `deps`-injected shell).
 - `files/` — OpenWrt package payload (config, procd service, uci-defaults, fw4 include).
@@ -29,6 +34,6 @@ make package-check             # install it in a fresh rootfs and verify it
 ```
 `OPENWRT_VERSION` / `OPENWRT_ARCH` select the rootfs (default `25.12.5` / `x86_64`).
 
-Status: **bootstrapped** — design complete, test loop in place, implementation not started.
+Status: **implemented and packaged** — unit and integration tested; the end-to-end failover harness is not built yet.
 Build order (see design §Phases): devenv → decide+utest → shell+integration → e2e (incl. relay floor) → deploy.
 Substrate build log (Phases 0–2): [the build history](the build history).

@@ -1,0 +1,74 @@
+# UCI Configuration
+
+wgpathd reads `/etc/config/wgpathd` once, at startup. Changes take effect after `service wgpathd restart`.
+
+All options live in one section of type `wgpathd` named `main`. Other sections are ignored.
+
+The per-peer options that wgpathd reads from `/etc/config/network` are listed in [Substrate annotations](substrate.md).
+
+---
+
+## `role`
+
+| Option | Required | Values |
+| :--- | :--- | :--- |
+| `role` | Yes | `spoke` or `hub` |
+
+Any other value, or no value, stops startup with `CONFIG_INVALID_ROLE`. The detail is the value given, or `unset`.
+
+## Spoke options
+
+```
+config wgpathd 'main'
+	option role       'spoke'
+	option mesh_iface 'wg_mesh'
+	option hub_iface  'wg_hub'
+	option discovery  'http://10.10.0.1:7780/peers'
+	option mode       'observe'
+```
+
+| Option | Required | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `mesh_iface` | Yes | — | The WireGuard interface whose peer endpoints are steered. Must be a `network` section of type `interface`, and must appear in the `ubus call wireguard status` reply at startup. Its peers are read from `wireguard_<mesh_iface>` sections. |
+| `hub_iface` | Yes | — | The hub tunnel interface. Must be a `network` section of type `interface`. Checked at startup only; wgpathd does not otherwise use it. |
+| `discovery` | Yes | — | URL of the hub's discovery endpoint, for example `http://10.10.0.1:7780/peers`. See [Discovery HTTP API](discovery-api.md). |
+| `mode` | No | `observe` | `steer` lets wgpathd move peers to direct paths. `observe` keeps every managed peer on its relay endpoint. Any other value runs as `observe` and logs a warning at startup. |
+
+## Hub options
+
+```
+config wgpathd 'main'
+	option role       'hub'
+	option read_iface 'wg_mesh'
+	option serve_addr '10.10.0.1'
+	option serve_port '7780'
+```
+
+| Option | Required | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `read_iface` | Yes | — | The WireGuard interface whose peer endpoints are published. Must be a `network` section of type `interface`, and must appear in the `ubus call wireguard status` reply at startup. |
+| `serve_addr` | Yes | — | Local address the discovery listener binds to. |
+| `serve_port` | Yes | — | TCP port of the discovery listener. The shipped firewall rule accepts port `7780`; see [Firewall rules](firewall.md). |
+
+The hub ignores `mode`.
+
+## Timing parameters
+
+Both roles accept the timing parameters as options in the `main` section, for example `option cycle '2'`. Each is optional and overrides one default. The full list, defaults and meanings are in [Timing parameters](parameters.md).
+
+A parameter value must be a positive decimal number: digits, optionally followed by a dot and more digits, and greater than zero. `3`, `0.5` and `900` are valid; `0`, `-1`, `1e3` and `3s` are not. An invalid value stops startup with `CONFIG_INVALID_OPTION`, with the parameter name as the detail. There are no cross-checks between parameters.
+
+## Validation order
+
+At startup the configuration is checked in this order. The first failure stops the daemon with exit status 1 and an `invalid configuration:` log message.
+
+1. `role` is `spoke` or `hub` — else `CONFIG_INVALID_ROLE`.
+2. Every required option for the role is a non-empty string — else `CONFIG_MISSING_OPTION` naming the first missing option, in the order listed above.
+3. Every interface option names a `network` section of type `interface` — else `INTERFACE_MISSING` naming the value.
+4. Every timing parameter present is valid — else `CONFIG_INVALID_OPTION`.
+
+On a spoke, the mesh peers are then loaded. A peer with a problem does not stop startup; it is reported as unmanaged. See [Substrate annotations](substrate.md).
+
+## Shipped default
+
+The package installs `/etc/config/wgpathd` as a spoke template in `observe` mode, with `mesh_iface 'wg_mesh'`, `hub_iface 'wg_hub'` and a sample `discovery` URL, plus a commented-out hub block. It is a conffile: an upgrade keeps your edits.

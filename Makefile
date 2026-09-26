@@ -8,7 +8,7 @@ RUN          = $(COMPOSE) --progress quiet run --rm $(if $(CI),-T) openwrt
 IMAGE_STAMP := devenv/.built-$(OPENWRT_ARCH)-$(OPENWRT_VERSION)
 TEST_ARGS    = $(if $(FILTER),-f '$(FILTER)') $(if $(VERBOSE),-v) $(MODULES)
 
-.PHONY: test unit integration watch lint shell image e2e package package-check
+.PHONY: test unit integration watch lint shell image e2e package package-check docs docs-serve
 
 test:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh all $(TEST_ARGS)
 unit:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh unit $(TEST_ARGS)
@@ -47,3 +47,6 @@ package-check: package
 		-v $(CURDIR)/bin:/artifacts:ro \
 		-v $(CURDIR)/devenv/scripts/package-check.sh:/usr/local/bin/package-check.sh:ro \
 		ghcr.io/openwrt/rootfs:$(OPENWRT_ARCH)-$(OPENWRT_VERSION) /usr/local/bin/package-check.sh
+
+docs:       ; @$(MAKE) -C docs build
+docs-serve: ; @$(MAKE) -C docs serve
