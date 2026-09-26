@@ -30,6 +30,17 @@ endef
 define Build/Compile
 endef
 
+# fw4 picks up the nftables.d include on reload: on install, and once it is gone.
+define Package/wgpathd/postinst
+#!/bin/sh
+[ -n "$$IPKG_INSTROOT" ] || /etc/init.d/firewall reload || true
+endef
+
+define Package/wgpathd/postrm
+#!/bin/sh
+[ -n "$$IPKG_INSTROOT" ] || /etc/init.d/firewall reload || true
+endef
+
 define Package/wgpathd/install
 	$(INSTALL_DIR) $(1)/usr/share/ucode
 	$(CP) ./src/wgpathd $(1)/usr/share/ucode/

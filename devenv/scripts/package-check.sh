@@ -35,7 +35,9 @@ apk update >/dev/null 2>&1 || { echo "apk update failed" >&2; exit 1; }
 check "dependencies resolve" apk add --allow-untrusted --simulate "$APK"
 # No module load attempts against the host kernel from kmod-wireguard's scripts.
 check "kmod-wireguard installs (scripts skipped)" apk add --no-scripts kmod-wireguard
-check "package installs" apk add --allow-untrusted "$APK"
+check "package installs" sh -c 'apk add --allow-untrusted "$1" >/tmp/install.log 2>&1' - "$APK"
+# The default postinst runs `/etc/init.d/wgpathd start`; shipped disabled, it must not even validate.
+check "install start is inert" sh -c '! grep -qE "not starting|Runtime error" /tmp/install.log'
 
 check "config 0600"         has_mode 600 /etc/config/wgpathd
 check "init script 0755"    has_mode 755 /etc/init.d/wgpathd
@@ -72,6 +74,11 @@ check "init script enables" sh -c '/etc/init.d/wgpathd enable && [ -L /etc/rc.d/
 
 check "fw4 includes the nft file" sh -c \
 	'fw4 print 2>/dev/null | grep -q "include \"/usr/share/nftables.d/chain-pre/input/wgpathd.nft\""'
+# fw4 itself cannot run here (no procd, no NET_ADMIN), so only the hooks are checked.
+check "install, upgrade and removal reload fw4" sh -c \
+	'[ "$(apk adbdump "$1" | grep -c "/etc/init.d/firewall reload")" = 3 ]' - "$APK"
+check "package removes cleanly" sh -c \
+	'apk del wgpathd >/dev/null 2>&1 && [ ! -e /usr/share/nftables.d/chain-pre/input/wgpathd.nft ]'
 
 [ "$failures" -eq 0 ] && echo "package-check: all passed" && exit 0
 echo "package-check: $failures failed"
