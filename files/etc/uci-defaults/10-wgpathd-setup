@@ -1,0 +1,5 @@
+#!/bin/sh
+# Run-once setup (deleted after success). wgpathd creates NO wg interfaces — it
+# verifies they exist at startup and refuses otherwise (design Decision 4).
+# TODO: any first-install seeding that is safe to default. Keep minimal.
+exit 0

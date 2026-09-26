@@ -1,0 +1,23 @@
+# wgpathd fw4 include — auto-included by fw4 (chain-pre/input: prepended to input).
+# Ships WITH the package so its firewall needs can't be forgotten (package-owned
+# firewall). Role-agnostic file; each rule is harmless where its role doesn't apply.
+
+# SPOKE (anchor): accept the out-of-band ICMPv6 echo underlay probe from mesh peers
+# (direct evidence for the roamer — design Health model).
+# TODO: scope saddr to mesh peers' v6 once confirmed in the harness.
+icmpv6 type echo-request accept comment "wgpathd: underlay probe"
+
+# SPOKE: accept the in-tunnel ICMP echo (trial proof + DIRECT health — design T1).
+# TODO: follow the configured mesh_iface if it is ever not 'wg_mesh'.
+iifname "wg_mesh" icmp type echo-request accept comment "wgpathd: tunnel probe"
+
+# HUB: accept the discovery publisher port from the wg_hub tunnel ONLY (never public).
+# TODO: scope iifname to the wg_hub device (e.g. legacy_hub).
+tcp dport 7780 accept comment "wgpathd: discovery publisher"
+
+# SPOKE: accept relayed wg_mesh datagrams, which arrive on the wg_hub interface
+# (design "Relay endpoint"). Matched by interface KIND, so no bespoke device name:
+# only a peer with a valid key can deliver a packet out of a WireGuard interface.
+# Validated on OpenWrt 25.12.5 (design "Relay endpoint"). TODO: follow wg_mesh's
+# listen port if it is ever not 51820.
+meta iifkind "wireguard" udp dport 51820 accept comment "wgpathd: relay ingress"

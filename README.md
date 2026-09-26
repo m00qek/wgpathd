@@ -1,0 +1,32 @@
+# wgpathd
+
+Hub-and-spoke path selection for a WireGuard mesh: **relay inter-site traffic
+through the hub by default, and upgrade a peer pair to a direct point-to-point
+path whenever at least one peer is reachable on public IPv6.** ucode, OpenWrt-native.
+
+- **Design & rationale:** [the design record](the design record) — the full design doc
+  (requirements, state machine, failure-mode catalog, decision-core seam, e2e harness).
+- **Reference implementation** for structure/conventions: `../luci-sso`.
+
+## Layout
+- `src/wgpathd/` — ucode modules (pure `decide` core + `deps`-injected shell).
+- `files/` — OpenWrt package payload (config, procd service, uci-defaults, fw4 include).
+- `test/` — `unit` / `integration` (utest) + `e2e` (docker).
+- `devenv/` — docker-compose e2e harness (faithful OpenWrt, no LuCI).
+- `openwrt/wgpathd/` — OpenWrt buildroot package Makefile.
+
+## Development
+Everything runs in a pinned OpenWrt rootfs container (Docker only; nothing to install).
+```
+make test                      # unit + integration
+make unit FILTER='name' VERBOSE=1
+make unit MODULES=test/unit/wgpathd/decide_test.uc
+make watch                     # re-run on change
+make lint                      # ucode compile check + sh -n
+make shell                     # throwaway shell in the image
+```
+`OPENWRT_VERSION` / `OPENWRT_ARCH` select the rootfs (default `25.12.5` / `x86_64`).
+
+Status: **bootstrapped** — design complete, test loop in place, implementation not started.
+Build order (see design §Phases): devenv → decide+utest → shell+integration → e2e (incl. relay floor) → deploy.
+Substrate build log (Phases 0–2): [the build history](the build history).

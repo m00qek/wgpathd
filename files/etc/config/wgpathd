@@ -1,0 +1,16 @@
+# wgpathd config. Rendered per-role by the estate build layer; this default is a
+# template. See the design record (Configuration & operator journey).
+
+# --- SPOKE (routers) — byte-for-byte identical on every spoke ---
+config wgpathd 'main'
+	option role       'spoke'
+	option mesh_iface  'wg_mesh'
+	option hub_iface   'wg_hub'
+	option discovery   'http://10.10.0.1:7780/peers'
+
+# --- HUB (edge) — replace the block above with this ---
+#config wgpathd 'main'
+#	option role       'hub'
+#	option read_iface  'wg_mesh'      # publish endpoints FROM this table
+#	option serve_addr  '10.10.0.1' # bind publisher HERE (wg_hub, always-up, tunnel-only)
+#	option serve_port  '7780'

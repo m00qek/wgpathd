@@ -1,0 +1,11 @@
+#!/usr/bin/ucode
+'use strict';
+
+// Thin imperative shell: build the real `deps` and run the daemon loop.
+// All logic lives in wgpathd.* (installed to /usr/lib/ucode/wgpathd) and is
+// testable with faked deps. See the design record (decision-core seam).
+
+import * as daemon from 'wgpathd.daemon';
+import * as deps from 'wgpathd.deps';
+
+daemon.run(deps.create());
