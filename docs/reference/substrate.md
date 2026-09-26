@@ -46,7 +46,7 @@ Any other peer is **unmanaged**: wgpathd never touches its endpoint. Unmanaged p
 | `relay routes into <mesh_iface>` | The route to the relay host leaves via `mesh_iface` | Yes |
 | `relay route lookup failed: <error>` | The route lookup for the relay host failed, for example because `wg_hub` is not up yet | No: rechecked every cycle |
 
-"Permanent" means until the daemon restarts, or until a reload changes the peer's `public_key`, `wgpathd_relay` or `wgpathd_tunnel`. A reload that leaves those three unchanged keeps the peer's reason, even if the routes behind it have changed. A peer waiting on a failed route lookup is rechecked at the start of every cycle. When its route resolves out of another interface it becomes managed, starting in RELAY, and wgpathd logs `relay route found, now managed`. If the route resolves into `mesh_iface`, it becomes permanently unmanaged.
+"Permanent" means it is not retried each cycle. Every reload guards the peer again, so fixing the routes and reloading is enough: a peer whose relay now routes elsewhere becomes managed, starting in RELAY, with `relay route found, now managed`. A peer waiting on a failed route lookup is rechecked at the start of every cycle. When its route resolves out of another interface it becomes managed, starting in RELAY, and wgpathd logs `relay route found, now managed`. If the route resolves into `mesh_iface`, it becomes permanently unmanaged.
 
 The spoke's own `wg_mesh` peer for the hub normally has no annotations, so it is always listed as unmanaged with `missing wgpathd_relay`. That is expected: the hub peer keeps its static endpoint.
 

@@ -52,7 +52,7 @@ describe('check: config only', () => {
 	it('reports the loaded config and passes', () => {
 		let res = run(SPOKE, null, { config_only: true });
 		assert.match(true, res.ok);
-		assert.match('ok    config: spoke, mode steer, 1 steered peers, 1 not steered\n', res.report);
+		assert.match('ok    config: spoke, mode steer, 1 steered peer, 1 not steered\n', res.report);
 	});
 
 	it('fails with the loader reason, in words', () => {
@@ -88,9 +88,9 @@ describe('check: full, spoke', () => {
 		let res = run(SPOKE);
 		assert.match(true, res.ok);
 		assert.match(
-			'ok    config: spoke, mode steer, 1 steered peers, 1 not steered\n' +
+			'ok    config: spoke, mode steer, 1 steered peer, 1 not steered\n' +
 			'ok    wg_mesh: up, 2 peers\n' +
-			'ok    wg_hub: up, 1 peers\n' +
+			'ok    wg_hub: up, 1 peer\n' +
 			'ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12\n' +
 			'skip  peer hub: not steered (missing wgpathd_relay)\n',
 			res.report);

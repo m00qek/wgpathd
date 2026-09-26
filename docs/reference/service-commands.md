@@ -40,11 +40,11 @@ On `SIGHUP` the daemon reads `/etc/config/wgpathd` and `/etc/config/network` aga
 | Timing parameters | Apply from the next cycle. |
 | `mode` | Applies from the next cycle. Switching to `observe` demotes TRIALING and DIRECT peers to RELAY. |
 | `discovery` | The new URL is fetched on the next cycle. The discovery map already held is kept until then. |
-| A peer's `public_key`, `wgpathd_relay` and `wgpathd_tunnel` all unchanged | The peer keeps its state, counters and switch count. A peer that was unmanaged keeps its reason, including `relay routes into <mesh_iface>`. |
+| A peer's `public_key`, `wgpathd_relay` and `wgpathd_tunnel` all unchanged | The peer keeps its state, counters and switch count. A peer rejected with `relay routes into <mesh_iface>` is guarded again, and becomes managed, starting in RELAY, if its route was fixed. |
 | A peer added, or one of those three options changed | The peer is checked like at startup and, if managed, starts in RELAY. |
 | A peer removed | It leaves steering and the status. Its endpoint is left as it is. |
 
-A spoke logs `configuration reloaded: <n> peers kept, <n> added, <n> removed`; a hub logs `configuration reloaded`. If the configuration is invalid when the daemon reads it, it logs `reload: invalid configuration, keeping the running one: <CODE> (<detail>)` and keeps running unchanged.
+A spoke logs `configuration reloaded (peers: <n> kept, <n> added, <n> removed)`; a hub logs `configuration reloaded`. If the configuration is invalid when the daemon reads it, it logs `reload: invalid configuration, keeping the running one: <CODE> (<detail>)` and keeps running unchanged.
 
 ## `status`
 
@@ -111,9 +111,9 @@ It runs `/usr/libexec/wgpathd/check.uc`, which loads the configuration with the 
 The exit status is `1` if any line is `FAIL`, `0` otherwise.
 
 ```
-ok    config: spoke, mode observe, 1 steered peers, 2 not steered
+ok    config: spoke, mode observe, 1 steered peer, 2 not steered
 ok    wg_mesh: up, 3 peers
-ok    wg_hub: up, 1 peers
+ok    wg_hub: up, 1 peer
 ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12
 skip  peer hub: not steered (missing wgpathd_relay)
 FAIL  peer spoke_c: not steered (invalid wgpathd_relay)
@@ -123,7 +123,7 @@ FAIL  peer spoke_c: not steered (invalid wgpathd_relay)
 
 | Level | Line | When |
 | :--- | :--- | :--- |
-| `ok` | `config: spoke, mode <mode>, <n> steered peers, <n> not steered` | A valid spoke configuration. "Steered" counts peers with valid annotations, before the route check. |
+| `ok` | `config: spoke, mode <mode>, <n> steered peer(s), <n> not steered` | A valid spoke configuration. "Steered" counts peers with valid annotations, before the route check. |
 | `ok` | `config: hub, reads <read_iface>, serves <addr>:<port>` | A valid hub configuration. |
 | `FAIL` | `config: option role must be 'spoke' or 'hub' (is <value>)` | `role` is missing or wrong. `<value>` is `unset` when missing. |
 | `FAIL` | `config: missing option <name>` | A required option is missing or empty. |

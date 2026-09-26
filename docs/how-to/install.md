@@ -67,10 +67,4 @@ You should see four rules whose comments start with `wgpathd:`. They assume UDP 
 
 ## To upgrade
 
-Build and copy the new package, then run `apk add --allow-untrusted` on it as above. Your `/etc/config/wgpathd` is kept, and the firewall is reloaded with the new rules. A running daemon keeps the old code until you restart it:
-
-```bash
-service wgpathd restart
-```
-
-Every peer starts again in RELAY and earns direct within a few cycles.
+Build and copy the new package, then run `apk add --allow-untrusted` on it as above. Your `/etc/config/wgpathd` is kept, the firewall is reloaded with the new rules, and a running daemon is restarted on the new code. Every peer starts again in RELAY and earns direct within a few cycles.

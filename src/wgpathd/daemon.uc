@@ -154,7 +154,8 @@ function create_spoke(deps, cfg, params) {
 		...map(waiting, (w) => unmanaged_entry(w.peer, w.reason)),
 	];
 
-	// A peer keeps its ctl (or its guard verdict) only while its annotations are unchanged.
+	// A peer keeps its ctl only while its annotations are unchanged. A rejected peer
+	// is guarded again, since the route it was rejected for may have been fixed.
 	let reconcile = function(peers) {
 		let same = (a, b) => a.pubkey == b.pubkey && a.relay == b.relay && a.tunnel == b.tunnel;
 		let take = (list, peer) => filter(list, (x) => same(x.peer, peer))[0];
@@ -163,6 +164,7 @@ function create_spoke(deps, cfg, params) {
 		rejected = [];
 		waiting = [];
 		let fresh = [];
+		let retry = [];
 		for (let peer in peers) {
 			let rec = take(old.records, peer);
 			let rej = rec ? null : take(old.rejected, peer);
@@ -172,7 +174,7 @@ function create_spoke(deps, cfg, params) {
 				push(records, rec);
 			}
 			else if (rej)
-				push(rejected, { ...rej, peer: peer });
+				push(retry, peer);
 			else if (wait)
 				push(waiting, { ...wait, peer: peer });
 			else
@@ -180,7 +182,22 @@ function create_spoke(deps, cfg, params) {
 		}
 		let before = length(old.records) + length(old.rejected) + length(old.waiting);
 		let kept = length(peers) - length(fresh);
-		return { fresh: fresh, summary: { kept: kept, added: length(fresh), removed: before - kept } };
+		return { fresh: fresh, retry: retry, summary: { kept: kept, added: length(fresh), removed: before - kept } };
+	};
+
+	// Re-guards rejected peers quietly: only a peer that became steerable is logged.
+	let reguard = function(peers) {
+		for (let peer in peers) {
+			let v = relay.guard(deps.route_get, cfg.mesh_iface, peer);
+			if (v.verdict == relay.MANAGED) {
+				manage(peer);
+				deps.log('info', `peer ${peer.pubkey}: relay route found, now managed`);
+			}
+			else if (v.verdict == relay.REJECTED)
+				push(rejected, { peer: peer, reason: v.reason });
+			else
+				push(waiting, { peer: peer, reason: v.reason });
+		}
 	};
 
 	let underlay_task = (rec, argv, results) => (done) => {
@@ -331,6 +348,7 @@ function create_spoke(deps, cfg, params) {
 				if (!(`${u.section} ${u.reason}` in seen))
 					log_unmanaged(u);
 			let diff = reconcile(cfg.peers.managed);
+			reguard(diff.retry);
 			guard_new(diff.fresh);
 			return diff.summary;
 		},
@@ -428,7 +446,7 @@ export function structural_change(old, cfg) {
 function describe_reload(summary) {
 	if (summary == null)
 		return 'configuration reloaded';
-	return `configuration reloaded: ${summary.kept} peers kept, ${summary.added} added, ${summary.removed} removed`;
+	return `configuration reloaded (peers: ${summary.kept} kept, ${summary.added} added, ${summary.removed} removed)`;
 }
 
 export function run(deps) {

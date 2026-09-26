@@ -625,7 +625,7 @@ describe('daemon: reload on SIGHUP', () => {
 		assert.match(contains({ state: 'RELAY', up_streak: 0, section: 'spoke_a' }), r.status().peers[SPOKE_A]);
 		tick(r);
 		assert.match([ 3, 1 ], [ r.status().peers[SPOKE_B].up_streak, r.status().peers[SPOKE_A].up_streak ]);
-		assert.match([ [ 'info', 'configuration reloaded: 1 peers kept, 1 added, 0 removed' ] ],
+		assert.match([ [ 'info', 'configuration reloaded (peers: 1 kept, 1 added, 0 removed)' ] ],
 			w.logs.matching(/reloaded/));
 	});
 
@@ -637,7 +637,7 @@ describe('daemon: reload on SIGHUP', () => {
 		tick(r);
 		assert.match([ SPOKE_B ], keys(r.status().peers));
 		assert.match([], filter(commands_since(w, seen), (c) => index(c, SPOKE_A) >= 0 || index(c, '2001:db8::11') >= 0));
-		assert.match(1, length(w.logs.matching(/1 peers kept, 0 added, 1 removed/)));
+		assert.match(1, length(w.logs.matching(/peers: 1 kept, 0 added, 1 removed/)));
 	});
 
 	it('starts a peer afresh when its annotations change, and guards its new relay', () => {
@@ -656,11 +656,21 @@ describe('daemon: reload on SIGHUP', () => {
 		assert.match([ { section: 'spoke_b', pubkey: SPOKE_B, reason: 'relay routes into wg_mesh' } ], r.status().unmanaged);
 	});
 
-	it('keeps an unchanged unmanaged peer as it was, without guarding it again', () => {
+	it('steers a rejected peer once a reload finds its relay route fixed', () => {
 		let w = reachable_world();
 		w.routes['10.10.0.12'] = 'wg_mesh';
 		let r = run(w, MAIN);
 		delete w.routes['10.10.0.12'];
+		reload(r, MAIN, network(SPOKE_B_PEER));
+		assert.match([], r.status().unmanaged);
+		assert.match(contains({ state: 'RELAY', section: 'spoke_b' }), r.status().peers[SPOKE_B]);
+		assert.match([ [ 'info', `peer ${SPOKE_B}: relay route found, now managed` ] ], w.logs.matching(/route found/));
+	});
+
+	it('keeps a still-misrouted peer rejected across a reload, logging it once', () => {
+		let w = reachable_world();
+		w.routes['10.10.0.12'] = 'wg_mesh';
+		let r = run(w, MAIN);
 		reload(r, { ...MAIN, cycle: '1' }, network(SPOKE_B_PEER));
 		assert.match([ { section: 'spoke_b', pubkey: SPOKE_B, reason: 'relay routes into wg_mesh' } ], r.status().unmanaged);
 		assert.match(1, length(w.logs.matching(/section spoke_b unmanaged/)));
@@ -708,7 +718,7 @@ describe('daemon: reload on SIGHUP', () => {
 			run_loop();
 		};
 		run(w, MAIN, null, loop);
-		assert.match([ 'started as spoke', 'configuration reloaded: 1 peers kept, 0 added, 0 removed' ],
+		assert.match([ 'started as spoke', 'configuration reloaded (peers: 1 kept, 0 added, 0 removed)' ],
 			map(w.logs.matching(/started|reloaded/), (e) => e[1]));
 	});
 });

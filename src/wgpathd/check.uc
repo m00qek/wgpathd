@@ -26,10 +26,14 @@ function explain(res) {
 	return Result.describe(res);
 }
 
+function count(n, noun) {
+	return `${n} ${noun}${n == 1 ? '' : 's'}`;
+}
+
 function summary(cfg) {
 	if (cfg.role == 'hub')
 		return `hub, reads ${cfg.read_iface}, serves ${cfg.serve_addr}:${cfg.serve_port}`;
-	return `spoke, mode ${cfg.mode}, ${length(cfg.peers.managed)} steered peers, ` +
+	return `spoke, mode ${cfg.mode}, ${count(length(cfg.peers.managed), 'steered peer')}, ` +
 		`${length(cfg.peers.unmanaged)} not steered`;
 }
 
@@ -53,7 +57,7 @@ function check_interface(status, iface, required, add) {
 		add(required ? 'fail' : 'warn', `${iface}: ${why}`);
 		return null;
 	}
-	add('ok', `${iface}: up, ${length(peers.data)} peers`);
+	add('ok', `${iface}: up, ${count(length(peers.data), 'peer')}`);
 	return peers.data;
 }
 

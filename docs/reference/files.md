@@ -49,7 +49,7 @@ The script adds the `check` command and replaces `reload` and `status`. What eac
 
 | Script | Effect |
 | :--- | :--- |
-| post-install (install and upgrade) | `/etc/init.d/firewall reload`, then OpenWrt's default: on a first install, enable the service; on both, run `start`. `start` does nothing while `enabled` is `0`, and does not restart a daemon that is already running. |
+| post-install (install and upgrade) | OpenWrt's default first: on a first install, enable the service; on both, run `start`, which does nothing while `enabled` is `0` or the daemon is already running. Then `/etc/init.d/firewall reload`, and on an upgrade, restart the daemon if it is running so the new code takes over. |
 | post-remove | `/etc/init.d/firewall reload`. |
 
 The firewall reload is skipped when the package is installed into a firmware image rather than on a running router.

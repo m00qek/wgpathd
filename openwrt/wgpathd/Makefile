@@ -34,6 +34,10 @@ endef
 define Package/wgpathd/postinst
 #!/bin/sh
 [ -n "$$IPKG_INSTROOT" ] || /etc/init.d/firewall reload || true
+# An upgrade replaces the code, but default_postinst leaves a running daemon on the old one.
+if [ -z "$$IPKG_INSTROOT" ] && [ "$$PKG_UPGRADE" = 1 ] && /etc/init.d/wgpathd running; then
+	/etc/init.d/wgpathd restart
+fi
 endef
 
 define Package/wgpathd/postrm

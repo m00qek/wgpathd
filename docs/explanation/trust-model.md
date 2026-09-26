@@ -32,7 +32,7 @@ So wgpathd is a tenant, not a landlord. You own the substrate. wgpathd checks at
 
 ## Relay loop guard
 
-A relay endpoint must route into `wg_hub`. If it routed into `wg_mesh` instead, relayed packets would loop into the tunnel they are supposed to carry. At startup, and again each cycle for peers still waiting, wgpathd looks up the route to each peer's relay address. A peer whose relay routes out of `mesh_iface` is left unmanaged until the daemon restarts or the peer's annotations change, with the reason `relay routes into <mesh_iface>`.
+A relay endpoint must route into `wg_hub`. If it routed into `wg_mesh` instead, relayed packets would loop into the tunnel they are supposed to carry. At startup, and again each cycle for peers still waiting, wgpathd looks up the route to each peer's relay address. A peer whose relay routes out of `mesh_iface` is left unmanaged, with the reason `relay routes into <mesh_iface>`, and is guarded again on every reload.
 
 ## Authenticated roams
 

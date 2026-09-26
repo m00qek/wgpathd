@@ -26,6 +26,17 @@ fails_cleanly() {
 	echo "     -> $out" >&3
 }
 
+# Splits the apk's embedded install scripts into files and syntax-checks each.
+scripts_parse() {
+	rm -f /tmp/script.*
+	apk adbdump "$1" | awk '
+		/^scripts:/                   { in_scripts = 1; next }
+		/^[^ ]/                       { in_scripts = 0; out = "" }
+		in_scripts && /^  [a-z-]+: \|$/ { out = "/tmp/script." $1; next }
+		out != ""                     { sub(/^    /, ""); print > out }'
+	for s in /tmp/script.*; do sh -n "$s" || return 1; done
+}
+
 [ -n "$APK" ] || { echo "no wgpathd-*.apk in /artifacts (run make package)" >&2; exit 1; }
 echo "checking $APK"
 
@@ -77,6 +88,9 @@ check "fw4 includes the nft file" sh -c \
 # fw4 itself cannot run here (no procd, no NET_ADMIN), so only the hooks are checked.
 check "install, upgrade and removal reload fw4" sh -c \
 	'[ "$(apk adbdump "$1" | grep -c "/etc/init.d/firewall reload")" = 3 ]' - "$APK"
+check "upgrade restarts a running daemon" sh -c \
+	'[ "$(apk adbdump "$1" | grep -c "/etc/init.d/wgpathd restart")" = 2 ]' - "$APK"
+check "package scripts parse" scripts_parse "$APK"
 check "package removes cleanly" sh -c \
 	'apk del wgpathd >/dev/null 2>&1 && [ ! -e /usr/share/nftables.d/chain-pre/input/wgpathd.nft ]'
 

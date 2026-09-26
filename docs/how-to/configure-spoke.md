@@ -36,9 +36,9 @@ service wgpathd check
 ```
 
 ```
-ok    config: spoke, mode observe, 1 steered peers, 1 not steered
+ok    config: spoke, mode observe, 1 steered peer, 1 not steered
 ok    wg_mesh: up, 2 peers
-ok    wg_hub: up, 1 peers
+ok    wg_hub: up, 1 peer
 ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12
 skip  peer hub: not steered (missing wgpathd_relay)
 ```

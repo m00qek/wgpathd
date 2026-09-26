@@ -64,7 +64,7 @@ The same lines go to standard error of the `service` command.
 
 | Level | Message | Meaning |
 | :--- | :--- | :--- |
-| info | `configuration reloaded: <n> peers kept, <n> added, <n> removed` | A spoke applied a reload. Kept peers had the same key, relay and tunnel address; changed peers count as removed and added. |
+| info | `configuration reloaded (peers: <n> kept, <n> added, <n> removed)` | A spoke applied a reload. Kept peers had the same key, relay and tunnel address; changed peers count as removed and added. |
 | info | `configuration reloaded` | A hub applied a reload. The hub has no option that applies live, so nothing changes. |
 | info | `reload: <option> changed, exiting for procd to start afresh` | The reload changes an option that needs a new process. The daemon exits with status 0 and procd starts it again after 5 seconds. |
 | error | `reload: invalid configuration, keeping the running one: <CODE> (<detail>)` | The configuration read on `SIGHUP` is invalid. Nothing changes. |

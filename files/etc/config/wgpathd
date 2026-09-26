@@ -3,8 +3,8 @@
 # See the wgpathd documentation: Reference → UCI configuration.
 # The WireGuard interfaces and peers live in /etc/config/network and must exist.
 # On a spoke, each steered mesh peer there carries two extra options:
-#	option wgpathd_relay  '192.0.2.12:51820'   # its endpoint through the hub
-#	option wgpathd_tunnel '198.51.100.12'      # its address inside the tunnel, probed
+#	option wgpathd_relay  '10.10.0.12:51820'   # its endpoint through the hub
+#	option wgpathd_tunnel '10.20.0.12'         # its address inside the tunnel, probed
 
 config wgpathd 'main'
 	option enabled '0'
@@ -13,13 +13,13 @@ config wgpathd 'main'
 	#option role       'spoke'
 	#option mesh_iface 'wg_mesh'                       # steer endpoints of this interface
 	#option hub_iface  'wg_hub'                        # reach the hub over this one
-	#option discovery  'http://192.0.2.1:7780/peers'   # the hub's publisher
+	#option discovery  'http://10.10.0.1:7780/peers'   # the hub's publisher
 	#option mode       'observe'                       # 'steer' lets wgpathd move endpoints
 
 	# --- hub: publishes the direct endpoints it sees ---
 	#option role       'hub'
 	#option read_iface 'wg_mesh'                       # publish endpoints from this interface
-	#option serve_addr '192.0.2.1'                     # an address on the hub interface
+	#option serve_addr '10.10.0.1'                     # an address on the hub interface
 	#option serve_port '7780'
 
 	# Optional timing overrides (seconds or counts), e.g.:

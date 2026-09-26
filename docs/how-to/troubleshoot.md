@@ -28,7 +28,7 @@ logread -e wgpathd         # what happened
 The peer is not managed. Find it under `unmanaged` in the status, or in the `peer` lines of `service wgpathd check`; the reason says why. The reasons are listed in [Substrate annotations](../reference/substrate.md#managed-and-unmanaged-peers).
 
 - `missing ...` or `invalid ...`: fix the annotation in `/etc/config/network`, then run `service wgpathd reload`.
-- `relay routes into wg_mesh`: some `wg_mesh` peer's `allowed_ips` covers the relay address. Remove it and make sure the hub's `wg_hub` peer holds the transit range. Check with `ip route get <relay address>`; it must say `dev wg_hub`, and `service wgpathd check` must show the peer as `ok`. Then run `service wgpathd restart`: a reload keeps this verdict for a peer whose annotations did not change.
+- `relay routes into wg_mesh`: some `wg_mesh` peer's `allowed_ips` covers the relay address. Remove it and make sure the hub's `wg_hub` peer holds the transit range. Check with `ip route get <relay address>`; it must say `dev wg_hub`, and `service wgpathd check` must show the peer as `ok`. Then run `service wgpathd reload`: the reload guards the peer again and logs `relay route found, now managed`.
 - `relay route lookup failed: ...`: usually `wg_hub` was not up yet. wgpathd retries every cycle and logs `relay route found, now managed` when it succeeds.
 
 A managed peer that is missing from the kernel's peer table is skipped and logged as `absent from wg_mesh, skipped`. Check `wg show wg_mesh`; the peer returns to normal once netifd has it again.

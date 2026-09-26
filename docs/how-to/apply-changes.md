@@ -41,7 +41,7 @@ If you apply changes with LuCI's Save & Apply, or with `reload_config`, this hap
 logread -e wgpathd | tail -n 3
 ```
 
-- `configuration reloaded: 2 peers kept, 1 added, 0 removed`: the change is live. Kept peers carry on as they were; added and changed peers start in RELAY.
+- `configuration reloaded (peers: 2 kept, 1 added, 0 removed)`: the change is live. Kept peers carry on as they were; added and changed peers start in RELAY.
 - `reload: mesh_iface changed, exiting for procd to start afresh`, followed about 5 seconds later by `started as spoke`: the change needed a new process. Every peer starts again in RELAY.
 - `invalid configuration, keeping the running one`: the check failed. Go back to step 2.
 
@@ -51,9 +51,9 @@ Which changes apply live and which need a new process is listed in [Service comm
 
 Run `service wgpathd restart` when you want the daemon to start from scratch:
 
-- after an upgrade, so the new code runs;
-- after fixing the routes of a peer rejected with `relay routes into wg_mesh`, if its annotations did not change: a reload keeps that verdict;
 - to put every peer back on the relay and let each earn direct again.
+
+An upgrade restarts a running daemon by itself, and a reload re-checks peers rejected with `relay routes into wg_mesh`, so neither needs a manual restart.
 
 ## To turn the service off or on
 
