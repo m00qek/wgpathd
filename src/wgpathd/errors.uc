@@ -23,9 +23,6 @@ export const WG_PARSE_FAILED         = "WG_PARSE_FAILED";
 // Routing
 export const ROUTE_LOOKUP_FAILED     = "ROUTE_LOOKUP_FAILED";
 
-// Probes
-export const PROBE_FAILED            = "PROBE_FAILED";
-
 // ubus
 export const UBUS_CONNECT_FAILED     = "UBUS_CONNECT_FAILED";
 export const UBUS_CALL_FAILED        = "UBUS_CALL_FAILED";

@@ -1,5 +1,6 @@
 # wgpathd: WireGuard path selection. Pick one role, fill it in, set enabled '1',
 # then check with `service wgpathd check` and start with `service wgpathd start`.
+# See the wgpathd documentation: Reference → UCI configuration.
 # The WireGuard interfaces and peers live in /etc/config/network and must exist.
 # On a spoke, each steered mesh peer there carries two extra options:
 #	option wgpathd_relay  '192.0.2.12:51820'   # its endpoint through the hub

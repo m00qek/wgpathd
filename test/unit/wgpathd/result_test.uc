@@ -26,7 +26,7 @@ describe('result: err', () => {
 	});
 
 	it('leaves details null when omitted', () => {
-		assert.match(null, Result.err('PROBE_FAILED').details);
+		assert.match(null, Result.err('EXEC_TIMEOUT').details);
 	});
 
 	prop('preserves any code', gen.alphanumeric({ min_len: 1, max_len: 30 }), (code) => {
@@ -57,7 +57,7 @@ describe('result: describe', () => {
 	});
 
 	it('shows only the code without details', () => {
-		assert.match('PROBE_FAILED', Result.describe(Result.err('PROBE_FAILED')));
+		assert.match('EXEC_TIMEOUT', Result.describe(Result.err('EXEC_TIMEOUT')));
 	});
 
 	it('shows only the code for empty or non-string details', () => {
