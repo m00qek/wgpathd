@@ -186,13 +186,15 @@ describe('daemon: spoke cycle, gathering obs', () => {
 		assert.match([], filter(w.exec.commands(), (c) => index(c, 'ping -6') == 0));
 	});
 
-	it('bounds every probe by tunnel_timeout', () => {
+	it('lets ping wait tunnel_timeout, rounded up, under a runner backstop just above it', () => {
 		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
 		w.reachable['2001:db8::12'] = true;
-		let d = start(w, spoke_cfg({ overrides: { n_up: 1, tunnel_timeout: 0.5 } }));
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1, tunnel_timeout: 1.5 } }));
 		cycle(w, d);
 		let pings = filter(w.exec.calls, (c) => c.argv[0] == 'ping');
-		assert.match([ 0.5, 0.5 ], map(pings, (c) => c.timeout));
+		assert.match([ 'ping -6 -c1 -W2 2001:db8::12', `ping -c1 -W2 ${SPOKE_B_TUNNEL}` ],
+			map(pings, (c) => join(' ', c.argv)));
+		assert.match([ 2.5, 2.5 ], map(pings, (c) => c.timeout));
 	});
 
 	it('uses a tunnel answer in the next cycle only', () => {
@@ -330,20 +332,30 @@ describe('daemon: discovery', () => {
 	});
 
 	it('treats an HTTP error or an invalid payload as a failed fetch', () => {
+		for (let bad in [ { status: 500, body: payload({ [SPOKE_B]: SPOKE_B_DIRECT }), log: 'DISCOVERY_FETCH_FAILED (HTTP 500)' },
+		                  { status: 200, body: '{ not json', log: 'DISCOVERY_INVALID_JSON' } ]) {
+			let w = h.world(kernel_of(SPOKE_B));
+			w.http_status = bad.status;
+			w.payload = bad.body;
+			let d = start(w);
+			cycle(w, d);
+			assert.match([ [ 'warn', `discovery failed: ${bad.log}` ] ], w.logs.matching(/discovery/));
+			assert.match(false, d.status().discovery.fresh);
+			assert.match(false, exists(w.fs.files, daemon.CACHE_PATH));
+		}
+	});
+
+	it('logs a failing discovery once per outage, and the recovery', () => {
 		let w = h.world(kernel_of(SPOKE_B));
-		w.payload = payload({ [SPOKE_B]: SPOKE_B_DIRECT });
-		w.http_status = 500;
 		let d = start(w);
-		cycle(w, d, 60);
-		w.http_status = 200;
-		w.payload = '{ not json';
-		cycle(w, d);
+		cycles(w, d, 12);
+		assert.match(3, length(w.http.calls), 'retried every 10 s');
+		w.payload = payload({ [SPOKE_B]: SPOKE_B_DIRECT });
+		cycles(w, d, 4);
 		assert.match([
-			[ 'warn', 'discovery failed: DISCOVERY_FETCH_FAILED (HTTP 500)' ],
-			[ 'warn', 'discovery failed: DISCOVERY_INVALID_JSON' ],
+			[ 'warn', 'discovery failed: DISCOVERY_FETCH_FAILED (uclient error 4)' ],
+			[ 'info', 'discovery recovered' ],
 		], w.logs.matching(/discovery/));
-		assert.match(false, d.status().discovery.fresh);
-		assert.match(false, exists(w.fs.files, daemon.CACHE_PATH));
 	});
 });
 
@@ -397,6 +409,19 @@ describe('daemon: watchdog', () => {
 		let d = start(w);
 		cycle(w, d);
 		assert.match([ [ 'warn', 'watchdog ping failed: UBUS_CALL_FAILED (Not found)' ] ], w.logs.matching(/watchdog/));
+	});
+
+	it('logs a failing ping once per outage, and the recovery', () => {
+		let w = h.world(kernel_of(SPOKE_B));
+		w.watchdog = Result.err('UBUS_CALL_FAILED', 'Not found');
+		let d = start(w);
+		cycles(w, d, 3);
+		w.watchdog = Result.ok(null);
+		cycles(w, d, 2);
+		assert.match([
+			[ 'warn', 'watchdog ping failed: UBUS_CALL_FAILED (Not found)' ],
+			[ 'info', 'watchdog ping recovered' ],
+		], w.logs.matching(/watchdog/));
 	});
 });
 

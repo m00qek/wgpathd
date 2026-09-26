@@ -62,10 +62,9 @@ function streak_reporter(deps, what) {
 	};
 }
 
-function ping_watchdog(deps) {
-	let res = deps.ubus.call('service', 'watchdog', WATCHDOG);
-	if (!res.ok)
-		deps.log('warn', `watchdog ping failed: ${Result.describe(res)}`);
+function watchdog_pinger(deps) {
+	let report = streak_reporter(deps, 'watchdog ping');
+	return () => report(deps.ubus.call('service', 'watchdog', WATCHDOG));
 }
 
 function peer_record(peer) {
@@ -100,6 +99,8 @@ function create_spoke(deps, cfg, params) {
 	let waiting = [];
 	let disc = { peers: {}, fresh: false, fetching: false, last_fetch: null, last_ok: null };
 	let report_read = streak_reporter(deps, `reading ${cfg.mesh_iface}`);
+	let report_discovery = streak_reporter(deps, 'discovery');
+	let ping_watchdog = watchdog_pinger(deps);
 
 	let log_peer = (level, rec, msg) => deps.log(level, `peer ${rec.peer.pubkey}: ${msg}`);
 	let candidate = (rec) => disc.peers[rec.peer.pubkey]?.direct;
@@ -183,7 +184,7 @@ function create_spoke(deps, cfg, params) {
 	};
 
 	let underlay_task = (rec, argv, results) => (done) => {
-		deps.exec(argv, params.tunnel_timeout, (res) => {
+		deps.exec(argv, probe.backstop(params.tunnel_timeout), (res) => {
 			results[rec.peer.pubkey] = probe.reachable(res);
 			done();
 		});
@@ -194,7 +195,7 @@ function create_spoke(deps, cfg, params) {
 		let underlay = {};
 		let tasks = [ (done) => read_peers(deps, cfg.mesh_iface, (res) => { read = res; done(); }) ];
 		for (let rec in records) {
-			let argv = probe.underlay_command(candidate(rec));
+			let argv = probe.underlay_command(candidate(rec), params.tunnel_timeout);
 			if (argv != null)
 				push(tasks, underlay_task(rec, argv, underlay));
 		}
@@ -244,7 +245,8 @@ function create_spoke(deps, cfg, params) {
 			}
 			if (probe_addr == null)
 				return done();
-			deps.exec(probe.tunnel_command(probe_addr), params.tunnel_timeout, (pres) => {
+			let argv = probe.tunnel_command(probe_addr, params.tunnel_timeout);
+			deps.exec(argv, probe.backstop(params.tunnel_timeout), (pres) => {
 				rec.tunnel_ok = probe.reachable(pres);
 				done();
 			});
@@ -275,8 +277,9 @@ function create_spoke(deps, cfg, params) {
 
 	let take_payload = function(res) {
 		disc.fresh = res.ok;
+		report_discovery(res);
 		if (!res.ok)
-			return deps.log('warn', `discovery failed: ${Result.describe(res)}`);
+			return;
 		disc.peers = res.data;
 		disc.last_ok = deps.clock.wall();
 		if (!discovery.save_cache(deps.fs, CACHE_PATH, res.data))
@@ -350,7 +353,7 @@ function create_spoke(deps, cfg, params) {
 				}
 				all(jobs, () => {
 					refresh_discovery(now, wants_refresh);
-					ping_watchdog(deps);
+					ping_watchdog();
 					done();
 				});
 			});
@@ -370,6 +373,7 @@ function create_spoke(deps, cfg, params) {
 function create_hub(deps, cfg) {
 	let peers = {};
 	let report_read = streak_reporter(deps, `reading ${cfg.read_iface}`);
+	let ping_watchdog = watchdog_pinger(deps);
 
 	let take_snapshot = (cb) => read_peers(deps, cfg.read_iface, (res) => {
 		if (res.ok)
@@ -383,7 +387,7 @@ function create_hub(deps, cfg) {
 		}),
 		cycle: (done) => take_snapshot((res) => {
 			report_read(res);
-			ping_watchdog(deps);
+			ping_watchdog();
 			done();
 		}),
 		reload: () => null,
