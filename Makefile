@@ -8,7 +8,7 @@ RUN          = $(COMPOSE) --progress quiet run --rm $(if $(CI),-T) openwrt
 IMAGE_STAMP := devenv/.built-$(OPENWRT_ARCH)-$(OPENWRT_VERSION)
 TEST_ARGS    = $(if $(FILTER),-f '$(FILTER)') $(if $(VERBOSE),-v) $(MODULES)
 
-.PHONY: test unit integration watch lint shell image e2e
+.PHONY: test unit integration watch lint shell image e2e package package-check
 
 test:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh all $(TEST_ARGS)
 unit:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh unit $(TEST_ARGS)
@@ -27,3 +27,23 @@ $(IMAGE_STAMP): devenv/services/openwrt/Dockerfile openwrt/wgpathd/Makefile
 
 e2e:
 	@echo "e2e harness not built yet (see the design record, E2E test harness)" >&2; exit 1
+
+SDK_IMAGE := wgpathd-sdk:$(OPENWRT_ARCH)-$(OPENWRT_VERSION)
+PKG_DIR   := /sdk/package/wgpathd
+
+package:
+	docker build -q -t $(SDK_IMAGE) --build-arg OPENWRT_ARCH --build-arg OPENWRT_VERSION devenv/services/sdk >/dev/null
+	@mkdir -p bin && chmod a+rwx bin
+	docker run --rm $(if $(CI),,-t) -e VERBOSE \
+		-v $(CURDIR)/openwrt/wgpathd/Makefile:$(PKG_DIR)/Makefile:ro \
+		-v $(CURDIR)/src:$(PKG_DIR)/src:ro \
+		-v $(CURDIR)/files:$(PKG_DIR)/files:ro \
+		-v $(CURDIR)/devenv/services/sdk/build.sh:/usr/local/bin/build.sh:ro \
+		-v $(CURDIR)/bin:/artifacts \
+		$(SDK_IMAGE) /usr/local/bin/build.sh
+
+package-check: package
+	docker run --rm $(if $(CI),,-t) \
+		-v $(CURDIR)/bin:/artifacts:ro \
+		-v $(CURDIR)/devenv/scripts/package-check.sh:/usr/local/bin/package-check.sh:ro \
+		ghcr.io/openwrt/rootfs:$(OPENWRT_ARCH)-$(OPENWRT_VERSION) /usr/local/bin/package-check.sh
