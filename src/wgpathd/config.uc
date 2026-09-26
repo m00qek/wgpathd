@@ -6,6 +6,7 @@ import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
 import * as endpoint from 'wgpathd.endpoint';
 import { is_pubkey } from 'wgpathd.wg';
+import { DEFAULTS } from 'wgpathd.params';
 
 const REQUIRED = {
 	spoke: [ 'mesh_iface', 'hub_iface', 'discovery' ],
@@ -31,6 +32,22 @@ function missing_interface(uci, main, role) {
 	return null;
 }
 
+function positive_number(v) {
+	return type(v) == 'string' && match(v, /^[0-9]+(\.[0-9]+)?$/) != null && +v > 0;
+}
+
+function parse_overrides(main) {
+	let overrides = {};
+	for (let name in keys(DEFAULTS)) {
+		if (main[name] == null)
+			continue;
+		if (!positive_number(main[name]))
+			return Result.err(errors.CONFIG_INVALID_OPTION, name);
+		overrides[name] = +main[name];
+	}
+	return Result.ok(overrides);
+}
+
 function unmanaged_reason(s) {
 	if (!is_pubkey(s.public_key))
 		return 'invalid public_key';
@@ -53,8 +70,8 @@ function load_peers(uci, mesh_iface) {
 		if (reason != null)
 			push(peers.unmanaged, { section: s['.name'], pubkey: s.public_key, reason: reason });
 		else
-			push(peers.managed, { pubkey: s.public_key, relay: endpoint.canonical(s.wgpathd_relay),
-				tunnel: endpoint.canonical_ip(s.wgpathd_tunnel) });
+			push(peers.managed, { section: s['.name'], pubkey: s.public_key,
+				relay: endpoint.canonical(s.wgpathd_relay), tunnel: endpoint.canonical_ip(s.wgpathd_tunnel) });
 	});
 	return peers;
 }
@@ -80,9 +97,15 @@ export function load(deps) {
 	if (iface != null)
 		return Result.err(errors.INTERFACE_MISSING, iface);
 
-	let cfg = { role: role, ...pick(main, REQUIRED[role]) };
+	let overrides = parse_overrides(main);
+	if (!overrides.ok)
+		return overrides;
+
+	let cfg = { role: role, ...pick(main, REQUIRED[role]), overrides: overrides.data };
 	if (role == 'spoke') {
 		cfg.mode = (main.mode == 'steer') ? 'steer' : 'observe';
+		if (main.mode != null && !(main.mode in [ 'steer', 'observe' ]))
+			cfg.invalid_mode = main.mode;
 		cfg.peers = load_peers(deps.uci, main.mesh_iface);
 	}
 	return Result.ok(cfg);

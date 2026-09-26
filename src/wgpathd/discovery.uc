@@ -1,18 +1,14 @@
 'use strict';
 
-// Spoke side of discovery: the fetch argv, R3 payload validation, and the tmpfs cache.
+// Spoke side of discovery: R3 payload validation and the tmpfs cache.
 
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
 import * as endpoint from 'wgpathd.endpoint';
 import { is_pubkey } from 'wgpathd.wg';
 
-const MAX_BYTES   = 65536;
+export const MAX_BYTES = 65536;
 const MAX_ENTRIES = 64;
-
-export function fetch_command(url, timeout) {
-	return [ 'uclient-fetch', '-q', '-T', `${timeout}`, '-O', '-', url ];
-};
 
 function decode(stdout) {
 	if (type(stdout) != 'string' || length(stdout) > MAX_BYTES)

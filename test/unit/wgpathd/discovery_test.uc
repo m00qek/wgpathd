@@ -38,13 +38,6 @@ function parse_json(v) {
 	return discovery.parse(sprintf('%J', v));
 }
 
-describe('discovery: fetch_command', () => {
-	it('fetches the url quietly to stdout with a timeout', () => {
-		assert.match([ 'uclient-fetch', '-q', '-T', '5', '-O', '-', 'http://10.10.0.1:7780/peers' ],
-			discovery.fetch_command('http://10.10.0.1:7780/peers', 5));
-	});
-});
-
 describe('discovery: parse accepts', () => {
 	it('a payload of direct endpoints with handshake ages', () => {
 		let res = parse_json({ [KEY_A]: { direct: '[2001:db8::a]:51820', handshake_age: 7 },

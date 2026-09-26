@@ -55,7 +55,8 @@ describe('config: role', () => {
 describe('config: spoke', () => {
 	it('loads the role file', () => {
 		assert.match({ role: 'spoke', mesh_iface: 'wg_mesh', hub_iface: 'wg_hub',
-			discovery: 'http://10.10.0.1:7780/peers', mode: 'observe', peers: { managed: [], unmanaged: [] } },
+			discovery: 'http://10.10.0.1:7780/peers', overrides: {}, mode: 'observe',
+			peers: { managed: [], unmanaged: [] } },
 			load(SPOKE).data);
 	});
 
@@ -65,9 +66,16 @@ describe('config: spoke', () => {
 		assert.match('steer', load({ ...SPOKE, mode: 'steer' }).data.mode);
 	});
 
-	it('reads any other mode as observe', () => {
-		for (let mode in [ 'Steer', 'stear', '' ])
-			assert.match('observe', load({ ...SPOKE, mode: mode }).data.mode);
+	it('reads any other mode as observe, keeping it to be logged', () => {
+		for (let mode in [ 'Steer', 'stear', '' ]) {
+			let cfg = load({ ...SPOKE, mode: mode }).data;
+			assert.match([ 'observe', mode ], [ cfg.mode, cfg.invalid_mode ]);
+		}
+	});
+
+	it('flags no invalid mode when mode is valid or unset', () => {
+		for (let mode in [ null, 'steer', 'observe' ])
+			assert.match(false, exists(load({ ...SPOKE, mode: mode }).data, 'invalid_mode'), mode);
 	});
 
 	it('requires every spoke option', () => {
@@ -94,7 +102,8 @@ describe('config: spoke', () => {
 
 describe('config: hub', () => {
 	it('loads the role file without peers or mode', () => {
-		assert.match({ role: 'hub', read_iface: 'wg_mesh', serve_addr: '10.10.0.1', serve_port: '7780' },
+		assert.match({ role: 'hub', read_iface: 'wg_mesh', serve_addr: '10.10.0.1', serve_port: '7780',
+			overrides: {} },
 			load(HUB_ROLE).data);
 	});
 
@@ -110,16 +119,34 @@ describe('config: hub', () => {
 	});
 });
 
+describe('config: parameter overrides', () => {
+	it('reads positive numbers for any parameter, in both roles', () => {
+		assert.match({ cycle: 1, trial_window: 2.5, discovery_interval: 10 },
+			load({ ...SPOKE, cycle: '1', trial_window: '2.5', discovery_interval: '10' }).data.overrides);
+		assert.match({ cycle: 0.5 }, load({ ...HUB_ROLE, cycle: '0.5' }).data.overrides);
+	});
+
+	it('ignores options that are not parameters', () => {
+		assert.match({}, load({ ...SPOKE, foo: '3' }).data.overrides);
+	});
+
+	it('rejects a value that is not a positive number, naming the option', () => {
+		for (let bad in [ '0', '0.0', '-1', 'abc', '', '1e3', ' 3', '3s', [ '3' ] ])
+			assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION', details: 'n_up' }),
+				load({ ...SPOKE, n_up: bad }), bad);
+	});
+});
+
 describe('config: steered peers', () => {
 	it('manages an annotated peer, with canonical relay and tunnel', () => {
 		let peers = peers_of(steered(SPOKE_B, '[FD42:0::12]:51820', 'FD42:2:0::12'));
-		assert.match([ { pubkey: SPOKE_B, relay: '[fd42::12]:51820', tunnel: 'fd42:2::12' } ], peers.managed);
+		assert.match([ { section: 'peer0', pubkey: SPOKE_B, relay: '[fd42::12]:51820', tunnel: 'fd42:2::12' } ], peers.managed);
 		assert.match([], peers.unmanaged);
 	});
 
 	it('leaves the static hub peer unmanaged, by section', () => {
 		let peers = peers_of(SPOKE_B_PEER, HUB_PEER);
-		assert.match([ { pubkey: SPOKE_B, relay: '10.10.0.12:51820', tunnel: '10.20.0.12' } ], peers.managed);
+		assert.match([ { section: 'peer0', pubkey: SPOKE_B, relay: '10.10.0.12:51820', tunnel: '10.20.0.12' } ], peers.managed);
 		assert.match([ { section: 'peer1', pubkey: HUB, reason: 'missing wgpathd_relay' } ], peers.unmanaged);
 	});
 

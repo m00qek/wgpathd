@@ -24,3 +24,11 @@ describe('components.clock: now()', () => {
 		assert.match(true, a > 0 && b >= a);
 	});
 });
+
+describe('components.clock: wall()', () => {
+	it('returns unix seconds', () => {
+		let before = time();
+		let wall = clock.create().wall();
+		assert.match(true, type(wall) == 'int' && wall >= before && wall <= time());
+	});
+});

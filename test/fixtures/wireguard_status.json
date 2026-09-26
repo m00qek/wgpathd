@@ -1,0 +1,29 @@
+{
+	"wg_mesh": {
+		"ifindex": 3,
+		"public_key": "W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=",
+		"listen_port": -13716,
+		"peers": {
+			"O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=": {
+				"endpoint": "[fd42:7770:1::3]:51820",
+				"allowed_ips": [ "10.9.0.2/32" ],
+				"last_handshake": 1790456491,
+				"rx_bytes": 604,
+				"tx_bytes": 840
+			},
+			"ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc=": {
+				"allowed_ips": [ "10.9.0.3/32" ],
+				"last_handshake": 0,
+				"rx_bytes": 0,
+				"tx_bytes": 0
+			},
+			"hQrcvDZE8wGkiQzp3/zDaTL3dY0PfbFTcQ4r3sG1UUk=": {
+				"endpoint": "10.10.0.12:51820",
+				"allowed_ips": [ "10.9.0.4/32" ],
+				"last_handshake": 1790456400,
+				"rx_bytes": 0,
+				"tx_bytes": 0
+			}
+		}
+	}
+}

@@ -1,47 +1,41 @@
 'use strict';
 
-// argv builders for `wg` and the `wg show <iface> dump` parser.
+// The `wg set` argv builder and the reader of rpcd's `wireguard status` reply.
 
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
 import { canonical } from 'wgpathd.endpoint';
 
-const PEER_FIELDS = 8;
-
 export function is_pubkey(s) {
 	return type(s) == 'string' && match(s, /^[A-Za-z0-9+\/]{43}=$/) != null;
-};
-
-export function dump_command(iface) {
-	return [ 'wg', 'show', iface, 'dump' ];
 };
 
 export function set_endpoint_command(iface, pubkey, endpoint) {
 	return [ 'wg', 'set', iface, 'peer', pubkey, 'endpoint', endpoint ];
 };
 
-// An endpoint wg prints but we cannot canonicalize (e.g. scoped link-local) reads as
-// none, which decide never treats as a roam.
-function parse_peer(line) {
-	let f = split(line, '\t');
-	if (length(f) != PEER_FIELDS || !is_pubkey(f[0]) || match(f[4], /^[0-9]+$/) == null)
+function parse_peer(value) {
+	if (type(value) != 'object' || type(value.last_handshake) != 'int' || value.last_handshake < 0)
 		return null;
-	let hs = +f[4];
-	return { pubkey: f[0], endpoint: canonical(f[2]), last_hs_ts: hs ? hs : null };
+	let hs = value.last_handshake;
+	return { endpoint: canonical(value.endpoint), last_hs_ts: hs ? hs : null };
 }
 
-// Line 1 is the interface and holds the private key: it is skipped unread.
-export function parse_dump(stdout) {
-	let lines = (type(stdout) == 'string') ? split(rtrim(stdout, '\n'), '\n') : [];
-	if (length(lines) == 0 || lines[0] == '')
-		return Result.err(errors.WG_PARSE_FAILED, 'no interface line');
+// An endpoint we cannot canonicalize (e.g. scoped link-local) reads as none, which
+// decide never treats as a roam.
+export function parse_status(reply, iface) {
+	let status = (type(reply) == 'object') ? reply[iface] : null;
+	if (type(status) != 'object')
+		return Result.err(errors.WG_PARSE_FAILED, `no interface ${iface}`);
+	if (type(status.peers) != 'object')
+		return Result.err(errors.WG_PARSE_FAILED, 'no peer table');
 
 	let peers = {};
-	for (let i = 1; i < length(lines); i++) {
-		let peer = parse_peer(lines[i]);
+	for (let key, value in status.peers) {
+		let peer = is_pubkey(key) ? parse_peer(value) : null;
 		if (peer == null)
-			return Result.err(errors.WG_PARSE_FAILED, `line ${i + 1}`);
-		peers[peer.pubkey] = { endpoint: peer.endpoint, last_hs_ts: peer.last_hs_ts };
+			return Result.err(errors.WG_PARSE_FAILED, 'invalid peer entry');
+		peers[key] = peer;
 	}
 	return Result.ok(peers);
 };

@@ -1,11 +1,27 @@
 #!/usr/bin/ucode
 'use strict';
 
-// Thin imperative shell: build the real `deps` and run the daemon loop.
-// All logic lives in wgpathd.* (installed to /usr/lib/ucode/wgpathd) and is
-// testable with faked deps. See the design record (decision-core seam).
+// No arguments: run the daemon. `status`: print the daemon's ubus status.
 
+import * as ubus from 'ubus';
 import * as daemon from 'wgpathd.daemon';
 import * as deps from 'wgpathd.deps';
+import * as Result from 'wgpathd.result';
 
-daemon.run(deps.create());
+function status() {
+	let res = deps.ubus_channel(ubus.connect()).call('wgpathd', 'status', {});
+	if (!res.ok) {
+		warn(`wgpathd status: ${Result.describe(res)}\n`);
+		return 1;
+	}
+	print(sprintf('%.J\n', res.data));
+	return 0;
+}
+
+if (length(ARGV) == 0)
+	exit(daemon.run(deps.create()));
+if (length(ARGV) == 1 && ARGV[0] == 'status')
+	exit(status());
+
+warn('usage: wgpathd [status]\n');
+exit(2);

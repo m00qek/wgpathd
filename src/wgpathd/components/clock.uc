@@ -1,6 +1,6 @@
 'use strict';
 
-// Monotonic clock in seconds; the shell reads it and passes `now` to decide.
+// Monotonic clock in seconds for decide, plus wall-clock seconds for handshake ages and status.
 
 export function create(clock_fn) {
 	clock_fn = clock_fn || clock;
@@ -9,6 +9,9 @@ export function create(clock_fn) {
 		now: function() {
 			let ts = clock_fn(true);
 			return ts[0] + ts[1] / 1e9;
+		},
+		wall: function() {
+			return time();
 		}
 	};
 };
