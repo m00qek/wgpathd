@@ -1,10 +1,8 @@
-// Test double for the 'wg' component/dep (program-mode proxy; see ../luci-sso).
-// TODO: implement record_call / get_behavior / get_data surface.
+// Program-mode proxy (loaded via require), so it returns instead of exporting.
+// The surface is added together with the real component.
 return {
 	api: [],
 	create: function(name, real, ctx) {
-		let proxy = ctx.base();
-		// TODO: stub the 'wg' surface
-		return proxy;
+		return ctx.base();
 	}
 };

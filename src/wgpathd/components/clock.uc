@@ -1,9 +1,14 @@
 'use strict';
 
-/**
- * now()/sleep via uloop (adopted from luci-sso). Proxied in tests for deterministic time.
- *
- * @module wgpathd.components.clock
- */
+// Monotonic clock in seconds; the shell reads it and passes `now` to decide.
 
-// TODO: implement — see the design record
+export function create(clock_fn) {
+	clock_fn = clock_fn || clock;
+
+	return {
+		now: function() {
+			let ts = clock_fn(true);
+			return ts[0] + ts[1] / 1e9;
+		}
+	};
+};

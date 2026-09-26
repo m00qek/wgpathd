@@ -3,8 +3,22 @@
 cd "$(dirname "$0")/../.."
 status=0
 
-for f in $(find src test -name '*.uc') files/usr/sbin/wgpathd; do
-	ucode -L "$PWD/src" -c -o /dev/null "$f" || { echo "  in $f" >&2; status=1; }
+check() {
+	ucode -L "$PWD/src" -L "$PWD/test" -c -o /dev/null "$1" || { echo "  in $2" >&2; status=1; }
+}
+
+# ucode -c compiles its input as a script, where `export` is a syntax error, so
+# modules are checked through a one-line importer. Proxies and the utest config
+# are require()d programs that `return` at top level, so they stay scripts.
+importer=$(mktemp)
+for f in $(find src test -name '*.uc' ! -path 'test/proxies/*' ! -name utest.config.uc); do
+	echo "import * as _ from '$PWD/$f';" >"$importer"
+	check "$importer" "$f"
+done
+rm -f "$importer"
+
+for f in test/proxies/*.uc test/utest.config.uc files/usr/sbin/wgpathd; do
+	check "$f" "$f"
 done
 
 for f in files/etc/init.d/wgpathd files/etc/uci-defaults/* devenv/scripts/*.sh devenv/services/openwrt/*.sh; do
