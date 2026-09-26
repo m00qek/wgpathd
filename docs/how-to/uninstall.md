@@ -13,27 +13,19 @@ To leave every managed peer on the relay first, switch the spoke to observe and 
 ```bash
 uci set wgpathd.main.mode='observe'
 uci commit wgpathd
-service wgpathd restart
+service wgpathd reload
 sleep 5
 ```
 
-## 2. Stop and remove the package
+## 2. Remove the package
 
 ```bash
-service wgpathd stop
-service wgpathd disable
 apk del wgpathd
 ```
 
-## 3. Reload the firewall
+Removing the package stops and disables the service, and reloads the firewall, which drops the `wgpathd:` rules.
 
-The fw4 include is removed with the package, but the rules stay loaded until the next reload:
-
-```bash
-service firewall reload
-```
-
-## 4. Clean up leftovers
+## 3. Clean up leftovers
 
 Remove the runtime cache on a spoke:
 

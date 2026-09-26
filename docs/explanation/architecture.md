@@ -33,7 +33,7 @@ The I/O each part uses:
 | Discovery server (hub) | TCP listener via `ucode-mod-socket` on the uloop |
 | Status | a `wgpathd` ubus object with a `status` method |
 | Liveness | procd watchdog ping, `ubus call service watchdog` |
-| Configuration | UCI, read once at startup |
+| Configuration | UCI, read at startup and on `SIGHUP` |
 
 Commands run through `uloop.process` with their output discarded. Nothing in the daemon parses command output. Each command has a timer backstop, because a child process cannot be killed from ucode, only forgotten.
 
@@ -64,7 +64,9 @@ The hub's cycle is shorter: read the `wireguard status` of `read_iface`, replace
 
 ## Startup
 
-Startup is fail-closed:
+The init script runs `check.uc --config` before it asks procd for an instance. The check uses the daemon's own configuration loader, so it cannot disagree with the daemon. procd respawns a daemon that exits, which is what turns a hang or a crash into a clean start on the relay; but a configuration the daemon can never load would only exit again every 5 seconds. Checking first keeps that case out of the respawn loop: the service is left without an instance and the reason is on the console and in the log.
+
+The daemon's own startup is fail-closed:
 
 1. Load and validate `/etc/config/wgpathd` and, on a spoke, the annotated `wg_mesh` peers from `/etc/config/network`.
 2. Check the WireGuard interface (`mesh_iface` or `read_iface`) is present in the `wireguard status` reply, so it exists in the kernel, not only in UCI.
@@ -72,14 +74,29 @@ Startup is fail-closed:
 4. Publish the `wgpathd` ubus object; on the hub, also bind the discovery listener.
 5. Log `started as <role>` and run the first cycle.
 
-Any failure in steps 1, 2 or 4 exits with status 1 and a logged reason. procd then respawns the service after 5 seconds. See [log messages](../reference/log-messages.md).
+Any failure in steps 1, 2 or 4 exits with status 1 and a logged reason. procd then respawns the service after 5 seconds. These are the failures the config check cannot see, such as an interface that is not up yet, so retrying them is useful. See [log messages](../reference/log-messages.md).
+
+## Reload
+
+A restart is always safe, because every peer falls back to the relay, but it throws away evidence: a peer that was DIRECT has to earn direct again. So a configuration change is applied with `SIGHUP` instead. procd sends `reload` when the `wgpathd` or `network` configuration changes, and the init script turns it into a signal, again only after the config check passes.
+
+On the signal the daemon loads the configuration again, with a fresh UCI cursor, and sorts the changes into two kinds:
+
+- **Structural.** `role`, the interfaces and the listener address and port decide what the process is: which ubus reads it makes, which socket it holds, whether it steers or publishes. Rewiring those in place would be a second startup path, so the daemon exits instead and lets procd start it afresh 5 seconds later.
+- **Everything else** is data the cycle reads each time: the timing parameters, the mode and the discovery URL simply take effect on the next cycle.
+
+Peers are matched by public key, relay endpoint and tunnel address. A peer whose three values are unchanged keeps its control state, because its evidence and backoff were earned on exactly that path. A new peer, or one whose relay or tunnel changed, starts in RELAY like at startup, after the relay loop guard. A removed peer is dropped from steering and status.
+
+If the configuration is invalid by the time the daemon reads it, the daemon logs it and keeps the configuration it has. A signal that arrives before startup completes is applied right after it.
 
 ## Module map
 
 | Module | Role |
 | :--- | :--- |
 | `decide.uc`, `state.uc`, `effects.uc` | The pure core: decision, state helpers, effect vocabulary |
-| `daemon.uc` | The shell: startup, cycles, status, hub snapshot |
+| `daemon.uc` | The shell: startup, reload, cycles, status, hub snapshot |
+| `relay.uc` | The relay loop guard, shared by the daemon and the check |
+| `check.uc`, `status_view.uc` | `service wgpathd check` and the text of `service wgpathd status` |
 | `publisher.uc` | Hub snapshot and the HTTP request/response mapping and listener |
 | `discovery.uc` | Spoke payload validation and the cache |
 | `config.uc`, `params.uc` | Configuration loading and timing defaults |

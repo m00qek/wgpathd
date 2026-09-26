@@ -13,6 +13,7 @@ Roughly in the order you will need them:
 - [Configuring the Hub](configure-hub.md) - How to publish discovery from the hub.
 - [Configuring a Spoke](configure-spoke.md) - How to run a spoke in observe mode and check the relay path.
 - [Moving a Spoke from Observe to Steer](enable-steering.md) - How to let wgpathd move peers to direct paths.
+- [Applying Configuration Changes](apply-changes.md) - How to check and reload a changed configuration, and when to restart instead.
 - [Tuning Timing Parameters](tune-timing.md) - How to change how fast wgpathd falls back and returns.
 - [Inspecting Status and Troubleshooting](troubleshoot.md) - How to go from a symptom to its cause.
 - [Removing wgpathd](uninstall.md) - How to uninstall and leave the mesh in a known state.

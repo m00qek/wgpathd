@@ -14,10 +14,10 @@ In steer mode, wgpathd moves a peer to its direct path once it has evidence and 
 ```bash
 uci set wgpathd.main.mode='steer'
 uci commit wgpathd
-service wgpathd restart
+service wgpathd reload
 ```
 
-The restart puts every peer back in RELAY. Direct has to be earned again, which takes about `n_up` cycles (15 seconds with the defaults).
+The reload keeps each peer's evidence. A peer that is already `ready` starts a trial on the next cycle; the others need about `n_up` cycles of evidence first (15 seconds with the defaults).
 
 If you have one anchor and one or more roamers, switch the roamers first. An anchor gets its evidence from the roamers' direct traffic, so it has nothing to act on until a roamer steers.
 
@@ -39,23 +39,29 @@ peer SpokeBmeshPublicKeyExample00000000000000000=: transition TRIALING -> DIRECT
 ## 3. Check the status
 
 ```bash
-ubus call wgpathd status
+service wgpathd status
 ```
 
-A direct peer shows `"state": "DIRECT"`, with `endpoint` and `target` set to the peer's IPv6 endpoint, and `last_change.reason` `trial_ok`. Confirm on the wire with `wg show wg_mesh endpoints`.
+A direct peer shows `DIRECT`, with the peer's IPv6 endpoint and `(trial_ok)` as the reason of its last change:
+
+```
+  spoke_b  SpokeBme  DIRECT  [2001:db8:b::20]:51820  12s ago (trial_ok)  2 switches
+```
+
+Confirm on the wire with `wg show wg_mesh endpoints`.
 
 Once both spokes of a pair steer, both should settle in DIRECT. For a short time one side may be DIRECT while the other is still RELAY; both directions keep working.
 
 ## 4. Go back to observe
 
-To stop steering, set the mode back and restart:
+To stop steering, set the mode back and reload:
 
 ```bash
 uci set wgpathd.main.mode='observe'
 uci commit wgpathd
-service wgpathd restart
+service wgpathd reload
 ```
 
-Every managed peer returns to its relay endpoint on the first cycle.
+Every managed peer returns to its relay endpoint on the next cycle, logged as `transition DIRECT -> RELAY (demoted)`.
 
 For what to do when a peer does not go direct, or keeps falling back, see [How to inspect status and troubleshoot](troubleshoot.md).

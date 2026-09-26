@@ -39,31 +39,26 @@ apk add --allow-untrusted /tmp/wgpathd-0.1.0-r1.apk
 
 `--allow-untrusted` is needed because a locally built package is not signed with a key the router trusts. The dependencies come from the regular feeds; the full list is in [Files and dependencies](../reference/files.md#dependencies).
 
-## 4. Stop the service until it is configured
+## 4. Check the result
 
-OpenWrt enables and starts a package's service as soon as it is installed. At this point wgpathd runs with the shipped template: a spoke in observe mode on `wg_mesh` and `wg_hub`.
-
-- If those interfaces exist, it starts as a spoke and sets every annotated `wg_mesh` peer to its relay endpoint. That is safe, but on the hub it is the wrong role.
-- If they do not, it exits with `invalid configuration: INTERFACE_MISSING (wg_mesh)` and procd restarts it every 5 seconds.
-
-Stop it until you have configured the role:
+The package ships its configuration with `enabled '0'`, so nothing runs until you configure a role:
 
 ```bash
-service wgpathd stop
+service wgpathd status
 ```
 
-The service stays enabled, so it starts at the next boot.
+```
+active with no instances
+disabled (option enabled in /etc/config/wgpathd)
+```
 
-## 5. Load the firewall rules
-
-Installing does not reload the firewall. Load the shipped include now:
+Installing also reloads the firewall, which loads the package's rules:
 
 ```bash
-service firewall reload
 nft list ruleset | grep 'wgpathd:'
 ```
 
-You should see four rules whose comments start with `wgpathd:`. Before you continue, read [Firewall rules](../reference/firewall.md): the rules assume `wg_mesh`, UDP `51820` and TCP `7780`, and the discovery port is accepted on every interface.
+You should see four rules whose comments start with `wgpathd:`. They assume UDP `51820` for `wg_mesh` and TCP `7780` for discovery; see [Firewall rules](../reference/firewall.md) if yours differ.
 
 ## Next
 
@@ -72,4 +67,10 @@ You should see four rules whose comments start with `wgpathd:`. Before you conti
 
 ## To upgrade
 
-Build and copy the new package, then run `apk add --allow-untrusted` on it as above. Your `/etc/config/wgpathd` is kept. Then run `service wgpathd restart` so the new code is running. Every peer starts again in RELAY and earns direct within a few cycles.
+Build and copy the new package, then run `apk add --allow-untrusted` on it as above. Your `/etc/config/wgpathd` is kept, and the firewall is reloaded with the new rules. A running daemon keeps the old code until you restart it:
+
+```bash
+service wgpathd restart
+```
+
+Every peer starts again in RELAY and earns direct within a few cycles.

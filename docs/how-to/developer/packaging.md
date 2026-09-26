@@ -28,14 +28,15 @@ make package-check
 
 This builds the package, then installs it into a fresh `ghcr.io/openwrt/rootfs` container and checks that:
 
-- its dependencies resolve and it installs;
-- every file is in place with the right mode, and `/etc/config/wgpathd` is a conffile;
-- the uci-defaults script ran and was removed;
+- its dependencies resolve and it installs, and the service start during install does nothing;
+- every file is in place with the right mode, nothing is installed on the `PATH`, there is no uci-defaults script, and `/etc/config/wgpathd` is a conffile shipped with `enabled '0'`;
 - the modules load from the default ucode search path;
-- `wgpathd` with the default configuration, and `wgpathd status` with no daemon, fail with a one-line reason rather than a ucode stack trace;
-- the init script enables, and fw4 includes the firewall file.
+- `daemon.uc` and `check.uc --config` with the shipped configuration, and `status.uc` with no daemon, fail with a one-line reason rather than a ucode stack trace;
+- the full `check.uc` passes a valid hub configuration without ubus;
+- the init script enables, fw4 includes the firewall file, and the package scripts reload the firewall on install, upgrade and removal;
+- the package removes cleanly, taking the firewall file with it.
 
-The last line is `package-check: all passed`, or the number of failed checks. The container runs no procd or ubusd, so starting the service and the ubus object are out of its reach.
+The last line is `package-check: all passed`, or the number of failed checks. The container runs no procd or ubusd, so starting the service, the ubus object and the firewall reload itself are out of its reach.
 
 ## Build for another release
 

@@ -8,13 +8,16 @@ The package is `wgpathd`, version `0.1.0`, release `1`, architecture `all`, lice
 
 | Path | Mode | Description |
 | :--- | :--- | :--- |
-| `/usr/sbin/wgpathd` | 0755 | The executable. See [below](#usrsbinwgpathd). |
+| `/usr/libexec/wgpathd/daemon.uc` | 0755 | The daemon, run by procd. |
+| `/usr/libexec/wgpathd/status.uc` | 0755 | Prints the running daemon's status as text, for `service wgpathd status`. |
+| `/usr/libexec/wgpathd/check.uc` | 0755 | The validator behind `service wgpathd check`; with `--config`, the check that `start` and `reload` run. |
 | `/usr/share/ucode/wgpathd/*.uc` | 0644 | The ucode modules, imported as `wgpathd.<module>`. |
 | `/usr/share/ucode/wgpathd/components/*.uc` | 0644 | I/O components: command runner, HTTP client, clock. |
 | `/etc/config/wgpathd` | 0600 | UCI configuration; a conffile, kept on upgrade. See [UCI configuration](uci-config.md). |
 | `/etc/init.d/wgpathd` | 0755 | procd init script. See [below](#etcinitdwgpathd). |
-| `/etc/uci-defaults/10-wgpathd-setup` | 0755 | First-install hook. It does nothing and is deleted after it runs on install. |
 | `/usr/share/nftables.d/chain-pre/input/wgpathd.nft` | 0644 | fw4 include. See [Firewall rules](firewall.md). |
+
+Nothing is installed on the `PATH`. The scripts in `/usr/libexec/wgpathd/` are ucode scripts, meant to be run through the init script; see [Service commands](service-commands.md).
 
 ## Runtime files
 
@@ -24,35 +27,32 @@ The package is `wgpathd`, version `0.1.0`, release `1`, architecture `all`, lice
 
 wgpathd writes no other files. It never writes `/etc/config`.
 
-## `/usr/sbin/wgpathd`
-
-```
-wgpathd           run the daemon in the foreground
-wgpathd status    print the running daemon's ubus status as indented JSON
-```
-
-| Invocation | Exit status |
-| :--- | :--- |
-| `wgpathd` | `0` after a normal stop; `1` on an invalid configuration or failed startup |
-| `wgpathd status` | `0` on success; `1` if the status cannot be read, with `wgpathd status: <CODE>` on standard error |
-| anything else | `2`, with `usage: wgpathd [status]` on standard error |
-
-`wgpathd status` returns the same data as [`ubus call wgpathd status`](ubus-status.md).
-
 ## `/etc/init.d/wgpathd`
 
-A procd service with `START=95` and `STOP=10`. It runs one instance, named `wgpathd`, with:
+A procd service with `START=95` and `STOP=10`. When `option enabled` is on and the configuration passes `check.uc --config`, it runs one instance, named `wgpathd`, with:
 
 | Setting | Value | Effect |
 | :--- | :--- | :--- |
-| `command` | `/usr/sbin/wgpathd` | Runs the daemon. |
+| `command` | `/usr/libexec/wgpathd/daemon.uc` | Runs the daemon. |
 | `respawn` | `3600 5 0` | Restarts the daemon 5 seconds after it exits, with no retry limit. |
 | `watchdog` | `1 30` | Passive watchdog: procd restarts the instance if it has not been pinged for 30 seconds. The daemon pings at the end of every cycle. |
 | `stderr` | `1` | Standard error goes to the system log. |
 
-The script defines no reload triggers. Changes to `/etc/config/wgpathd` or `/etc/config/network` take effect after `service wgpathd restart`.
+| Trigger | Effect |
+| :--- | :--- |
+| `config.change` for `wgpathd` | `reload` |
+| `config.change` for `network` | `reload` |
 
-On install, OpenWrt's package scripts enable the service and start it with whatever configuration is present.
+The script adds the `check` command and replaces `reload` and `status`. What each command does is in [Service commands](service-commands.md).
+
+## Package scripts
+
+| Script | Effect |
+| :--- | :--- |
+| post-install (install and upgrade) | `/etc/init.d/firewall reload`, then OpenWrt's default: on a first install, enable the service; on both, run `start`. `start` does nothing while `enabled` is `0`, and does not restart a daemon that is already running. |
+| post-remove | `/etc/init.d/firewall reload`. |
+
+The firewall reload is skipped when the package is installed into a firmware image rather than on a running router.
 
 ## Dependencies
 

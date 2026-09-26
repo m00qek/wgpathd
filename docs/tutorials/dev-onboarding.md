@@ -37,8 +37,8 @@ Then the tests run. Each dot is one passing test, grouped by bundle, and the run
 ```
 Summary:
 
-  243 successes / 0 failures / 0 errors / 0 skipped / 0 ignored (9519 ms)
-  Seed:   1790463976344531689
+  278 successes / 0 failures / 0 errors / 0 skipped / 0 ignored (11076 ms)
+  Seed:   1790466118615660777
 ```
 
 The exact count grows as tests are added. What matters is `0 failures / 0 errors`. Notice the seed: some tests generate random inputs, and the seed identifies this run.
@@ -112,17 +112,22 @@ make package-check
 This rebuilds the package, starts a clean OpenWrt rootfs container, installs the package with its dependencies, and runs a list of checks. The output should end like this:
 
 ```
-ok   modules on default search path
-     -> wgpathd: invalid configuration: INTERFACE_MISSING (wg_mesh)
+ok   shipped disabled
+     -> wgpathd: invalid configuration: CONFIG_INVALID_ROLE (unset)
 ok   daemon with default config fails cleanly
-     -> wgpathd status: UBUS_CONNECT_FAILED
+     -> FAIL  config: option role must be 'spoke' or 'hub' (is unset)
+ok   config check fails cleanly on the example
+     -> wgpathd: cannot read status: UBUS_CONNECT_FAILED
 ok   status without a daemon fails cleanly
+ok   full check passes a valid config without ubus
 ok   init script enables
 ok   fw4 includes the nft file
+ok   install, upgrade and removal reload fw4
+ok   package removes cleanly
 package-check: all passed
 ```
 
-Notice the two lines starting with `->`. The container has no WireGuard interfaces and no ubus, so the daemon cannot start. The check makes sure it says so in one clear line instead of crashing. That line, `INTERFACE_MISSING (wg_mesh)`, is exactly what an operator would see in the log on a router that is missing its mesh interface.
+Notice the three lines starting with `->`. The shipped configuration names no role, and the container has no ubus, so nothing can really start. The check makes sure each tool says so in one clear line instead of crashing. The second one, `FAIL  config: option role must be 'spoke' or 'hub' (is unset)`, is exactly what an operator sees from `service wgpathd check` on a router where wgpathd is installed but not configured yet.
 
 ## What we did
 

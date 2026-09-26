@@ -32,10 +32,10 @@ Before wgpathd can do anything useful you need:
 **Learning-oriented.** A guided first session with the development environment: run the tests, build the package, check it installs.
 
 ### [How-to guides](how-to/index.md)
-**Goal-oriented.** Prepare the substrate, install, configure the hub and the spokes, turn on steering, tune timing, troubleshoot, remove. Plus developer tasks.
+**Goal-oriented.** Prepare the substrate, install, configure the hub and the spokes, turn on steering, apply changes, tune timing, troubleshoot, remove. Plus developer tasks.
 
 ### [Reference](reference/index.md)
-**Information-oriented.** Every UCI option, parameter, status field, HTTP behavior, log message, error code, installed file and firewall rule.
+**Information-oriented.** Every UCI option, parameter, service command, status field, HTTP behavior, log message, error code, installed file and firewall rule.
 
 ### [Explanation](explanation/index.md)
 **Understanding-oriented.** Why direct-versus-relay works the way it does: the state machine, discovery, the trust model and the architecture.

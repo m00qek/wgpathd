@@ -8,7 +8,7 @@ Where each code is logged is listed in [Log messages](log-messages.md).
 
 ## Configuration
 
-These stop startup.
+These stop startup, fail the config check that `service wgpathd start` and `reload` run, and make a reload keep the running configuration. `service wgpathd check` shows them as readable `FAIL  config:` lines instead; see [Service commands](service-commands.md#findings).
 
 | Code | Detail | Trigger |
 | :--- | :--- | :--- |
@@ -31,7 +31,7 @@ These make a spoke's discovery fetch fail. The spoke keeps its previous map.
 
 | Code | Detail | Trigger |
 | :--- | :--- | :--- |
-| `EXEC_TIMEOUT` | the command name, `wg` or `ping` | A command did not exit within its time limit. For a probe this counts as no answer; for `wg set` it appears inside `WG_COMMAND_FAILED`. |
+| `EXEC_TIMEOUT` | the command name, `wg` or `ping` | A command did not exit within its time limit: 2 seconds for `wg set`, and half a second more than `ping`'s own `-W` wait for a probe (see [`tunnel_timeout`](parameters.md#behavior-details)). For a probe this counts as no answer; for `wg set` it appears inside `WG_COMMAND_FAILED`. |
 
 ## WireGuard
 
@@ -50,7 +50,7 @@ These make a spoke's discovery fetch fail. The spoke keeps its previous map.
 
 | Code | Detail | Trigger |
 | :--- | :--- | :--- |
-| `UBUS_CONNECT_FAILED` | — | The daemon could not connect to ubus at startup; every ubus operation then fails with this code. |
+| `UBUS_CONNECT_FAILED` | — | The daemon could not connect to ubus at startup; every ubus operation then fails with this code. `service wgpathd status` reports it as `wgpathd: cannot read status: UBUS_CONNECT_FAILED`, and `service wgpathd check` skips the interfaces. |
 | `UBUS_CALL_FAILED` | `<object> <method>: status <n>` for `wireguard status`, or the ubus error text | A ubus call failed: the `wireguard status` read or the watchdog ping. |
 | `UBUS_PUBLISH_FAILED` | ubus error text | The `wgpathd` ubus object could not be registered, for example because another instance holds it. Stops startup. |
 

@@ -1,12 +1,20 @@
 # UCI Configuration
 
-wgpathd reads `/etc/config/wgpathd` once, at startup. Changes take effect after `service wgpathd restart`.
+wgpathd reads `/etc/config/wgpathd` at startup and again on every `service wgpathd reload`. Most options apply on reload; `role` and the interface and listener options restart the daemon. The full list is in [Service commands](service-commands.md#reload).
 
 All options live in one section of type `wgpathd` named `main`. Other sections are ignored.
 
 The per-peer options that wgpathd reads from `/etc/config/network` are listed in [Substrate annotations](substrate.md).
 
 ---
+
+## `enabled`
+
+| Option | Required | Default | Values |
+| :--- | :--- | :--- | :--- |
+| `enabled` | No | on | `0`, `no`, `off`, `false` or `disabled` turn it off; anything else, or no value, leaves it on. |
+
+While it is off, `service wgpathd start` starts no daemon, `service wgpathd reload` stops a running one, and `service wgpathd check` warns. The daemon itself does not read this option.
 
 ## `role`
 
@@ -32,7 +40,7 @@ config wgpathd 'main'
 | `mesh_iface` | Yes | — | The WireGuard interface whose peer endpoints are steered. Must be a `network` section of type `interface`, and must appear in the `ubus call wireguard status` reply at startup. Its peers are read from `wireguard_<mesh_iface>` sections. |
 | `hub_iface` | Yes | — | The hub tunnel interface. Must be a `network` section of type `interface`. Checked at startup only; wgpathd does not otherwise use it. |
 | `discovery` | Yes | — | URL of the hub's discovery endpoint, for example `http://10.10.0.1:7780/peers`. See [Discovery HTTP API](discovery-api.md). |
-| `mode` | No | `observe` | `steer` lets wgpathd move peers to direct paths. `observe` keeps every managed peer on its relay endpoint. Any other value runs as `observe` and logs a warning at startup. |
+| `mode` | No | `observe` | `steer` lets wgpathd move peers to direct paths. `observe` keeps every managed peer on its relay endpoint. Any other value runs as `observe` and logs a warning at startup and on reload. |
 
 ## Hub options
 
@@ -60,7 +68,7 @@ A parameter value must be a positive decimal number: digits, optionally followed
 
 ## Validation order
 
-At startup the configuration is checked in this order. The first failure stops the daemon with exit status 1 and an `invalid configuration:` log message.
+The configuration is checked in this order, by the daemon at startup and on reload, and by `service wgpathd check`. The first failure is the one reported. At startup it stops the daemon with exit status 1 and an `invalid configuration:` log message; `service wgpathd start` and `reload` run the same check first and refuse to start or reload.
 
 1. `role` is `spoke` or `hub` — else `CONFIG_INVALID_ROLE`.
 2. Every required option for the role is a non-empty string — else `CONFIG_MISSING_OPTION` naming the first missing option, in the order listed above.
@@ -71,4 +79,4 @@ On a spoke, the mesh peers are then loaded. A peer with a problem does not stop 
 
 ## Shipped default
 
-The package installs `/etc/config/wgpathd` as a spoke template in `observe` mode, with `mesh_iface 'wg_mesh'`, `hub_iface 'wg_hub'` and a sample `discovery` URL, plus a commented-out hub block. It is a conffile: an upgrade keeps your edits.
+The package installs `/etc/config/wgpathd` with `option enabled '0'` and no other active option. It holds a commented-out example for each role and for a timing override. With it, the service does not start, and `service wgpathd check` fails with `option role must be 'spoke' or 'hub' (is unset)`. It is a conffile: an upgrade keeps your edits.

@@ -8,6 +8,8 @@ ubus call wgpathd status
 
 If the daemon is not running, `ubus` reports `Command failed: Not found`.
 
+This is the machine-readable interface. `service wgpathd status` prints a readable summary of the same reply; see [Service commands](service-commands.md#status).
+
 The reply depends on the role. Fields that have no value yet are `null`.
 
 ---
@@ -25,6 +27,7 @@ The reply depends on the role. Fields that have no value yet are `null`.
 	"peers": {
 		"SpokeBmeshPublicKeyExample00000000000000000=": {
 			"state": "DIRECT",
+			"section": "spoke_b",
 			"up_streak": 0,
 			"down_streak": 0,
 			"backoff": 0,
@@ -72,14 +75,15 @@ The reply depends on the role. Fields that have no value yet are `null`.
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `state` | string | `RELAY`, `TRIALING` or `DIRECT`. |
+| `section` | string | The UCI section name of the peer in `/etc/config/network`. |
 | `up_streak` | integer | Consecutive cycles with direct evidence, counted in RELAY. |
 | `down_streak` | integer | Consecutive failed tunnel probes, counted in DIRECT. |
 | `backoff` | number | Current backoff interval in seconds; `0` means none. This is the interval, not the time remaining. |
 | `ready` | boolean | `true` when `up_streak` has reached `n_up`. In observe mode this means steer mode would start a trial. In steer mode it can stay `true` while a backoff is still running. |
 | `endpoint` | string or null | The endpoint wgpathd asserted on the last decided cycle: the relay endpoint in RELAY, the target otherwise. `null` before the first cycle. It is what wgpathd asked for, even if that `wg set` failed, and can differ from the kernel's current endpoint after a roam. |
 | `target` | string or null | The direct endpoint being trialed or held. `null` in RELAY. |
-| `switches` | integer | Number of state transitions since the daemon started. Roam adoptions are not counted. |
-| `last_change` | object or null | The most recent state transition; `null` if none since start. |
+| `switches` | integer | Number of state transitions since the daemon started, or since a reload added the peer or changed its annotations. Roam adoptions are not counted. |
+| `last_change` | object or null | The most recent state transition; `null` if none since the peer started being managed. |
 
 `state`, `up_streak`, `down_streak`, `backoff` and `ready` are updated at the end of each cycle in which the peer was decided. A peer skipped in a cycle (missing from the kernel, or while `wireguard status` cannot be read) keeps its previous values.
 

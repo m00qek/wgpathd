@@ -28,11 +28,11 @@ Tools in this space often manage the whole overlay: they generate keys, hand out
 - Creating or rewriting interfaces would mean writing `/etc/config/network`. A bug there could take down `wg_hub`, the tunnel you need to fix the bug.
 - Distributing peers or keys through the hub would make the hub a source of identity. Then a compromised hub could add a peer or widen AllowedIPs, and read traffic. Keeping keys and AllowedIPs in static configuration, rendered by you, keeps the hub out of that path entirely.
 
-So wgpathd is a tenant, not a landlord. You own the substrate. wgpathd checks at startup that the interfaces it was told about exist and refuses to run if they do not. Each mesh peer it would steer must carry valid annotations; a peer that does not is left alone and reported as unmanaged.
+So wgpathd is a tenant, not a landlord. You own the substrate. wgpathd checks at startup that the interfaces it was told about exist and refuses to run if they do not; `service wgpathd check` runs the same checks on demand. Each mesh peer it would steer must carry valid annotations; a peer that does not is left alone and reported as unmanaged.
 
 ## Relay loop guard
 
-A relay endpoint must route into `wg_hub`. If it routed into `wg_mesh` instead, relayed packets would loop into the tunnel they are supposed to carry. At startup, and again each cycle for peers still waiting, wgpathd looks up the route to each peer's relay address. A peer whose relay routes out of `mesh_iface` is left unmanaged for good, with the reason `relay routes into <mesh_iface>`.
+A relay endpoint must route into `wg_hub`. If it routed into `wg_mesh` instead, relayed packets would loop into the tunnel they are supposed to carry. At startup, and again each cycle for peers still waiting, wgpathd looks up the route to each peer's relay address. A peer whose relay routes out of `mesh_iface` is left unmanaged until the daemon restarts or the peer's annotations change, with the reason `relay routes into <mesh_iface>`.
 
 ## Authenticated roams
 

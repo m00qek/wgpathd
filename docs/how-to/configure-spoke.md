@@ -4,7 +4,7 @@ On a spoke, wgpathd steers the endpoint of each annotated `wg_mesh` peer. This g
 
 ## Prerequisites
 
-- wgpathd is installed and stopped: [How to install wgpathd](install.md).
+- wgpathd is installed: [How to install wgpathd](install.md).
 - The spoke's `wg_mesh` and `wg_hub` are set up and annotated as in [How to prepare the WireGuard substrate](prepare-substrate.md).
 - wgpathd is installed on the other spokes too. Each spoke must answer the others' tunnel probes and accept relayed packets, which the package's firewall rules provide.
 - The hub is configured: [How to configure the hub](configure-hub.md).
@@ -17,6 +17,7 @@ Replace the contents of `/etc/config/wgpathd` with:
 
 ```
 config wgpathd 'main'
+	option enabled    '1'
 	option role       'spoke'
 	option mesh_iface 'wg_mesh'
 	option hub_iface  'wg_hub'
@@ -28,43 +29,54 @@ config wgpathd 'main'
 
 Every option is described in [UCI configuration](../reference/uci-config.md#spoke-options).
 
-## 2. Start the service
+## 2. Check the configuration
 
 ```bash
-service wgpathd restart
-logread -e wgpathd | tail -n 5
+service wgpathd check
 ```
 
-A healthy start looks like this:
-
 ```
-daemon.info wgpathd[3107]: peer section hub unmanaged: missing wgpathd_relay
-daemon.info wgpathd[3107]: started as spoke
+ok    config: spoke, mode observe, 1 steered peers, 1 not steered
+ok    wg_mesh: up, 2 peers
+ok    wg_hub: up, 1 peers
+ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12
+skip  peer hub: not steered (missing wgpathd_relay)
 ```
 
-The hub peer is always unmanaged, since it has no annotations; that line is expected. Any other `unmanaged` line names a peer wgpathd will not touch, and why. See [Substrate annotations](../reference/substrate.md#managed-and-unmanaged-peers) for the reasons.
+There should be one `ok  peer` line per other spoke, with its relay `via wg_hub`. The hub peer is always `skip`, since it has no annotations. Fix every `FAIL` line before you go on; [Service commands](../reference/service-commands.md#findings) explains each one, and [Substrate annotations](../reference/substrate.md#managed-and-unmanaged-peers) the peer reasons.
 
-If the log shows `invalid configuration:` or `startup failed:`, look up the code in [Log messages](../reference/log-messages.md#startup-and-exit).
+## 3. Start the service and check the relay path
 
-## 3. Check the relay path
+```bash
+service wgpathd start
+service wgpathd status
+```
 
 Within a few seconds every managed peer is on its relay endpoint:
 
-```bash
-ubus call wgpathd status
+```
+running
+role: spoke (mode observe)
+discovery: fresh (last success 2s ago)
+peers:
+  spoke_b  SpokeBme  RELAY  10.10.0.12:51820  no change yet  0 switches
+unmanaged:
+  hub  HubMeshP  missing wgpathd_relay
 ```
 
-Each entry under `peers` should show `"state": "RELAY"` and `"endpoint"` equal to its `wgpathd_relay`, and `discovery.fresh` should be `true`. Then prove the relay carries traffic, using the other spoke's tunnel address:
+Each peer should be in `RELAY` with its `wgpathd_relay` as the endpoint, and discovery should be `fresh`. If the first line is not `running`, look at `logread -e wgpathd | tail -n 5` and find the code in [Log messages](../reference/log-messages.md#startup-and-exit).
+
+Then prove the relay carries traffic, using the other spoke's tunnel address:
 
 ```bash
 ping -c3 10.20.0.12
 ```
 
-If this fails, the relay floor does not work yet, and there is no point in turning on steering. Check that the hub forwards the transit range and that the other spoke has reloaded its firewall after installing wgpathd.
+If this fails, the relay floor does not work yet, and there is no point in turning on steering. Check that the hub forwards the transit range and that wgpathd is installed on the other spoke, whose firewall rules accept the relayed packets.
 
 ## 4. Watch for readiness
 
-Leave the spoke in observe mode for a while and watch `ready` and `up_streak` in the status of each peer. `ready: true` means the peer has enough direct evidence that steer mode would start a trial.
+Leave the spoke in observe mode for a while and watch `ready` and `up_streak` for each peer in `ubus call wgpathd status`. `ready: true` means the peer has enough direct evidence that steer mode would start a trial.
 
 A peer that never becomes ready has no direct evidence. For an anchor, that is normal until the other side steers: its evidence is the other side's direct traffic. For a roamer, check that `discovery.fresh` is `true` and that the peer's IPv6 address answers `ping -6`.
 

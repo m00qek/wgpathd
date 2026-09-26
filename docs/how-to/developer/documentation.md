@@ -49,6 +49,7 @@ Reference pages describe the code as it is. When you change an option, parameter
 | `publisher.uc`, `discovery.uc` | [Discovery HTTP API](../../reference/discovery-api.md) |
 | `deps.log(...)` calls | [Log messages](../../reference/log-messages.md) |
 | `errors.uc` | [Error codes](../../reference/error-codes.md) |
+| `files/etc/init.d/wgpathd`, `check.uc`, `status_view.uc`, daemon reload | [Service commands](../../reference/service-commands.md) |
 | `files/`, `openwrt/wgpathd/Makefile` | [Files and dependencies](../../reference/files.md), [Firewall rules](../../reference/firewall.md) |
 | root `Makefile` | [Make targets](../../reference/make-targets.md) |
 

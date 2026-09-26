@@ -11,18 +11,20 @@ Each parameter is an option in the `main` section of `/etc/config/wgpathd`. For 
 ```bash
 uci set wgpathd.main.n_up='10'
 uci commit wgpathd
-service wgpathd restart
+service wgpathd reload
 ```
+
+The running daemon applies the new value from its next cycle, and peers keep their state.
 
 To go back to the default, delete the option:
 
 ```bash
 uci delete wgpathd.main.n_up
 uci commit wgpathd
-service wgpathd restart
+service wgpathd reload
 ```
 
-A value that is not a positive decimal number stops the daemon with `invalid configuration: CONFIG_INVALID_OPTION (<name>)`. All names, defaults and exact semantics are in [Timing parameters](../reference/parameters.md).
+A value that is not a positive decimal number is refused: the reload prints `FAIL  config: option <name> must be a positive number` and the daemon keeps its current values. `service wgpathd check` shows the same line before you reload. All names, defaults and exact semantics are in [Timing parameters](../reference/parameters.md).
 
 ## Common adjustments
 
@@ -53,7 +55,7 @@ config wgpathd 'main'
 wgpathd does not cross-check parameters, so keep them consistent yourself:
 
 - `trial_window` should be more than twice `cycle`. The tunnel probe answer is read one cycle after it is sent, and the deadline is checked first, so a window of two cycles or less gives the trial at most one chance and often none.
-- `tunnel_timeout` should be at least `1`. The probes run `ping -W1`; a lower limit cuts them off before a slow reply can arrive. A higher value does not make `ping` wait longer.
+- `tunnel_timeout` is rounded up to whole seconds for `ping`, so `0.5` waits as long as `1`. Raise it only for a path whose replies are slow: a cycle waits for its probes, so while a path is dead each cycle takes up to twice the rounded value plus one second longer (the underlay probe, then the tunnel probe).
 - `backoff_min` should not exceed `backoff_max`. Otherwise the second failure lowers the backoff to `backoff_max`.
 - procd restarts the daemon if 30 seconds pass without a watchdog ping, and the daemon pings once per cycle. Keep `cycle` well below 30.
 
