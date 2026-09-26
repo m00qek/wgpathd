@@ -24,6 +24,8 @@ make unit MODULES=test/unit/wgpathd/decide_test.uc
 make watch                     # re-run on change
 make lint                      # ucode compile check + sh -n
 make shell                     # throwaway shell in the image
+make package                   # build bin/wgpathd-*.apk in the OpenWrt SDK
+make package-check             # install it in a fresh rootfs and verify it
 ```
 `OPENWRT_VERSION` / `OPENWRT_ARCH` select the rootfs (default `25.12.5` / `x86_64`).
 

@@ -21,7 +21,7 @@ for f in test/proxies/*.uc test/utest.config.uc files/usr/sbin/wgpathd; do
 	check "$f" "$f"
 done
 
-for f in files/etc/init.d/wgpathd files/etc/uci-defaults/* devenv/scripts/*.sh devenv/services/openwrt/*.sh; do
+for f in files/etc/init.d/wgpathd files/etc/uci-defaults/* devenv/scripts/*.sh devenv/services/*/*.sh; do
 	sh -n "$f" || { echo "  in $f" >&2; status=1; }
 done
 
