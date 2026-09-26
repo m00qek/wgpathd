@@ -237,12 +237,13 @@ function create_spoke(deps, cfg, params) {
 	// The probe leaves only on an endpoint that was actually set, so a failed
 	// `wg set` cannot let a probe over the old path commit a trial.
 	let set_then_probe = function(rec, addr, probe_addr, done) {
+		if (!rec.report_set)
+			rec.report_set = streak_reporter(deps, `peer ${rec.peer.pubkey}: setting endpoint`);
 		deps.exec(wg.set_endpoint_command(cfg.mesh_iface, rec.peer.pubkey, addr), SET_TIMEOUT, (res) => {
 			let err = command_error(res, errors.WG_COMMAND_FAILED);
-			if (err != null) {
-				log_peer('warn', rec, `setting endpoint ${addr} failed: ${Result.describe(err)}`);
+			rec.report_set(err ?? Result.ok());
+			if (err != null)
 				return done();
-			}
 			if (probe_addr == null)
 				return done();
 			let argv = probe.tunnel_command(probe_addr, params.tunnel_timeout);

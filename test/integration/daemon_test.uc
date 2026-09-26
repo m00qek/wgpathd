@@ -270,9 +270,24 @@ describe('daemon: spoke cycle, applying effects', () => {
 		w.set_code = 1;
 		let d = start(w, spoke_cfg({ overrides: { n_up: 1 } }));
 		cycle(w, d);
-		assert.match([ [ 'warn', `peer ${SPOKE_B}: setting endpoint ${SPOKE_B_DIRECT} failed: WG_COMMAND_FAILED (exit 1)` ] ],
+		assert.match([ [ 'warn', `peer ${SPOKE_B}: setting endpoint failed: WG_COMMAND_FAILED (exit 1)` ] ],
 			w.logs.matching(/setting endpoint/));
 		assert.match([], filter(w.exec.commands(), (c) => index(c, 'ping -c1') == 0));
+	});
+
+	it('logs a failing wg set once per outage, then its recovery', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.set_code = 1;
+		let d = start(w, spoke_cfg());
+		for (let i = 0; i < 4; i++)
+			cycle(w, d);
+		w.set_code = 0;
+		cycle(w, d);
+		cycle(w, d);
+		assert.match([
+			[ 'warn', `peer ${SPOKE_B}: setting endpoint failed: WG_COMMAND_FAILED (exit 1)` ],
+			[ 'info', `peer ${SPOKE_B}: setting endpoint recovered` ],
+		], w.logs.matching(/setting endpoint/));
 	});
 
 	it('only re-asserts the relay in observe mode', () => {
