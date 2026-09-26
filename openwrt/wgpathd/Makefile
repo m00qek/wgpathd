@@ -14,7 +14,7 @@ define Package/wgpathd
   CATEGORY:=Network
   TITLE:=WireGuard path selection (hub/spoke direct-vs-relay failover)
   URL:=https://example.invalid/wgpathd
-  DEPENDS:=+ucode +ucode-mod-uloop +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-uclient +ucode-mod-socket +wireguard-tools +kmod-wireguard
+  DEPENDS:=+ucode +ucode-mod-uloop +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-socket +wireguard-tools +kmod-wireguard
 endef
 
 define Package/wgpathd/description
