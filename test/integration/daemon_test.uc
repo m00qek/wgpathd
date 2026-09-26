@@ -1,5 +1,4 @@
 import { describe, it, assert, contains } from 'utest';
-import { with_context } from 'context';
 import * as h from 'lib.helpers';
 import * as daemon from 'wgpathd.daemon';
 import * as params from 'wgpathd.params';
@@ -407,7 +406,7 @@ describe('daemon: status', () => {
 		let d = start(w);
 		assert.match({
 			role: 'spoke', mode: 'steer', discovery: { fresh: false, last_ok: null },
-			peers: { [SPOKE_B]: { state: 'RELAY', endpoint: null, target: null, up_streak: 0, down_streak: 0,
+			peers: { [SPOKE_B]: { state: 'RELAY', section: 'spoke_b', endpoint: null, target: null, up_streak: 0, down_streak: 0,
 				backoff: 0, ready: false, switches: 0, last_change: null } },
 			unmanaged: [ HUB_UNMANAGED ],
 		}, d.status());
@@ -418,7 +417,7 @@ describe('daemon: status', () => {
 		w.reachable['2001:db8::12'] = true;
 		let d = start(w);
 		cycles(w, d, 2);
-		assert.match({ state: 'RELAY', endpoint: SPOKE_B_RELAY, target: null, up_streak: 2, down_streak: 0,
+		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, up_streak: 2, down_streak: 0,
 			backoff: 0, ready: false, switches: 0, last_change: null }, d.status().peers[SPOKE_B]);
 	});
 });
@@ -455,7 +454,7 @@ describe('daemon: scenario through the real decide', () => {
 		assert.match(contains({ state: 'DIRECT', down_streak: 1 }), peer());
 		let demoted_at = w.clock.wall();
 		cycle(w, d);
-		assert.match({ state: 'RELAY', endpoint: SPOKE_B_RELAY, target: null, up_streak: 0, down_streak: 0,
+		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, up_streak: 0, down_streak: 0,
 			backoff: 30, ready: false, switches: 3,
 			last_change: { ts: demoted_at, from: 'DIRECT', to: 'RELAY', reason: 'demoted' } }, peer());
 		assert.match(SPOKE_B_RELAY, w.kernel[SPOKE_B].endpoint);
@@ -502,33 +501,47 @@ describe('daemon: hub', () => {
 	});
 });
 
-describe('daemon: run', () => {
-	const MAIN = { '.type': 'wgpathd', role: 'spoke', mesh_iface: 'wg_mesh', hub_iface: 'wg_hub', discovery: URL,
-		mode: 'steer', cycle: '0.5' };
-	const NETWORK = {
+const MAIN = { '.type': 'wgpathd', role: 'spoke', mesh_iface: 'wg_mesh', hub_iface: 'wg_hub', discovery: URL,
+	mode: 'steer', cycle: '0.5' };
+
+function network(...peers) {
+	let net = {
 		wg_mesh: { '.type': 'interface', proto: 'wireguard' },
 		wg_hub:  { '.type': 'interface', proto: 'wireguard' },
-		spoke_b:    { '.type': 'wireguard_wg_mesh', public_key: SPOKE_B, wgpathd_relay: SPOKE_B_RELAY, wgpathd_tunnel: SPOKE_B_TUNNEL },
 	};
+	for (let p in peers)
+		net[p.section] = { '.type': 'wireguard_wg_mesh', public_key: p.pubkey, wgpathd_relay: p.relay,
+			wgpathd_tunnel: p.tunnel };
+	return net;
+}
 
-	function run(w, main) {
-		let code = null;
-		let loop = h.uloop();
-		with_context({ uci: { data: { wgpathd: { main: main }, network: NETWORK } } }, (ctx) => {
-			code = daemon.run({ ...w.deps, uci: ctx.uci, uloop: loop });
-		});
-		return { code: code, loop: loop };
-	}
+function run(w, main, net, loop) {
+	let uci = h.uci({ wgpathd: { main: main }, network: net ?? network(SPOKE_B_PEER) });
+	loop ??= h.uloop();
+	let code = daemon.run({ ...w.deps, uci_cursor: uci.cursor, uloop: loop });
+	return { code: code, loop: loop, uci: uci, status: () => w.ubus.published.wgpathd.status.call() };
+}
 
+// Fires the most recently armed timer: the next cycle.
+function tick(r) {
+	r.loop.timers[-1].cb();
+}
+
+function reload(r, main, net) {
+	r.uci.data = { wgpathd: { main: main }, network: net };
+	r.loop.signals.SIGHUP();
+}
+
+describe('daemon: run', () => {
 	it('publishes status on ubus, runs a first cycle and arms the next one', () => {
 		let w = h.world(kernel_of(SPOKE_B));
 		let r = run(w, MAIN);
 		assert.match(0, r.code);
 		assert.match(true, r.loop.ran);
-		assert.match(contains({ role: 'spoke', mode: 'steer' }), w.ubus.published.wgpathd.status.call());
+		assert.match(contains({ role: 'spoke', mode: 'steer' }), r.status());
 		assert.match(1, w.ubus.watchdog_pings());
 		assert.match([ 0, 500 ], map(r.loop.timers, (t) => t.ms));
-		r.loop.timers[1].cb();
+		tick(r);
 		assert.match(2, w.ubus.watchdog_pings());
 		assert.match([ 0, 500, 500 ], map(r.loop.timers, (t) => t.ms));
 	});
@@ -550,5 +563,112 @@ describe('daemon: run', () => {
 		assert.match({}, w.ubus.published);
 		assert.match(1, length(w.logs.matching(/^startup failed: INTERFACE_MISSING/)));
 		assert.match(1, length(filter(w.stderr, (m) => index(m, 'startup failed: INTERFACE_MISSING') == 0)));
+	});
+});
+
+describe('daemon: reload on SIGHUP', () => {
+	function reachable_world() {
+		let w = h.world(kernel_of(SPOKE_B, SPOKE_A), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT, [SPOKE_A]: SPOKE_A_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		w.reachable['2001:db8::11'] = true;
+		return w;
+	}
+
+	it('keeps the state of an unchanged peer and starts a new one from RELAY', () => {
+		let w = reachable_world();
+		let r = run(w, MAIN);
+		tick(r);
+		assert.match(2, r.status().peers[SPOKE_B].up_streak);
+
+		reload(r, MAIN, network(SPOKE_B_PEER, SPOKE_A_PEER));
+		assert.match(2, r.status().peers[SPOKE_B].up_streak);
+		assert.match(contains({ state: 'RELAY', up_streak: 0, section: 'spoke_a' }), r.status().peers[SPOKE_A]);
+		tick(r);
+		assert.match([ 3, 1 ], [ r.status().peers[SPOKE_B].up_streak, r.status().peers[SPOKE_A].up_streak ]);
+		assert.match([ [ 'info', 'configuration reloaded: 1 peers kept, 1 added, 0 removed' ] ],
+			w.logs.matching(/reloaded/));
+	});
+
+	it('drops a removed peer from steering and status', () => {
+		let w = reachable_world();
+		let r = run(w, MAIN, network(SPOKE_B_PEER, SPOKE_A_PEER));
+		reload(r, MAIN, network(SPOKE_B_PEER));
+		let seen = length(w.exec.commands());
+		tick(r);
+		assert.match([ SPOKE_B ], keys(r.status().peers));
+		assert.match([], filter(commands_since(w, seen), (c) => index(c, SPOKE_A) >= 0 || index(c, '2001:db8::11') >= 0));
+		assert.match(1, length(w.logs.matching(/1 peers kept, 0 added, 1 removed/)));
+	});
+
+	it('starts a peer afresh when its annotations change, and guards its new relay', () => {
+		let w = reachable_world();
+		let r = run(w, MAIN);
+		tick(r);
+		reload(r, MAIN, network({ ...SPOKE_B_PEER, relay: '10.10.0.99:51820' }));
+		assert.match(contains({ up_streak: 0, endpoint: null }), r.status().peers[SPOKE_B]);
+		tick(r);
+		assert.match(`wg set wg_mesh peer ${SPOKE_B} endpoint 10.10.0.99:51820`,
+			filter(w.exec.commands(), (c) => index(c, 'wg set') == 0)[-1]);
+
+		w.routes['10.10.0.98'] = 'wg_mesh';
+		reload(r, MAIN, network({ ...SPOKE_B_PEER, relay: '10.10.0.98:51820' }));
+		assert.match({}, r.status().peers);
+		assert.match([ { section: 'spoke_b', pubkey: SPOKE_B, reason: 'relay routes into wg_mesh' } ], r.status().unmanaged);
+	});
+
+	it('keeps an unchanged unmanaged peer as it was, without guarding it again', () => {
+		let w = reachable_world();
+		w.routes['10.10.0.12'] = 'wg_mesh';
+		let r = run(w, MAIN);
+		delete w.routes['10.10.0.12'];
+		reload(r, { ...MAIN, cycle: '1' }, network(SPOKE_B_PEER));
+		assert.match([ { section: 'spoke_b', pubkey: SPOKE_B, reason: 'relay routes into wg_mesh' } ], r.status().unmanaged);
+		assert.match(1, length(w.logs.matching(/section spoke_b unmanaged/)));
+	});
+
+	it('applies parameters, mode and the discovery url live', () => {
+		let w = reachable_world();
+		let r = run(w, MAIN);
+		let other = 'http://10.10.0.1:7781/peers';
+		reload(r, { ...MAIN, cycle: '2', mode: 'observe', discovery: other }, network(SPOKE_B_PEER));
+		tick(r);
+		assert.match(2000, r.loop.timers[-1].ms);
+		assert.match('observe', r.status().mode);
+		assert.match([ URL, other ], w.http.calls, 'fetched at once from the new url');
+	});
+
+	it('ends the loop on a structural change, for procd to respawn', () => {
+		let w = reachable_world();
+		let r = run(w, MAIN);
+		let net = { ...network(SPOKE_B_PEER), wg_mesh2: { '.type': 'interface', proto: 'wireguard' } };
+		reload(r, { ...MAIN, mesh_iface: 'wg_mesh2' }, net);
+		assert.match(true, r.loop.ended);
+		assert.match([ [ 'info', 'reload: mesh_iface changed, exiting for procd to start afresh' ] ],
+			w.logs.matching(/^reload/));
+	});
+
+	it('keeps the running configuration when the new one is invalid', () => {
+		let w = reachable_world();
+		let r = run(w, MAIN);
+		reload(r, { ...MAIN, role: 'relay' }, network(SPOKE_B_PEER));
+		assert.match(false, r.loop.ended);
+		assert.match([ [ 'error', 'reload: invalid configuration, keeping the running one: CONFIG_INVALID_ROLE (relay)' ] ],
+			w.logs.matching(/^reload/));
+		tick(r);
+		assert.match(contains({ role: 'spoke', mode: 'steer' }), r.status());
+		assert.match(500, r.loop.timers[-1].ms);
+	});
+
+	it('defers a SIGHUP that arrives before startup completes', () => {
+		let w = reachable_world();
+		let loop = h.uloop();
+		let run_loop = loop.run;
+		loop.run = function() {
+			loop.signals.SIGHUP();
+			run_loop();
+		};
+		run(w, MAIN, null, loop);
+		assert.match([ 'started as spoke', 'configuration reloaded: 1 peers kept, 0 added, 0 removed' ],
+			map(w.logs.matching(/started|reloaded/), (e) => e[1]));
 	});
 });

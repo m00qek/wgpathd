@@ -1,6 +1,7 @@
 'use strict';
 
-// deps.create(): the real fs, uci, ubus, uloop, socket, rtnl, http, clock, exec runner and syslog.
+// deps.create(): the real fs, uci, ubus, uloop, socket, rtnl, http, clock, exec runner and syslog;
+// deps.oneshot(): the subset a one-shot tool needs.
 
 import * as fs from 'fs';
 import * as uci from 'uci';
@@ -68,7 +69,7 @@ export function create() {
 	uloop.init();
 	return {
 		fs: fs,
-		uci: uci.cursor(),
+		uci_cursor: uci.cursor,   // a cursor caches what it read: each config load takes a new one
 		ubus: ubus_channel(ubus.connect()),
 		uloop: uloop,
 		socket: socket,
@@ -78,5 +79,13 @@ export function create() {
 		exec: exec.create(uloop),
 		log: syslog_channel(),
 		stderr: (msg) => warn(`wgpathd: ${msg}\n`),
+	};
+};
+
+export function oneshot() {
+	return {
+		uci: uci.cursor(),
+		ubus: ubus_channel(ubus.connect()),
+		route_get: route_get,
 	};
 };

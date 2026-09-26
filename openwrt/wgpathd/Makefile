@@ -37,10 +37,8 @@ define Package/wgpathd/install
 	$(INSTALL_CONF) ./files/etc/config/wgpathd $(1)/etc/config/wgpathd
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/etc/init.d/wgpathd $(1)/etc/init.d/wgpathd
-	$(INSTALL_DIR) $(1)/etc/uci-defaults
-	$(INSTALL_BIN) ./files/etc/uci-defaults/10-wgpathd-setup $(1)/etc/uci-defaults/10-wgpathd-setup
-	$(INSTALL_DIR) $(1)/usr/sbin
-	$(INSTALL_BIN) ./files/usr/sbin/wgpathd $(1)/usr/sbin/wgpathd
+	$(INSTALL_DIR) $(1)/usr/libexec/wgpathd
+	$(INSTALL_BIN) ./files/usr/libexec/wgpathd/*.uc $(1)/usr/libexec/wgpathd/
 	$(INSTALL_DIR) $(1)/usr/share/nftables.d/chain-pre/input
 	$(INSTALL_DATA) ./files/usr/share/nftables.d/chain-pre/input/wgpathd.nft $(1)/usr/share/nftables.d/chain-pre/input/wgpathd.nft
 endef

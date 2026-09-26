@@ -1,17 +1,25 @@
-# wgpathd config. Rendered per-role by the estate build layer; this default is a
-# template. See the design record (Configuration & operator journey).
+# wgpathd: WireGuard path selection. Pick one role, fill it in, set enabled '1',
+# then check with `service wgpathd check` and start with `service wgpathd start`.
+# The WireGuard interfaces and peers live in /etc/config/network and must exist.
+# On a spoke, each steered mesh peer there carries two extra options:
+#	option wgpathd_relay  '192.0.2.12:51820'   # its endpoint through the hub
+#	option wgpathd_tunnel '198.51.100.12'      # its address inside the tunnel, probed
 
-# --- SPOKE (routers) — byte-for-byte identical on every spoke ---
 config wgpathd 'main'
-	option role       'spoke'
-	option mesh_iface  'wg_mesh'
-	option hub_iface   'wg_hub'
-	option discovery   'http://10.10.0.1:7780/peers'
-	option mode        'observe'      # 'steer' to let wgpathd move endpoints
+	option enabled '0'
 
-# --- HUB (edge) — replace the block above with this ---
-#config wgpathd 'main'
-#	option role       'hub'
-#	option read_iface  'wg_mesh'      # publish endpoints FROM this table
-#	option serve_addr  '10.10.0.1' # bind publisher HERE (wg_hub, always-up, tunnel-only)
-#	option serve_port  '7780'
+	# --- spoke: steers each annotated mesh peer between direct and relay ---
+	#option role       'spoke'
+	#option mesh_iface 'wg_mesh'                       # steer endpoints of this interface
+	#option hub_iface  'wg_hub'                        # reach the hub over this one
+	#option discovery  'http://192.0.2.1:7780/peers'   # the hub's publisher
+	#option mode       'observe'                       # 'steer' lets wgpathd move endpoints
+
+	# --- hub: publishes the direct endpoints it sees ---
+	#option role       'hub'
+	#option read_iface 'wg_mesh'                       # publish endpoints from this interface
+	#option serve_addr '192.0.2.1'                     # an address on the hub interface
+	#option serve_port '7780'
+
+	# Optional timing overrides (seconds or counts), e.g.:
+	#option cycle '3'

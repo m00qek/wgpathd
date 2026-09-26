@@ -39,17 +39,33 @@ check "package installs" apk add --allow-untrusted "$APK"
 
 check "config 0600"         has_mode 600 /etc/config/wgpathd
 check "init script 0755"    has_mode 755 /etc/init.d/wgpathd
-check "wgpathd binary 0755" has_mode 755 /usr/sbin/wgpathd
+for f in daemon status check; do
+	check "libexec $f.uc 0755" has_mode 755 /usr/libexec/wgpathd/$f.uc
+done
+check "nothing on the PATH" test ! -e /usr/sbin/wgpathd
 check "fw4 include 0644"    has_mode 644 /usr/share/nftables.d/chain-pre/input/wgpathd.nft
 check "modules 0644"        has_mode 644 /usr/share/ucode/wgpathd/daemon.uc
 check "components shipped"  test -f /usr/share/ucode/wgpathd/components/exec.uc
-check "uci-defaults shipped" grep -qx /etc/uci-defaults/10-wgpathd-setup /lib/apk/packages/wgpathd.list
-check "uci-defaults consumed on install" test ! -e /etc/uci-defaults/10-wgpathd-setup
+check "no uci-defaults" sh -c '! grep -q uci-defaults /lib/apk/packages/wgpathd.list'
 check "config is a conffile" grep -qx /etc/config/wgpathd /lib/apk/packages/wgpathd.conffiles
 
 check "modules on default search path" ucode -e 'import * as d from "wgpathd.daemon"; exit(type(d.run) == "function" ? 0 : 1);'
-check "daemon with default config fails cleanly" fails_cleanly /usr/sbin/wgpathd
-check "status without a daemon fails cleanly" fails_cleanly /usr/sbin/wgpathd status
+check "shipped disabled" sh -c '[ "$(uci -q get wgpathd.main.enabled)" = 0 ]'
+check "daemon with default config fails cleanly" fails_cleanly /usr/libexec/wgpathd/daemon.uc
+check "config check fails cleanly on the example" fails_cleanly /usr/libexec/wgpathd/check.uc --config
+check "status without a daemon fails cleanly" fails_cleanly /usr/libexec/wgpathd/status.uc
+
+# Without ubus the full check skips the interfaces, so a valid hub config passes.
+touch /etc/config/network
+uci -q batch <<-EOF
+	set network.wg_mesh=interface
+	set network.wg_mesh.proto=wireguard
+	set wgpathd.main.role=hub
+	set wgpathd.main.read_iface=wg_mesh
+	set wgpathd.main.serve_addr=192.0.2.1
+	set wgpathd.main.serve_port=7780
+EOF
+check "full check passes a valid config without ubus" /usr/libexec/wgpathd/check.uc
 
 /etc/init.d/wgpathd disable
 check "init script enables" sh -c '/etc/init.d/wgpathd enable && [ -L /etc/rc.d/S95wgpathd ]'

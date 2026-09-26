@@ -100,8 +100,25 @@ export function logger() {
 	return fake;
 };
 
+// A uci cursor over `fake.data` ({ package: { section: { '.type', options } } }), which a
+// test may change between loads.
+export function uci(data) {
+	let fake = { data: data };
+	let section = (pkg, sec) => fake.data[pkg]?.[sec];
+	fake.cursor = () => ({
+		get: (pkg, sec, opt) => (opt == null) ? section(pkg, sec)?.['.type'] : section(pkg, sec)?.[opt],
+		get_all: (pkg, sec) => section(pkg, sec) ? { ...section(pkg, sec), '.name': sec } : null,
+		foreach: function(pkg, stype, cb) {
+			for (let name, s in fake.data[pkg] ?? {})
+				if (s['.type'] == stype)
+					cb({ ...s, '.name': name });
+		},
+	});
+	return fake;
+};
+
 export function uloop() {
-	let fake = { timers: [], ran: false, ended: false };
+	let fake = { timers: [], signals: {}, ran: false, ended: false };
 	fake.timer = function(ms, cb) {
 		push(fake.timers, { ms: ms, cb: cb });
 		return { cancel: () => true };
@@ -113,6 +130,10 @@ export function uloop() {
 			t.cb();
 	};
 	fake.end = function() { fake.ended = true; };
+	fake.signal = function(name, cb) {
+		fake.signals[name] = cb;
+		return { delete: () => true };
+	};
 	return fake;
 };
 
