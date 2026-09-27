@@ -11,13 +11,13 @@ check() {
 # modules are checked through a one-line importer. Proxies and the utest config
 # are require()d programs that `return` at top level, so they stay scripts.
 importer=$(mktemp)
-for f in $(find src test -name '*.uc' ! -path 'test/proxies/*' ! -name utest.config.uc); do
+for f in $(find src test -name '*.uc' ! -name utest.config.uc); do
 	echo "import * as _ from '$PWD/$f';" >"$importer"
 	check "$importer" "$f"
 done
 rm -f "$importer"
 
-for f in test/proxies/*.uc test/proxies/real/*.uc test/utest.config.uc files/usr/libexec/wgpathd/*.uc; do
+for f in test/utest.config.uc files/usr/libexec/wgpathd/*.uc; do
 	check "$f" "$f"
 done
 

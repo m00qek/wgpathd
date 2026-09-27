@@ -1,36 +1,28 @@
-import { describe, it, assert, spy } from 'utest';
+import { describe, it, assert } from 'utest';
 import { with_context } from 'context';
 
 describe('context: with_context', () => {
-	it('injects a fake clock whose now() is read back through deps', () => {
-		with_context({ clock: { data: { now: 1234.5 } } }, (deps) => {
+	it('gives deps a fake clock whose now() and wall() are read back', () => {
+		with_context({ clock: { now: 1234.5, wall: 1790000000 } }, (deps) => {
 			assert.match(1234.5, deps.clock.now());
+			assert.match(1790000000, deps.clock.wall());
 		});
 	});
 
-	it('lets a behavior advance the fake clock', () => {
-		let t = 100;
-		with_context({ clock: { behavior: { now: () => t += 5 } } }, (deps) => {
-			assert.match(105, deps.clock.now());
-			assert.match(110, deps.clock.now());
-		});
-	});
-
-	it('records clock calls for spy()', () => {
-		with_context({ clock: {} }, (deps) => {
-			deps.clock.now();
-			deps.clock.now();
-			assert.match(2, length(spy(deps.clock).calls.now));
+	it('advances both clocks together', () => {
+		with_context({ clock: { now: 100, wall: 1000 } }, (deps) => {
+			deps.clock.advance(5);
+			assert.match([ 105, 1005 ], [ deps.clock.now(), deps.clock.wall() ]);
 		});
 	});
 
 	it('defaults the fake clock to 0', () => {
 		with_context({ clock: {} }, (deps) => {
-			assert.match(0, deps.clock.now());
+			assert.match([ 0, 0 ], [ deps.clock.now(), deps.clock.wall() ]);
 		});
 	});
 
-	it('wires only the injected deps plus a no-op log', () => {
+	it('wires only the requested deps plus a no-op log', () => {
 		with_context({ clock: {} }, (deps) => {
 			assert.match([ 'clock', 'log' ], sort(keys(deps)));
 			assert.match(null, deps.log('info', 'ignored'));
