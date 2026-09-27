@@ -42,6 +42,10 @@ Roams count as evidence because they are authenticated. The kernel only moves a 
 
 The package ships its own firewall rules so that the probes and the relay work as soon as it is installed. Those rules are broad; read the [firewall rules reference](../reference/firewall.md) before you deploy, in particular the note on the discovery port.
 
+## Why wgpathd runs as root
+
+Like most OpenWrt services, wgpathd runs as root rather than as a jailed, unprivileged user. It has to hold the network-admin capability to run `wg set`, and that capability alone already lets a process rewrite routes, firewall rules and interfaces, so a jail would protect little that matters. What limits the damage instead is the narrow input surface: the discovery publisher listens only on WireGuard interfaces, and a spoke rejects any discovery payload that is not fully valid.
+
 ## Further reading
 
 The [design record](../design.md) covers the scope boundary (Decision 4), the relay endpoint resolution (R1) and the failure-mode catalog rows for a lying hub.
