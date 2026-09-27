@@ -21,7 +21,7 @@ for f in test/utest.config.uc files/usr/libexec/wgpathd/*.uc; do
 	check "$f" "$f"
 done
 
-for f in files/etc/init.d/wgpathd devenv/scripts/*.sh devenv/services/*/*.sh; do
+for f in files/etc/init.d/wgpathd devenv/scripts/*.sh devenv/services/*/*.sh test/e2e/*.sh; do
 	sh -n "$f" || { echo "  in $f" >&2; status=1; }
 done
 

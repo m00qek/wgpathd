@@ -1,0 +1,76 @@
+# e2e failover topology (the design record, "E2E test harness"), driven by
+# devenv/scripts/e2e.sh. Addresses mirror services/e2e/topology.sh.
+#
+# Kept small on purpose: three nodes on one internal network, no client
+# containers, no privileges beyond NET_ADMIN and NET_RAW.
+name: wgpathd-e2e
+
+x-image: &image
+  image: wgpathd-e2e:${OPENWRT_ARCH:-x86_64}-${OPENWRT_VERSION:-25.12.5}
+
+# procd is PID 1; it treats SIGTERM as a reboot request, which a container cannot honour.
+x-node: &node
+  <<: *image
+  cap_add: [NET_ADMIN, NET_RAW]
+  stop_signal: SIGKILL
+  sysctls:
+    net.ipv4.ip_forward: 1
+  entrypoint: [/bin/sh, /e2e/node.sh]
+  depends_on:
+    keygen:
+      condition: service_completed_successfully
+  volumes:
+    - keys:/keys:ro
+    - ./services/e2e:/e2e:ro
+    - ../bin:/artifacts:ro
+
+services:
+  keygen:
+    <<: *image
+    build:
+      context: ./services/e2e
+      args:
+        OPENWRT_ARCH: ${OPENWRT_ARCH:-x86_64}
+        OPENWRT_VERSION: ${OPENWRT_VERSION:-25.12.5}
+        PKG_DEPENDS: ${PKG_DEPENDS}
+    network_mode: none
+    entrypoint: [/bin/sh, /e2e/keygen.sh]
+    volumes:
+      - keys:/keys
+      - ./services/e2e:/e2e:ro
+
+  hub:
+    <<: *node
+    container_name: wgpathd-e2e-hub
+    hostname: hub
+    environment: [E2E_NODE=hub]
+    networks:
+      transit: { ipv4_address: 172.31.250.10, ipv6_address: "fd77:e2e0:0:1::10" }
+
+  spoke-a:
+    <<: *node
+    container_name: wgpathd-e2e-spoke-a
+    hostname: spoke-a
+    environment: [E2E_NODE=spoke-a]
+    networks:
+      transit: { ipv4_address: 172.31.250.11, ipv6_address: "fd77:e2e0:0:1::11" }
+
+  spoke-b:
+    <<: *node
+    container_name: wgpathd-e2e-spoke-b
+    hostname: spoke-b
+    environment: [E2E_NODE=spoke-b]
+    networks:
+      transit: { ipv4_address: 172.31.250.12, ipv6_address: "fd77:e2e0:0:1::12" }
+
+networks:
+  transit:
+    internal: true
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24
+        - subnet: fd77:e2e0:0:1::/64
+
+volumes:
+  keys:

@@ -15,20 +15,4 @@ services:
     init: true
     volumes:
       - ..:/wgpathd:ro
-
-  # e2e topology (design "E2E test harness"); not built yet.
-  hub:
-    profiles: [e2e]
-    image: wgpathd-openwrt:${OPENWRT_ARCH}-${OPENWRT_VERSION}
-    cap_add: [NET_ADMIN]
-    environment: [WGPATHD_ROLE=hub]
-  spoke-a:
-    profiles: [e2e]
-    image: wgpathd-openwrt:${OPENWRT_ARCH}-${OPENWRT_VERSION}
-    cap_add: [NET_ADMIN]
-    environment: [WGPATHD_ROLE=spoke, WGPATHD_SITE=a]
-  spoke-b:
-    profiles: [e2e]
-    image: wgpathd-openwrt:${OPENWRT_ARCH}-${OPENWRT_VERSION}
-    cap_add: [NET_ADMIN]
-    environment: [WGPATHD_ROLE=spoke, WGPATHD_SITE=b]
+# The e2e topology has its own project: e2e.compose.yaml.

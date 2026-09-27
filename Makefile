@@ -26,7 +26,7 @@ $(IMAGE_STAMP): devenv/services/openwrt/Dockerfile openwrt/wgpathd/Makefile
 	@touch $@
 
 e2e:
-	@echo "e2e harness not built yet (see the design record, E2E test harness)" >&2; exit 1
+	@devenv/scripts/e2e.sh $(SCENARIO)
 
 SDK_IMAGE := wgpathd-sdk:$(OPENWRT_ARCH)-$(OPENWRT_VERSION)
 PKG_DIR   := /sdk/package/wgpathd
