@@ -44,7 +44,7 @@ On `SIGHUP` the daemon reads `/etc/config/wgpathd` and `/etc/config/network` aga
 | A peer added, or one of those three options changed | The peer is checked like at startup and, if managed, starts in RELAY. |
 | A peer removed | It leaves steering and the status. Its endpoint is left as it is. |
 
-A spoke logs `configuration reloaded (peers: <n> kept, <n> added, <n> removed)`; a hub logs `configuration reloaded`. If the configuration is invalid when the daemon reads it, it logs `reload: invalid configuration, keeping the running one: <CODE> (<detail>)` and keeps running unchanged.
+A spoke logs `configuration reloaded peers_kept=<n> added=<n> removed=<n>`, with ` mode=<mode>` appended when the mode changed; a hub logs `configuration reloaded`. If the configuration is invalid when the daemon reads it, it logs `reload: invalid configuration, keeping the running one: <CODE> (<detail>)` and keeps running unchanged.
 
 ## `status`
 

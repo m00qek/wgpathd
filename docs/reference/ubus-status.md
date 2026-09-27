@@ -101,7 +101,8 @@ The reply depends on the role. Fields that have no value yet are `null`.
 | `trial_start` | RELAY → TRIALING |
 | `trial_ok` | TRIALING → DIRECT |
 | `trial_timeout` | TRIALING → RELAY |
-| `demoted` | DIRECT → RELAY after `m_down` failed probes, or TRIALING/DIRECT → RELAY when the mode is observe |
+| `demoted` | DIRECT → RELAY after `m_down` failed probes |
+| `observe_mode` | TRIALING or DIRECT → RELAY because the mode is not `steer` |
 
 ### `unmanaged[]`
 

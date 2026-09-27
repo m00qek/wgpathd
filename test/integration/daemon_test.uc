@@ -17,6 +17,10 @@ const SPOKE_B_DIRECT  = '[2001:db8::12]:51820';
 const SPOKE_B_ROAMED  = '[2001:db8::99]:51820';
 const SPOKE_A_DIRECT  = '[2001:db8::11]:51820';
 
+const B   = 'peer spoke_b (O0LYRo/R)';
+const A   = 'peer spoke_a (ckRTxoRC)';
+const HUB_NAME = 'peer hub (W+1CXUTT)';
+
 const SPOKE_B_PEER = { section: 'spoke_b', pubkey: SPOKE_B, relay: SPOKE_B_RELAY, tunnel: SPOKE_B_TUNNEL };
 const SPOKE_A_PEER = { section: 'spoke_a', pubkey: SPOKE_A, relay: SPOKE_A_RELAY, tunnel: SPOKE_A_TUNNEL };
 const HUB_UNMANAGED = { section: 'hub', pubkey: HUB, reason: 'missing wgpathd_relay' };
@@ -111,7 +115,8 @@ describe('daemon: spoke startup', () => {
 			reason: 'relay route lookup failed: ROUTE_LOOKUP_FAILED (10.10.0.12: Network unreachable)' } ],
 			d.status().unmanaged);
 		assert.match([], w.exec.commands());
-		assert.match(1, length(w.logs.matching(/section spoke_b unmanaged/)));
+		assert.match([ [ 'info', `${B}: unmanaged reason=relay route lookup failed: ROUTE_LOOKUP_FAILED (10.10.0.12: Network unreachable)` ] ],
+			w.logs.matching(/^peer spoke_b .*unmanaged/));
 	});
 
 	it('manages and steers the peer once a later lookup finds its relay route', () => {
@@ -124,7 +129,7 @@ describe('daemon: spoke startup', () => {
 		assert.match(contains({ state: 'RELAY', endpoint: SPOKE_B_RELAY, switches: 0 }), d.status().peers[SPOKE_B]);
 		assert.match([ HUB_UNMANAGED ], d.status().unmanaged);
 		assert.match([ `wg set wg_mesh peer ${SPOKE_B} endpoint ${SPOKE_B_RELAY}` ], w.exec.commands());
-		assert.match([ [ 'info', `peer ${SPOKE_B}: relay route found, now managed` ] ], w.logs.matching(/now managed/));
+		assert.match([ [ 'notice', `${B}: relay route found, now managed` ] ], w.logs.matching(/now managed/));
 	});
 
 	it('leaves the peer unmanaged for good once a later lookup routes its relay into the mesh', () => {
@@ -140,24 +145,40 @@ describe('daemon: spoke startup', () => {
 		assert.match({}, d.status().peers);
 		assert.match([ HUB_UNMANAGED, { section: 'spoke_b', pubkey: SPOKE_B, reason: 'relay routes into wg_mesh' } ],
 			d.status().unmanaged);
-		assert.match(1, length(w.logs.matching(/section spoke_b unmanaged: relay routes into wg_mesh/)));
+		assert.match([ [ 'warning', `${B}: unmanaged reason=relay routes into wg_mesh` ] ],
+			w.logs.matching(/unmanaged reason=relay routes/));
 	});
 
-	it('logs every unmanaged peer once, by section and reason', () => {
+	it('logs every unmanaged peer once, by section, key prefix and reason', () => {
 		let w = h.world(kernel_of(SPOKE_B, SPOKE_A));
 		w.routes['10.10.0.11'] = 'wg_mesh';
 		let d = start(w, spoke_cfg({ peers: { managed: [ SPOKE_B_PEER, SPOKE_A_PEER ], unmanaged: [ HUB_UNMANAGED ] } }));
 		cycles(w, d, 3);
 		assert.match([
-			[ 'info', 'peer section hub unmanaged: missing wgpathd_relay' ],
-			[ 'info', 'peer section spoke_a unmanaged: relay routes into wg_mesh' ],
+			[ 'warning', `${HUB_NAME}: unmanaged reason=missing wgpathd_relay` ],
+			[ 'warning', `${A}: unmanaged reason=relay routes into wg_mesh` ],
 		], w.logs.matching(/unmanaged/));
 	});
 
 	it('logs an unknown mode, which runs as observe', () => {
 		let w = h.world(kernel_of(SPOKE_B));
 		start(w, spoke_cfg({ mode: 'observe', invalid_mode: 'stear' }));
-		assert.match([ [ 'warn', "unknown mode 'stear', running in observe mode" ] ], w.logs.matching(/mode/));
+		assert.match([ [ 'warning', 'unknown mode, running in observe mode value=stear' ] ], w.logs.matching(/mode/));
+	});
+
+	it('names a peer without a valid key by its section alone', () => {
+		let w = h.world(kernel_of(SPOKE_B));
+		start(w, spoke_cfg({ peers: { managed: [ SPOKE_B_PEER ], unmanaged: [ { section: 'bad', pubkey: null, reason: 'invalid public_key' } ] } }));
+		assert.match([ [ 'warning', 'peer bad: unmanaged reason=invalid public_key' ] ], w.logs.matching(/unmanaged/));
+	});
+
+	it('logs how many peers the discovery cache held', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		start(w);
+		assert.match([ [ 'info', 'discovery cache: loaded peers=1' ] ], w.logs.matching(/cache/));
+		w = h.world(kernel_of(SPOKE_B));
+		start(w);
+		assert.match([ [ 'info', 'discovery cache: none usable' ] ], w.logs.matching(/cache/));
 	});
 
 	it('logs nothing about the mode when it is valid', () => {
@@ -216,7 +237,7 @@ describe('daemon: spoke cycle, gathering obs', () => {
 		let w = h.world(kernel_of(SPOKE_B));
 		let d = start(w, spoke_cfg({ peers: { managed: [ SPOKE_B_PEER, SPOKE_A_PEER ], unmanaged: [] } }));
 		cycles(w, d, 3);
-		assert.match([ [ 'warn', `peer ${SPOKE_A}: absent from wg_mesh, skipped` ] ], w.logs.matching(/absent/));
+		assert.match([ [ 'warning', `${A}: absent from wg_mesh, skipped` ] ], w.logs.matching(/absent/));
 		assert.match(0, length(filter(w.exec.commands(), (c) => index(c, SPOKE_A) >= 0)));
 		assert.match(3, length(filter(w.exec.commands(), (c) => index(c, SPOKE_B) >= 0)));
 	});
@@ -231,9 +252,22 @@ describe('daemon: spoke cycle, gathering obs', () => {
 		w.status_ok = true;
 		cycle(w, d);
 		assert.match([
-			[ 'warn', 'reading wg_mesh failed: UBUS_CALL_FAILED (wireguard status: status 4)' ],
-			[ 'info', 'reading wg_mesh recovered' ],
+			[ 'warning', 'reading wg_mesh failed: UBUS_CALL_FAILED (wireguard status: status 4)' ],
+			[ 'notice', 'reading wg_mesh recovered' ],
 		], w.logs.matching(/reading/));
+	});
+
+	it('logs a peer that comes back into the kernel, and steers it again', () => {
+		let w = h.world(kernel_of(SPOKE_B));
+		let d = start(w, spoke_cfg({ peers: { managed: [ SPOKE_B_PEER, SPOKE_A_PEER ], unmanaged: [] } }));
+		cycles(w, d, 2);
+		w.kernel[SPOKE_A] = { endpoint: null, hs: 0 };
+		cycles(w, d, 2);
+		assert.match([
+			[ 'warning', `${A}: absent from wg_mesh, skipped` ],
+			[ 'notice', `${A}: back in wg_mesh` ],
+		], w.logs.matching(/absent|back in/));
+		assert.match(2, length(filter(w.exec.commands(), (c) => index(c, SPOKE_A) >= 0)));
 	});
 });
 
@@ -270,7 +304,7 @@ describe('daemon: spoke cycle, applying effects', () => {
 		w.set_code = 1;
 		let d = start(w, spoke_cfg({ overrides: { n_up: 1 } }));
 		cycle(w, d);
-		assert.match([ [ 'warn', `peer ${SPOKE_B}: setting endpoint failed: WG_COMMAND_FAILED (exit 1)` ] ],
+		assert.match([ [ 'warning', `${B}: setting endpoint failed: WG_COMMAND_FAILED (exit 1)` ] ],
 			w.logs.matching(/setting endpoint/));
 		assert.match([], filter(w.exec.commands(), (c) => index(c, 'ping -c1') == 0));
 	});
@@ -285,8 +319,8 @@ describe('daemon: spoke cycle, applying effects', () => {
 		cycle(w, d);
 		cycle(w, d);
 		assert.match([
-			[ 'warn', `peer ${SPOKE_B}: setting endpoint failed: WG_COMMAND_FAILED (exit 1)` ],
-			[ 'info', `peer ${SPOKE_B}: setting endpoint recovered` ],
+			[ 'warning', `${B}: setting endpoint failed: WG_COMMAND_FAILED (exit 1)` ],
+			[ 'notice', `${B}: setting endpoint recovered` ],
 		], w.logs.matching(/setting endpoint/));
 	});
 
@@ -301,6 +335,46 @@ describe('daemon: spoke cycle, applying effects', () => {
 		assert.match([ `wg set wg_mesh peer ${SPOKE_B} endpoint ${SPOKE_B_RELAY}` ], uniq(sets));
 		assert.match([], filter(w.exec.commands(), (c) => index(c, 'ping -c1') == 0));
 		assert.match(contains({ state: 'RELAY', ready: true }), d.status().peers[SPOKE_B]);
+	});
+
+	it('logs in observe mode when a peer becomes ready for a trial, and when it no longer is', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		let d = start(w, spoke_cfg({ mode: 'observe' }));
+		cycles(w, d, 8);
+		w.reachable['2001:db8::12'] = false;
+		cycles(w, d, 2);
+		assert.match([
+			[ 'notice', `${B}: ready, steer would trial endpoint=${SPOKE_B_DIRECT}` ],
+			[ 'info', `${B}: no longer ready` ],
+		], w.logs.matching(/ready/));
+	});
+
+	it('forces a steered peer back to the relay when the mode turns to observe, with its own reason', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		w.reachable[SPOKE_B_TUNNEL] = true;
+		let cfg = spoke_cfg({ overrides: { n_up: 1 } });
+		let d = start(w, cfg);
+		cycles(w, d, 2);
+		assert.match('DIRECT', d.status().peers[SPOKE_B].state);
+		cfg = { ...cfg, mode: 'observe' };
+		d.reload(cfg, params.build(cfg));
+		cycle(w, d);
+		assert.match(contains({ state: 'RELAY', last_change: contains({ reason: 'observe_mode' }) }), d.status().peers[SPOKE_B]);
+		assert.match([ [ 'notice', `${B}: transition DIRECT -> RELAY reason=observe_mode endpoint=${SPOKE_B_RELAY}` ] ],
+			w.logs.matching(/-> RELAY/));
+	});
+
+	it('logs a trial timeout with the backoff it starts', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1 } }));
+		cycles(w, d, 5);
+		assert.match([
+			[ 'notice', `${B}: transition RELAY -> TRIALING reason=trial_start endpoint=${SPOKE_B_DIRECT}` ],
+			[ 'notice', `${B}: transition TRIALING -> RELAY reason=trial_timeout backoff=30s endpoint=${SPOKE_B_RELAY}` ],
+		], w.logs.matching(/transition/));
 	});
 });
 
@@ -340,7 +414,7 @@ describe('daemon: discovery', () => {
 		w.payload = null;
 		cycle(w, d);
 		assert.match({ fresh: false, last_ok: 1790456500 }, d.status().discovery);
-		assert.match([ [ 'warn', 'discovery failed: DISCOVERY_FETCH_FAILED (uclient error 4)' ] ], w.logs.matching(/discovery/));
+		assert.match([ [ 'warning', 'discovery failed: DISCOVERY_FETCH_FAILED (uclient error 4)' ] ], w.logs.matching(/^discovery failed/));
 		let seen = length(w.exec.commands());
 		cycle(w, d);
 		assert.match(true, 'ping -6 -c1 -W1 2001:db8::12' in commands_since(w, seen));
@@ -354,7 +428,7 @@ describe('daemon: discovery', () => {
 			w.payload = bad.body;
 			let d = start(w);
 			cycle(w, d);
-			assert.match([ [ 'warn', `discovery failed: ${bad.log}` ] ], w.logs.matching(/discovery/));
+			assert.match([ [ 'warning', `discovery failed: ${bad.log}` ] ], w.logs.matching(/^discovery failed/));
 			assert.match(false, d.status().discovery.fresh);
 			assert.match(false, exists(w.fs.files, daemon.CACHE_PATH));
 		}
@@ -368,9 +442,27 @@ describe('daemon: discovery', () => {
 		w.payload = payload({ [SPOKE_B]: SPOKE_B_DIRECT });
 		cycles(w, d, 4);
 		assert.match([
-			[ 'warn', 'discovery failed: DISCOVERY_FETCH_FAILED (uclient error 4)' ],
-			[ 'info', 'discovery recovered' ],
-		], w.logs.matching(/discovery/));
+			[ 'warning', 'discovery failed: DISCOVERY_FETCH_FAILED (uclient error 4)' ],
+			[ 'notice', 'discovery recovered' ],
+		], w.logs.matching(/^discovery (failed|recovered)/));
+	});
+
+	it('logs a failing cache save once per outage, and the recovery', () => {
+		let w = h.world(kernel_of(SPOKE_B));
+		w.payload = payload({ [SPOKE_B]: SPOKE_B_DIRECT });
+		let writefile = w.fs.writefile;
+		w.fs.writefile = () => null;
+		let d = start(w);
+		cycle(w, d, 60);
+		cycle(w, d, 60);
+		assert.match(true, d.status().discovery.fresh, 'the payload is used all the same');
+		w.fs.writefile = writefile;
+		cycle(w, d, 60);
+		cycle(w, d, 60);
+		assert.match([
+			[ 'warning', `saving the discovery cache failed: CACHE_SAVE_FAILED (${daemon.CACHE_PATH})` ],
+			[ 'notice', 'saving the discovery cache recovered' ],
+		], w.logs.matching(/saving/));
 	});
 });
 
@@ -423,7 +515,7 @@ describe('daemon: watchdog', () => {
 		w.watchdog = Result.err('UBUS_CALL_FAILED', 'Not found');
 		let d = start(w);
 		cycle(w, d);
-		assert.match([ [ 'warn', 'watchdog ping failed: UBUS_CALL_FAILED (Not found)' ] ], w.logs.matching(/watchdog/));
+		assert.match([ [ 'warning', 'watchdog ping failed: UBUS_CALL_FAILED (Not found)' ] ], w.logs.matching(/watchdog/));
 	});
 
 	it('logs a failing ping once per outage, and the recovery', () => {
@@ -434,8 +526,8 @@ describe('daemon: watchdog', () => {
 		w.watchdog = Result.ok(null);
 		cycles(w, d, 2);
 		assert.match([
-			[ 'warn', 'watchdog ping failed: UBUS_CALL_FAILED (Not found)' ],
-			[ 'info', 'watchdog ping recovered' ],
+			[ 'warning', 'watchdog ping failed: UBUS_CALL_FAILED (Not found)' ],
+			[ 'notice', 'watchdog ping recovered' ],
 		], w.logs.matching(/watchdog/));
 	});
 });
@@ -485,7 +577,7 @@ describe('daemon: scenario through the real decide', () => {
 		w.kernel[SPOKE_B].endpoint = SPOKE_B_ROAMED;
 		cycle(w, d);
 		assert.match(contains({ state: 'DIRECT', endpoint: SPOKE_B_ROAMED, target: SPOKE_B_ROAMED, switches: 2 }), peer());
-		assert.match(1, length(w.logs.matching(/roam DIRECT -> DIRECT \(roam_adopted\)/)));
+		assert.match([ [ 'notice', `${B}: roamed endpoint=${SPOKE_B_ROAMED}` ] ], w.logs.matching(/roamed/));
 
 		w.reachable[SPOKE_B_TUNNEL] = false;
 		cycle(w, d);
@@ -499,10 +591,11 @@ describe('daemon: scenario through the real decide', () => {
 			last_change: { ts: demoted_at, from: 'DIRECT', to: 'RELAY', reason: 'demoted' } }, peer());
 		assert.match(SPOKE_B_RELAY, w.kernel[SPOKE_B].endpoint);
 		assert.match([
-			[ 'info', `peer ${SPOKE_B}: transition RELAY -> TRIALING (trial_start)` ],
-			[ 'info', `peer ${SPOKE_B}: transition TRIALING -> DIRECT (trial_ok)` ],
-			[ 'info', `peer ${SPOKE_B}: transition DIRECT -> RELAY (demoted)` ],
+			[ 'notice', `${B}: transition RELAY -> TRIALING reason=trial_start endpoint=${SPOKE_B_DIRECT}` ],
+			[ 'notice', `${B}: transition TRIALING -> DIRECT reason=trial_ok endpoint=${SPOKE_B_DIRECT}` ],
+			[ 'notice', `${B}: transition DIRECT -> RELAY reason=demoted failed_probes=2 backoff=30s endpoint=${SPOKE_B_RELAY}` ],
 		], w.logs.matching(/transition/));
+		assert.match([], w.logs.matching(/ready/), 'steer mode says it with the transitions');
 	});
 });
 
@@ -586,13 +679,21 @@ describe('daemon: run', () => {
 		assert.match([ 0, 500, 500 ], map(r.loop.timers, (t) => t.ms));
 	});
 
+	it('logs the start with the role, mode and peer counts, and the stop', () => {
+		let w = h.world(kernel_of(SPOKE_B));
+		run(w, MAIN, { ...network(SPOKE_B_PEER), hub: { '.type': 'wireguard_wg_mesh', public_key: HUB } });
+		assert.match([
+			[ 'notice', 'started role=spoke mode=steer managed=1 unmanaged=1' ],
+			[ 'notice', 'stopped' ],
+		], w.logs.matching(/^(started|stopped)/));
+	});
+
 	it('exits 1 with a logged reason on an invalid configuration', () => {
 		let w = h.world(kernel_of(SPOKE_B));
 		let r = run(w, { ...MAIN, role: 'relay' });
 		assert.match(1, r.code);
 		assert.match(false, r.loop.ran);
-		assert.match([ [ 'error', 'invalid configuration: CONFIG_INVALID_ROLE (relay)' ] ], w.logs.entries);
-		assert.match([ 'invalid configuration: CONFIG_INVALID_ROLE (relay)' ], w.stderr);
+		assert.match([ [ 'err', 'invalid configuration: CONFIG_INVALID_ROLE (relay)' ] ], w.logs.entries);
 	});
 
 	it('exits 1 with a logged reason when startup fails', () => {
@@ -601,8 +702,8 @@ describe('daemon: run', () => {
 		assert.match(1, r.code);
 		assert.match(true, r.loop.ended);
 		assert.match({}, w.ubus.published);
-		assert.match(1, length(w.logs.matching(/^startup failed: INTERFACE_MISSING/)));
-		assert.match(1, length(filter(w.stderr, (m) => index(m, 'startup failed: INTERFACE_MISSING') == 0)));
+		assert.match([ 'err', 'notice' ], map(w.logs.matching(/^startup failed: INTERFACE_MISSING|^stopped/), (e) => e[0]));
+		assert.match([ 'notice', 'stopped code=1' ], w.logs.entries[-1]);
 	});
 });
 
@@ -625,8 +726,9 @@ describe('daemon: reload on SIGHUP', () => {
 		assert.match(contains({ state: 'RELAY', up_streak: 0, section: 'spoke_a' }), r.status().peers[SPOKE_A]);
 		tick(r);
 		assert.match([ 3, 1 ], [ r.status().peers[SPOKE_B].up_streak, r.status().peers[SPOKE_A].up_streak ]);
-		assert.match([ [ 'info', 'configuration reloaded (peers: 1 kept, 1 added, 0 removed)' ] ],
+		assert.match([ [ 'notice', 'configuration reloaded peers_kept=1 added=1 removed=0' ] ],
 			w.logs.matching(/reloaded/));
+		assert.match([ [ 'info', `${A}: added` ] ], w.logs.matching(/: (added|removed|changed)$/));
 	});
 
 	it('drops a removed peer from steering and status', () => {
@@ -637,7 +739,8 @@ describe('daemon: reload on SIGHUP', () => {
 		tick(r);
 		assert.match([ SPOKE_B ], keys(r.status().peers));
 		assert.match([], filter(commands_since(w, seen), (c) => index(c, SPOKE_A) >= 0 || index(c, '2001:db8::11') >= 0));
-		assert.match(1, length(w.logs.matching(/peers: 1 kept, 0 added, 1 removed/)));
+		assert.match(1, length(w.logs.matching(/peers_kept=1 added=0 removed=1/)));
+		assert.match([ [ 'info', `${A}: removed` ] ], w.logs.matching(/: (added|removed|changed)$/));
 	});
 
 	it('starts a peer afresh when its annotations change, and guards its new relay', () => {
@@ -649,6 +752,8 @@ describe('daemon: reload on SIGHUP', () => {
 		tick(r);
 		assert.match(`wg set wg_mesh peer ${SPOKE_B} endpoint 10.10.0.99:51820`,
 			filter(w.exec.commands(), (c) => index(c, 'wg set') == 0)[-1]);
+		assert.match([ [ 'info', `${B}: changed` ] ], w.logs.matching(/: (added|removed|changed)$/));
+		assert.match(1, length(w.logs.matching(/peers_kept=0 added=1 removed=1/)));
 
 		w.routes['10.10.0.98'] = 'wg_mesh';
 		reload(r, MAIN, network({ ...SPOKE_B_PEER, relay: '10.10.0.98:51820' }));
@@ -664,7 +769,7 @@ describe('daemon: reload on SIGHUP', () => {
 		reload(r, MAIN, network(SPOKE_B_PEER));
 		assert.match([], r.status().unmanaged);
 		assert.match(contains({ state: 'RELAY', section: 'spoke_b' }), r.status().peers[SPOKE_B]);
-		assert.match([ [ 'info', `peer ${SPOKE_B}: relay route found, now managed` ] ], w.logs.matching(/route found/));
+		assert.match([ [ 'notice', `${B}: relay route found, now managed` ] ], w.logs.matching(/route found/));
 	});
 
 	it('keeps a still-misrouted peer rejected across a reload, logging it once', () => {
@@ -673,7 +778,7 @@ describe('daemon: reload on SIGHUP', () => {
 		let r = run(w, MAIN);
 		reload(r, { ...MAIN, cycle: '1' }, network(SPOKE_B_PEER));
 		assert.match([ { section: 'spoke_b', pubkey: SPOKE_B, reason: 'relay routes into wg_mesh' } ], r.status().unmanaged);
-		assert.match(1, length(w.logs.matching(/section spoke_b unmanaged/)));
+		assert.match(1, length(w.logs.matching(/^peer spoke_b .*unmanaged/)));
 	});
 
 	it('applies parameters, mode and the discovery url live', () => {
@@ -685,6 +790,8 @@ describe('daemon: reload on SIGHUP', () => {
 		assert.match(2000, r.loop.timers[-1].ms);
 		assert.match('observe', r.status().mode);
 		assert.match([ URL, other ], w.http.calls, 'fetched at once from the new url');
+		assert.match([ [ 'notice', 'configuration reloaded peers_kept=1 added=0 removed=0 mode=observe' ] ],
+			w.logs.matching(/reloaded/));
 	});
 
 	it('ends the loop on a structural change, for procd to respawn', () => {
@@ -693,7 +800,7 @@ describe('daemon: reload on SIGHUP', () => {
 		let net = { ...network(SPOKE_B_PEER), wg_mesh2: { '.type': 'interface', proto: 'wireguard' } };
 		reload(r, { ...MAIN, mesh_iface: 'wg_mesh2' }, net);
 		assert.match(true, r.loop.ended);
-		assert.match([ [ 'info', 'reload: mesh_iface changed, exiting for procd to start afresh' ] ],
+		assert.match([ [ 'notice', 'reload: exiting for procd to start afresh changed=mesh_iface' ] ],
 			w.logs.matching(/^reload/));
 	});
 
@@ -702,7 +809,7 @@ describe('daemon: reload on SIGHUP', () => {
 		let r = run(w, MAIN);
 		reload(r, { ...MAIN, role: 'relay' }, network(SPOKE_B_PEER));
 		assert.match(false, r.loop.ended);
-		assert.match([ [ 'error', 'reload: invalid configuration, keeping the running one: CONFIG_INVALID_ROLE (relay)' ] ],
+		assert.match([ [ 'err', 'reload: invalid configuration, keeping the running one: CONFIG_INVALID_ROLE (relay)' ] ],
 			w.logs.matching(/^reload/));
 		tick(r);
 		assert.match(contains({ role: 'spoke', mode: 'steer' }), r.status());
@@ -718,7 +825,7 @@ describe('daemon: reload on SIGHUP', () => {
 			run_loop();
 		};
 		run(w, MAIN, null, loop);
-		assert.match([ 'started as spoke', 'configuration reloaded (peers: 1 kept, 0 added, 0 removed)' ],
+		assert.match([ 'started role=spoke mode=steer managed=1 unmanaged=0', 'configuration reloaded peers_kept=1 added=0 removed=0' ],
 			map(w.logs.matching(/started|reloaded/), (e) => e[1]));
 	});
 });

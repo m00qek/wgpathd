@@ -76,4 +76,11 @@ describe('components.http: get', () => {
 		http.create(uclient, uloop).get('http://127.0.0.1:17799/peers', 300, 1024, (res) => push(answers, res));
 		assert.match([ contains({ ok: false, error: 'DISCOVERY_FETCH_FAILED', details: 'cannot connect' }) ], answers);
 	});
+
+	it('rejects an invalid url without showing its credentials', () => {
+		let answers = [];
+		http.create(uclient, uloop).get('ftp://user:secret@10.10.0.1/peers', 300, 1024, (res) => push(answers, res));
+		assert.match([ contains({ ok: false, error: 'DISCOVERY_FETCH_FAILED', details: 'invalid url ftp://10.10.0.1/peers' }) ],
+			answers);
+	});
 });

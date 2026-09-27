@@ -30,11 +30,11 @@ logread -f -e wgpathd
 A peer going direct logs:
 
 ```
-peer SpokeBmeshPublicKeyExample00000000000000000=: transition RELAY -> TRIALING (trial_start)
-peer SpokeBmeshPublicKeyExample00000000000000000=: transition TRIALING -> DIRECT (trial_ok)
+peer spoke_b (SpokeBme): transition RELAY -> TRIALING reason=trial_start endpoint=[2001:db8:b::20]:51820
+peer spoke_b (SpokeBme): transition TRIALING -> DIRECT reason=trial_ok endpoint=[2001:db8:b::20]:51820
 ```
 
-`trial_timeout` instead of `trial_ok` means the tunnel probe got no answer over the direct path within `trial_window`. The peer is back on the relay and backs off for 30 seconds, doubling on each further failure.
+`reason=trial_timeout` instead of `trial_ok` means the tunnel probe got no answer over the direct path within `trial_window`. The peer is back on the relay and backs off for 30 seconds, doubling on each further failure.
 
 ## 3. Check the status
 
@@ -62,6 +62,6 @@ uci commit wgpathd
 service wgpathd reload
 ```
 
-Every managed peer returns to its relay endpoint on the next cycle, logged as `transition DIRECT -> RELAY (demoted)`.
+Every managed peer returns to its relay endpoint on the next cycle, logged as `transition DIRECT -> RELAY reason=observe_mode`.
 
 For what to do when a peer does not go direct, or keeps falling back, see [How to inspect status and troubleshoot](troubleshoot.md).

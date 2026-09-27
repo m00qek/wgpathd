@@ -50,7 +50,7 @@ function direct_step(ctl, obs, ev, params, now) {
 function step(ctl, obs, ev, params, now) {
 	let steering = params.mode == 'steer';
 	if (!steering && ctl.state != state.RELAY)
-		return { ctl: state.relay(ctl), reason: 'demoted' };
+		return { ctl: state.relay(ctl), reason: 'observe_mode' };
 
 	switch (ctl.state) {
 	case state.TRIALING: return trialing_step(ctl, obs, params, now);

@@ -36,7 +36,7 @@ A procd service with `START=95` and `STOP=10`. When `option enabled` is on and t
 | `command` | `/usr/libexec/wgpathd/daemon.uc` | Runs the daemon. |
 | `respawn` | `3600 5 0` | Restarts the daemon 5 seconds after it exits, with no retry limit. |
 | `watchdog` | `1 30` | Passive watchdog: procd restarts the instance if it has not been pinged for 30 seconds. The daemon pings at the end of every cycle. |
-| `stderr` | `1` | Standard error goes to the system log. |
+| `stderr` | `1` | Standard error goes to the system log, under `daemon.uc[<PID>]`. The daemon's messages go to syslog directly, so this only catches an uncaught exception. |
 
 | Trigger | Effect |
 | :--- | :--- |

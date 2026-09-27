@@ -38,11 +38,11 @@ If you apply changes with LuCI's Save & Apply, or with `reload_config`, this hap
 ## 4. Confirm
 
 ```bash
-logread -e wgpathd | tail -n 3
+logread -e wgpathd | tail -n 5
 ```
 
-- `configuration reloaded (peers: 2 kept, 1 added, 0 removed)`: the change is live. Kept peers carry on as they were; added and changed peers start in RELAY.
-- `reload: mesh_iface changed, exiting for procd to start afresh`, followed about 5 seconds later by `started as spoke`: the change needed a new process. Every peer starts again in RELAY.
+- `configuration reloaded peers_kept=2 added=1 removed=0`: the change is live. Kept peers carry on as they were; added and changed peers start in RELAY. The `peer <section> (<key prefix>): added`, `changed` or `removed` lines just before it name them.
+- `reload: exiting for procd to start afresh changed=mesh_iface`, then `stopped`, and about 5 seconds later `started role=spoke ...`: the change needed a new process. Every peer starts again in RELAY.
 - `invalid configuration, keeping the running one`: the check failed. Go back to step 2.
 
 Which changes apply live and which need a new process is listed in [Service commands](../reference/service-commands.md#reload).

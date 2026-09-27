@@ -55,9 +55,9 @@ function streak_reporter(deps, what) {
 	let failing = false;
 	return function(res) {
 		if (!res.ok && !failing)
-			deps.log('warn', `${what} failed: ${Result.describe(res)}`);
+			deps.log('warning', `${what} failed: ${Result.describe(res)}`);
 		else if (res.ok && failing)
-			deps.log('info', `${what} recovered`);
+			deps.log('notice', `${what} recovered`);
 		failing = !res.ok;
 	};
 }
@@ -65,6 +65,12 @@ function streak_reporter(deps, what) {
 function watchdog_pinger(deps) {
 	let report = streak_reporter(deps, 'watchdog ping');
 	return () => report(deps.ubus.call('service', 'watchdog', WATCHDOG));
+}
+
+// An unmanaged peer may have no valid key to show.
+function peer_name(peer) {
+	let key = (type(peer.pubkey) == 'string') ? ` (${substr(peer.pubkey, 0, 8)})` : '';
+	return `peer ${peer.section}${key}`;
 }
 
 function peer_record(peer) {
@@ -100,17 +106,20 @@ function create_spoke(deps, cfg, params) {
 	let disc = { peers: {}, fresh: false, fetching: false, last_fetch: null, last_ok: null };
 	let report_read = streak_reporter(deps, `reading ${cfg.mesh_iface}`);
 	let report_discovery = streak_reporter(deps, 'discovery');
+	let report_cache = streak_reporter(deps, 'saving the discovery cache');
 	let ping_watchdog = watchdog_pinger(deps);
 
-	let log_peer = (level, rec, msg) => deps.log(level, `peer ${rec.peer.pubkey}: ${msg}`);
+	let log_peer = (level, peer, msg) => deps.log(level, `${peer_name(peer)}: ${msg}`);
 	let candidate = (rec) => disc.peers[rec.peer.pubkey]?.direct;
 
-	let log_unmanaged = (u) => deps.log('info', `peer section ${u.section} unmanaged: ${u.reason}`);
+	// Every reason is a configuration error, except a relay route lookup that may yet succeed.
+	let log_unmanaged = (u, level) => log_peer(level ?? 'warning', u, `unmanaged reason=${u.reason}`);
 	let manage = (peer) => push(records, peer_record(peer));
+	let log_managed = (peer) => log_peer('notice', peer, 'relay route found, now managed');
 
 	let warn_invalid_mode = function() {
 		if (cfg.invalid_mode != null)
-			deps.log('warn', `unknown mode '${cfg.invalid_mode}', running in observe mode`);
+			deps.log('warning', `unknown mode, running in observe mode value=${cfg.invalid_mode}`);
 	};
 
 	let reject = function(peer, reason) {
@@ -139,13 +148,12 @@ function create_spoke(deps, cfg, params) {
 	let guard_new = function(peers) {
 		let still = guard_relays(peers);
 		for (let w in still)
-			log_unmanaged(unmanaged_entry(w.peer, w.reason));
+			log_unmanaged(unmanaged_entry(w.peer, w.reason), 'info');
 		waiting = [ ...waiting, ...still ];
 	};
 
 	let recheck_relays = function() {
-		waiting = guard_relays(map(waiting, (w) => w.peer),
-			(peer) => deps.log('info', `peer ${peer.pubkey}: relay route found, now managed`));
+		waiting = guard_relays(map(waiting, (w) => w.peer), log_managed);
 	};
 
 	let unmanaged_entries = () => [
@@ -154,12 +162,33 @@ function create_spoke(deps, cfg, params) {
 		...map(waiting, (w) => unmanaged_entry(w.peer, w.reason)),
 	];
 
+	let same = (a, b) => a.pubkey == b.pubkey && a.relay == b.relay && a.tunnel == b.tunnel;
+
+	let log_peer_changes = function(before, after) {
+		let by_key = function(peers) {
+			let m = {};
+			for (let peer in peers)
+				m[peer.pubkey] = peer;
+			return m;
+		};
+		let old = by_key(before);
+		let now = by_key(after);
+		for (let key, peer in now)
+			if (old[key] == null)
+				log_peer('info', peer, 'added');
+			else if (!same(old[key], peer))
+				log_peer('info', peer, 'changed');
+		for (let key, peer in old)
+			if (now[key] == null)
+				log_peer('info', peer, 'removed');
+	};
+
 	// A peer keeps its ctl only while its annotations are unchanged. A rejected peer
 	// is guarded again, since the route it was rejected for may have been fixed.
 	let reconcile = function(peers) {
-		let same = (a, b) => a.pubkey == b.pubkey && a.relay == b.relay && a.tunnel == b.tunnel;
 		let take = (list, peer) => filter(list, (x) => same(x.peer, peer))[0];
 		let old = { records: records, rejected: rejected, waiting: waiting };
+		log_peer_changes(map([ ...records, ...rejected, ...waiting ], (x) => x.peer), peers);
 		records = [];
 		rejected = [];
 		waiting = [];
@@ -191,7 +220,7 @@ function create_spoke(deps, cfg, params) {
 			let v = relay.guard(deps.route_get, cfg.mesh_iface, peer);
 			if (v.verdict == relay.MANAGED) {
 				manage(peer);
-				deps.log('info', `peer ${peer.pubkey}: relay route found, now managed`);
+				log_managed(peer);
 			}
 			else if (v.verdict == relay.REJECTED)
 				push(rejected, { peer: peer, reason: v.reason });
@@ -228,10 +257,12 @@ function create_spoke(deps, cfg, params) {
 		let kernel = kernel_peers[rec.peer.pubkey];
 		if (kernel == null) {
 			if (!rec.absent)
-				log_peer('warn', rec, `absent from ${cfg.mesh_iface}, skipped`);
+				log_peer('warning', rec.peer, `absent from ${cfg.mesh_iface}, skipped`);
 			rec.absent = true;
 			return null;
 		}
+		if (rec.absent)
+			log_peer('notice', rec.peer, `back in ${cfg.mesh_iface}`);
 		rec.absent = false;
 		return {
 			underlay_ok: underlay_ok ?? null,
@@ -245,17 +276,39 @@ function create_spoke(deps, cfg, params) {
 		};
 	};
 
+	// rec.ctl is already the state decide moved to, so backoff and endpoint are the new ones.
+	let describe_change = function(rec, entry) {
+		if (entry.event == 'roam')
+			return `roamed endpoint=${rec.ctl.asserted}`;
+		let detail = '';
+		if (entry.reason == 'demoted')
+			detail = ` failed_probes=${params.m_down} backoff=${rec.ctl.backoff}s`;
+		else if (entry.reason == 'trial_timeout')
+			detail = ` backoff=${rec.ctl.backoff}s`;
+		return `transition ${entry.from} -> ${entry.to} reason=${entry.reason}${detail} endpoint=${rec.ctl.asserted}`;
+	};
+
 	let record_log = function(rec, entry) {
 		if (entry.event == 'transition')
 			rec.switches++;
-		log_peer('info', rec, `${entry.event} ${entry.from} -> ${entry.to} (${entry.reason})`);
+		log_peer('notice', rec.peer, describe_change(rec, entry));
+	};
+
+	// In steer mode a ready peer starts a trial at once, and its transition line says so.
+	let note_readiness = function(rec, ready) {
+		if (params.mode == 'steer' || ready == rec.metric.ready)
+			return;
+		if (ready)
+			log_peer('notice', rec.peer, `ready, steer would trial endpoint=${candidate(rec)}`);
+		else
+			log_peer('info', rec.peer, 'no longer ready');
 	};
 
 	// The probe leaves only on an endpoint that was actually set, so a failed
 	// `wg set` cannot let a probe over the old path commit a trial.
 	let set_then_probe = function(rec, addr, probe_addr, done) {
 		if (!rec.report_set)
-			rec.report_set = streak_reporter(deps, `peer ${rec.peer.pubkey}: setting endpoint`);
+			rec.report_set = streak_reporter(deps, `${peer_name(rec.peer)}: setting endpoint`);
 		deps.exec(wg.set_endpoint_command(cfg.mesh_iface, rec.peer.pubkey, addr), SET_TIMEOUT, (res) => {
 			let err = command_error(res, errors.WG_COMMAND_FAILED);
 			rec.report_set(err ?? Result.ok());
@@ -281,8 +334,10 @@ function create_spoke(deps, cfg, params) {
 				probe_addr = e.tunnel_probe;
 			else if (exists(e, 'log'))
 				record_log(rec, e.log);
-			else if (exists(e, 'metric'))
+			else if (exists(e, 'metric')) {
+				note_readiness(rec, e.metric.ready);
 				rec.metric = e.metric;
+			}
 		}
 		set_then_probe(rec, addr, probe_addr, done);
 	};
@@ -300,8 +355,8 @@ function create_spoke(deps, cfg, params) {
 			return;
 		disc.peers = res.data;
 		disc.last_ok = deps.clock.wall();
-		if (!discovery.save_cache(deps.fs, CACHE_PATH, res.data))
-			deps.log('warn', `cannot save the discovery cache to ${CACHE_PATH}`);
+		let saved = discovery.save_cache(deps.fs, CACHE_PATH, res.data);
+		report_cache(saved ? Result.ok() : Result.err(errors.CACHE_SAVE_FAILED, CACHE_PATH));
 	};
 
 	let fetch_due = function(now, wants_refresh) {
@@ -333,6 +388,8 @@ function create_spoke(deps, cfg, params) {
 					log_unmanaged(u);
 				guard_new(cfg.peers.managed);
 				disc.peers = discovery.load_cache(deps.fs, CACHE_PATH);
+				let cached = length(disc.peers);
+				deps.log('info', cached ? `discovery cache: loaded peers=${cached}` : 'discovery cache: none usable');
 				done(Result.ok());
 			});
 		},
@@ -429,13 +486,6 @@ function loop(deps, daemon, cycle) {
 	daemon.cycle(() => deps.uloop.timer(int(cycle() * 1000), () => loop(deps, daemon, cycle)));
 }
 
-// Also on stderr: a manual run, or a container without logd, has no syslog to read.
-function fatal(deps, msg) {
-	deps.log('error', msg);
-	deps.stderr(msg);
-	return 1;
-}
-
 export function structural_change(old, cfg) {
 	for (let opt in STRUCTURAL)
 		if (old[opt] != cfg[opt])
@@ -443,17 +493,28 @@ export function structural_change(old, cfg) {
 	return null;
 };
 
-function describe_reload(summary) {
-	if (summary == null)
-		return 'configuration reloaded';
-	return `configuration reloaded (peers: ${summary.kept} kept, ${summary.added} added, ${summary.removed} removed)`;
+function describe_start(cfg, status) {
+	if (cfg.role == 'hub')
+		return 'started role=hub';
+	return `started role=spoke mode=${status.mode} managed=${length(status.peers)} unmanaged=${length(status.unmanaged)}`;
+}
+
+function describe_reload(summary, old, cfg) {
+	let msg = 'configuration reloaded';
+	if (summary != null)
+		msg += ` peers_kept=${summary.kept} added=${summary.added} removed=${summary.removed}`;
+	if (old.mode != cfg.mode)
+		msg += ` mode=${cfg.mode}`;
+	return msg;
 }
 
 export function run(deps) {
 	let load_config = () => config.load({ ...deps, uci: deps.uci_cursor() });
 	let loaded = load_config();
-	if (!loaded.ok)
-		return fatal(deps, `invalid configuration: ${Result.describe(loaded)}`);
+	if (!loaded.ok) {
+		deps.log('err', `invalid configuration: ${Result.describe(loaded)}`);
+		return 1;
+	}
 	let cfg = loaded.data;
 	let params = parameters.build(cfg);
 	let daemon = create(deps, cfg, params);
@@ -468,15 +529,16 @@ export function run(deps) {
 		}
 		let res = load_config();
 		if (!res.ok)
-			return deps.log('error', `reload: invalid configuration, keeping the running one: ${Result.describe(res)}`);
+			return deps.log('err', `reload: invalid configuration, keeping the running one: ${Result.describe(res)}`);
 		let changed = structural_change(cfg, res.data);
 		if (changed != null) {
-			deps.log('info', `reload: ${changed} changed, exiting for procd to start afresh`);
+			deps.log('notice', `reload: exiting for procd to start afresh changed=${changed}`);
 			return deps.uloop.end();
 		}
+		let old = cfg;
 		cfg = res.data;
 		params = parameters.build(cfg);
-		deps.log('info', describe_reload(daemon.reload(cfg, params)));
+		deps.log('notice', describe_reload(daemon.reload(cfg, params), old, cfg));
 	};
 	let hup = deps.uloop.signal('SIGHUP', reload);
 
@@ -484,10 +546,11 @@ export function run(deps) {
 	deps.uloop.timer(0, () => daemon.start((res) => {
 		let up = res.ok ? serve(deps, cfg, daemon) : res;
 		if (!up.ok) {
-			code = fatal(deps, `startup failed: ${Result.describe(up)}`);
+			deps.log('err', `startup failed: ${Result.describe(up)}`);
+			code = 1;
 			return deps.uloop.end();
 		}
-		deps.log('info', `started as ${cfg.role}`);
+		deps.log('notice', describe_start(cfg, daemon.status()));
 		started = true;
 		loop(deps, daemon, () => params.cycle);
 		if (reload_pending)
@@ -495,5 +558,6 @@ export function run(deps) {
 	}));
 	deps.uloop.run();
 	hup?.delete();
+	deps.log('notice', code ? `stopped code=${code}` : 'stopped');
 	return code;
 };

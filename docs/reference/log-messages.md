@@ -9,31 +9,53 @@ logread -e wgpathd
 A line looks like this:
 
 ```
-Sun Sep 27 10:15:03 2026 daemon.info wgpathd[2481]: peer SpokeBmeshPublicKeyExample00000000000000000=: transition RELAY -> TRIALING (trial_start)
+Sun Sep 27 10:15:03 2026 daemon.notice wgpathd[2481]: peer spoke_b (SpokeBme): transition RELAY -> TRIALING reason=trial_start endpoint=[2001:db8:b::20]:51820
 ```
 
-wgpathd uses three levels:
+When the daemon runs in the foreground with standard error on a terminal, or with `WGPATHD_STDERR=1` in its environment, each message is also written to standard error, prefixed by its level, as in `notice: started role=hub`. Under procd standard error is not a terminal, so nothing is logged twice.
 
-| Level | syslog priority | Shown by `logread` as |
-| :--- | :--- | :--- |
-| error | `LOG_ERR` | `daemon.err` |
-| warn | `LOG_WARNING` | `daemon.warn` |
-| info | `LOG_INFO` | `daemon.info` |
-
-In the tables below, `<CODE> (<detail>)` is an [error code](error-codes.md) with its detail. When a failure has no text detail, only the code appears.
+An uncaught exception is not a wgpathd message: procd forwards the daemon's standard error to syslog under the identifier `daemon.uc[<PID>]`, so `logread -e wgpathd` does not show it. Use `logread -e daemon.uc` to find one.
 
 ---
+
+## Levels
+
+| Level | syslog priority | Shown by `logread` as | Used for |
+| :--- | :--- | :--- | :--- |
+| err | `LOG_ERR` | `daemon.err` | The daemon cannot run, or refuses a new configuration. |
+| warning | `LOG_WARNING` | `daemon.warn` | A problem that needs attention: an outage, or a peer left unmanaged by a configuration error. |
+| notice | `LOG_NOTICE` | `daemon.notice` | An event an operator wants to see: a path change, a recovery, start, stop and reload. |
+| info | `LOG_INFO` | `daemon.info` | Routine detail. |
+
+wgpathd logs nothing at `debug`.
+
+## Message grammar
+
+The format of every message is stable, so it can be matched by scripts:
+
+```
+[<subject>: ]<event>[ key=value ...]
+```
+
+- A line about a peer has the subject `peer <section> (<key prefix>)`: the peer's UCI section in `/etc/config/network` and the first 8 characters of its public key. A peer with no valid public key has the subject `peer <section>`.
+- Keys and values contain no spaces, except the value of the last key, which runs to the end of the line (such as `reason=relay routes into wg_mesh`).
+- An outage is reported as a pair: `[<subject>: ]<what> failed: <CODE> (<detail>)` when it starts, and `[<subject>: ]<what> recovered` when it ends. The `failed` line is not repeated while the outage lasts, even if the code or detail changes.
+
+In the tables below, `<CODE> (<detail>)` is an [error code](error-codes.md) with its detail. When a failure has no text detail, only the code appears. `<peer>` stands for the peer subject.
 
 ## Startup and exit
 
 | Level | Message | Meaning |
 | :--- | :--- | :--- |
-| error | `invalid configuration: <CODE> (<detail>)` | `/etc/config/wgpathd` failed validation. The daemon exits with status 1. Under the init script this is normally caught before the daemon starts; see [Init script](#init-script). See [UCI configuration](uci-config.md#validation-order). |
-| error | `startup failed: <CODE> (<detail>)` | The interface was not in `wireguard status`, the ubus object could not be published, or the hub listener could not bind. The daemon exits with status 1, and procd starts it again after 5 seconds. |
-| warn | `unknown mode '<mode>', running in observe mode` | The spoke's `mode` is neither `steer` nor `observe`. Logged at startup and on every reload. |
-| info | `started as <role>` | Startup completed; the first cycle follows. `<role>` is `spoke` or `hub`. |
-
-The two error messages are also written to standard error, prefixed with `wgpathd: `. Under procd, standard error is forwarded to the system log, so each appears twice in `logread`.
+| err | `invalid configuration: <CODE> (<detail>)` | `/etc/config/wgpathd` failed validation. The daemon exits with status 1. Under the init script this is normally caught before the daemon starts; see [Init script](#init-script). See [UCI configuration](uci-config.md#validation-order). |
+| err | `startup failed: <CODE> (<detail>)` | The interface was not in `wireguard status`, the ubus object could not be published, or the hub listener could not bind. The daemon exits with status 1, and procd starts it again after 5 seconds. |
+| warning | `unknown mode, running in observe mode value=<mode>` | The spoke's `mode` is neither `steer` nor `observe`. Logged at startup and on every reload. |
+| info | `discovery cache: loaded peers=<n>` | A spoke started with `<n>` peers from the discovery cache in `/var/run/wgpathd/cache.json`. |
+| info | `discovery cache: none usable` | A spoke started without a discovery cache, or with one that failed validation. |
+| notice | `started role=spoke mode=<mode> managed=<n> unmanaged=<n>` | A spoke completed startup; the first cycle follows. `unmanaged` counts peers waiting on a relay route too. |
+| notice | `started role=hub` | A hub completed startup. |
+| notice | `stopped` | The daemon left its loop and exits with status 0: procd stopped it (`service wgpathd stop` or `restart`), or a reload needs a new process. |
+| notice | `stopped code=<n>` | The daemon left its loop and exits with status `<n>`, as after `startup failed:`. |
 
 Typical startup failures:
 
@@ -54,9 +76,9 @@ startup failed: PUBLISHER_LISTEN_FAILED (10.10.0.1:7780: bind(): Address not ava
 
 | Level | Message | Meaning |
 | :--- | :--- | :--- |
-| error | `FAIL  config: <reason>` | The failed check. The reasons are listed in [Service commands](service-commands.md#findings). |
-| error | `invalid configuration, not starting` | `start` created no instance. |
-| error | `invalid configuration, keeping the running one` | `reload` did not signal the daemon; it keeps its configuration. |
+| err | `FAIL  config: <reason>` | The failed check. The reasons are listed in [Service commands](service-commands.md#findings). |
+| err | `invalid configuration, not starting` | `start` created no instance. |
+| err | `invalid configuration, keeping the running one` | `reload` did not signal the daemon; it keeps its configuration. |
 
 The same lines go to standard error of the `service` command.
 
@@ -64,10 +86,13 @@ The same lines go to standard error of the `service` command.
 
 | Level | Message | Meaning |
 | :--- | :--- | :--- |
-| info | `configuration reloaded (peers: <n> kept, <n> added, <n> removed)` | A spoke applied a reload. Kept peers had the same key, relay and tunnel address; changed peers count as removed and added. |
-| info | `configuration reloaded` | A hub applied a reload. The hub has no option that applies live, so nothing changes. |
-| info | `reload: <option> changed, exiting for procd to start afresh` | The reload changes an option that needs a new process. The daemon exits with status 0 and procd starts it again after 5 seconds. |
-| error | `reload: invalid configuration, keeping the running one: <CODE> (<detail>)` | The configuration read on `SIGHUP` is invalid. Nothing changes. |
+| notice | `configuration reloaded peers_kept=<n> added=<n> removed=<n>` | A spoke applied a reload. Kept peers had the same key, relay and tunnel address; a changed peer counts as removed and added. ` mode=<mode>` is appended when the mode changed. |
+| notice | `configuration reloaded` | A hub applied a reload. The hub has no option that applies live, so nothing changes. |
+| info | `<peer>: added` | A reload added this managed peer. It starts in RELAY. |
+| info | `<peer>: changed` | A reload changed this peer's relay or tunnel address. It starts again in RELAY. |
+| info | `<peer>: removed` | A reload removed this peer from steering. |
+| notice | `reload: exiting for procd to start afresh changed=<option>` | The reload changes an option that needs a new process. The daemon exits with status 0 and procd starts it again after 5 seconds. |
+| err | `reload: invalid configuration, keeping the running one: <CODE> (<detail>)` | The configuration read on `SIGHUP` is invalid. Nothing changes. |
 
 What a reload applies is listed in [Service commands](service-commands.md#reload).
 
@@ -75,31 +100,55 @@ What a reload applies is listed in [Service commands](service-commands.md#reload
 
 | Level | Message | Meaning |
 | :--- | :--- | :--- |
-| info | `peer section <section> unmanaged: <reason>` | A mesh peer will not be steered. Logged once per peer at startup, when a reload adds or changes the peer, and when a waiting peer's relay route later resolves into `mesh_iface`. Reasons are listed in [Substrate annotations](substrate.md#managed-and-unmanaged-peers). |
-| info | `peer <pubkey>: relay route found, now managed` | A peer whose relay route lookup had failed now has a route outside `mesh_iface` and is steered from now on. |
+| warning | `<peer>: unmanaged reason=<reason>` | A mesh peer will not be steered because of a configuration error: `invalid public_key`, `missing wgpathd_relay`, `invalid wgpathd_relay`, `missing wgpathd_tunnel`, `invalid wgpathd_tunnel`, or `relay routes into <mesh_iface>`. Logged once per peer at startup, when a reload adds or changes the peer, and when a waiting peer's relay route later resolves into `mesh_iface`. See [Substrate annotations](substrate.md#managed-and-unmanaged-peers). |
+| info | `<peer>: unmanaged reason=relay route lookup failed: <CODE> (<detail>)` | The route lookup for the peer's relay host failed, typically because `wg_hub` is not up yet. It is retried every cycle. |
+| notice | `<peer>: relay route found, now managed` | A peer whose relay route lookup had failed, or that a reload guarded again, now has a route outside `mesh_iface` and is steered from now on. |
 
 ## Path changes (spoke)
 
 | Level | Message | Meaning |
 | :--- | :--- | :--- |
-| info | `peer <pubkey>: transition <from> -> <to> (<reason>)` | A state transition. Reasons: `trial_start`, `trial_ok`, `trial_timeout`, `demoted`. |
-| info | `peer <pubkey>: roam DIRECT -> DIRECT (roam_adopted)` | In DIRECT, the peer's kernel endpoint moved to a new direct address, which is now the target. |
+| notice | `<peer>: transition <from> -> <to> reason=<reason>[ failed_probes=<n>][ backoff=<s>s] endpoint=<endpoint>` | A state transition. `endpoint` is the endpoint wgpathd sets for the new state. `demoted` adds `failed_probes` (the `m_down` probes lost in a row) and `backoff`; `trial_timeout` adds `backoff`. The reasons are listed below. |
+| notice | `<peer>: roamed endpoint=<endpoint>` | In DIRECT, the peer's kernel endpoint moved to a new direct address, which is now the target. |
+| notice | `<peer>: ready, steer would trial endpoint=<endpoint>` | Observe mode only: the peer has earned `n_up` cycles of direct evidence for the discovered endpoint. In steer mode it would start a trial now. |
+| info | `<peer>: no longer ready` | Observe mode only: the peer lost its direct evidence. |
+
+| Reason | Transition |
+| :--- | :--- |
+| `trial_start` | RELAY → TRIALING |
+| `trial_ok` | TRIALING → DIRECT |
+| `trial_timeout` | TRIALING → RELAY |
+| `demoted` | DIRECT → RELAY after `m_down` failed probes |
+| `observe_mode` | TRIALING or DIRECT → RELAY because the mode is not `steer` |
+
+For example:
+
+```
+peer spoke_b (SpokeBme): transition RELAY -> TRIALING reason=trial_start endpoint=[2001:db8:b::20]:51820
+peer spoke_b (SpokeBme): transition TRIALING -> DIRECT reason=trial_ok endpoint=[2001:db8:b::20]:51820
+peer spoke_b (SpokeBme): roamed endpoint=[2001:db8:b::21]:51820
+peer spoke_b (SpokeBme): transition DIRECT -> RELAY reason=demoted failed_probes=2 backoff=60s endpoint=10.10.0.12:51820
+```
 
 ## Cycle problems
 
 | Level | Message | Role | Meaning |
 | :--- | :--- | :--- | :--- |
-| warn | `reading <iface> failed: <CODE> (<detail>)` | both | `ubus call wireguard status` failed or did not contain the interface. Logged once when failures start. A spoke decides nothing while this lasts; a hub keeps its last snapshot. |
-| info | `reading <iface> recovered` | both | The first successful read after a failure. |
-| warn | `peer <pubkey>: absent from <mesh_iface>, skipped` | spoke | A managed peer is not in the kernel's peer table. Logged once each time it disappears; the peer is skipped until it returns. |
-| warn | `peer <pubkey>: setting endpoint failed: WG_COMMAND_FAILED (<detail>)` | spoke | `wg set` failed. The detail is `exit <code>`, or `EXEC_TIMEOUT (wg)` if it took more than 2 seconds. Logged once when failures start for that peer. No tunnel probe is sent for that peer while it fails. |
-| info | `peer <pubkey>: setting endpoint recovered` | spoke | The first successful `wg set` for that peer after a failure. |
-| warn | `discovery failed: <CODE> (<detail>)` | spoke | A discovery fetch failed. Logged once when failures start. See [Discovery HTTP API](discovery-api.md#spoke-side-validation). |
-| info | `discovery recovered` | spoke | The first successful fetch after a failure. |
-| warn | `cannot save the discovery cache to /var/run/wgpathd/cache.json` | spoke | A valid payload was received but the cache file could not be written. The payload is still used. |
-| warn | `watchdog ping failed: <CODE> (<detail>)` | both | The `ubus call service watchdog` at the end of a cycle failed. Logged once when failures start. |
-| info | `watchdog ping recovered` | both | The first successful watchdog ping after a failure. |
+| warning | `reading <iface> failed: <CODE> (<detail>)` | both | `ubus call wireguard status` failed or did not contain the interface. A spoke decides nothing while this lasts; a hub keeps its last snapshot. |
+| notice | `reading <iface> recovered` | both | The first successful read after a failure. |
+| warning | `<peer>: absent from <mesh_iface>, skipped` | spoke | A managed peer is not in the kernel's peer table. Logged once each time it disappears; the peer is skipped until it returns. |
+| notice | `<peer>: back in <mesh_iface>` | spoke | The absent peer is in the kernel's peer table again and is steered from this cycle. |
+| warning | `<peer>: setting endpoint failed: WG_COMMAND_FAILED (<detail>)` | spoke | `wg set` failed. The detail is `exit <code>`, or `EXEC_TIMEOUT (wg)` if it took more than 2 seconds. No tunnel probe is sent for that peer while it fails. |
+| notice | `<peer>: setting endpoint recovered` | spoke | The first successful `wg set` for that peer after a failure. |
+| warning | `discovery failed: <CODE> (<detail>)` | spoke | A discovery fetch failed. See [Discovery HTTP API](discovery-api.md#spoke-side-validation). |
+| notice | `discovery recovered` | spoke | The first successful fetch after a failure. |
+| warning | `saving the discovery cache failed: CACHE_SAVE_FAILED (/var/run/wgpathd/cache.json)` | spoke | A valid payload was received but the cache file could not be written. The payload is still used. |
+| notice | `saving the discovery cache recovered` | spoke | The first successful cache write after a failure. |
+| warning | `watchdog ping failed: <CODE> (<detail>)` | both | The `ubus call service watchdog` at the end of a cycle failed. |
+| notice | `watchdog ping recovered` | both | The first successful watchdog ping after a failure. |
 
-Each `... failed:` line in this table marks the start of an outage and is not repeated while the outage lasts, even if the code or detail changes. The matching `... recovered` line marks its end.
+Each `failed:` line in this table marks the start of an outage; the matching `recovered` line marks its end.
 
 `watchdog ping failed` without a recovery usually means procd does not know the service `wgpathd`, for example when the daemon was started by hand or in a container without procd.
+
+A URL in a message never shows the `user:password@` part it may have been configured with.

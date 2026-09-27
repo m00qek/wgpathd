@@ -72,7 +72,7 @@ The daemon's own startup is fail-closed:
 2. Check the WireGuard interface (`mesh_iface` or `read_iface`) is present in the `wireguard status` reply, so it exists in the kernel, not only in UCI.
 3. On a spoke, run the relay loop guard for each peer, log every unmanaged peer, and load the discovery cache.
 4. Publish the `wgpathd` ubus object; on the hub, also bind the discovery listener.
-5. Log `started as <role>` and run the first cycle.
+5. Log `started role=<role> ...` and run the first cycle.
 
 Any failure in steps 1, 2 or 4 exits with status 1 and a logged reason. procd then respawns the service after 5 seconds. These are the failures the config check cannot see, such as an interface that is not up yet, so retrying them is useful. See [log messages](../reference/log-messages.md).
 

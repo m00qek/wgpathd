@@ -23,6 +23,7 @@ describe('effects: constructors', () => {
 			effects.tunnel_probe('b'),
 			effects.refresh_discovery(),
 			effects.log('transition', 'DIRECT', 'RELAY', 'demoted'),
+			effects.log('transition', 'TRIALING', 'RELAY', 'observe_mode'),
 			effects.log('roam', 'DIRECT', 'DIRECT', 'roam_adopted'),
 			effects.metric({ ...METRIC, state: 'DIRECT', up_streak: 2, down_streak: 1, backoff: 60, ready: true }),
 		]));

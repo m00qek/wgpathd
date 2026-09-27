@@ -64,7 +64,8 @@ check "config is a conffile" grep -qx /etc/config/wgpathd /lib/apk/packages/wgpa
 
 check "modules on default search path" ucode -e 'import * as d from "wgpathd.daemon"; exit(type(d.run) == "function" ? 0 : 1);'
 check "shipped disabled" sh -c '[ "$(uci -q get wgpathd.main.enabled)" = 0 ]'
-check "daemon with default config fails cleanly" fails_cleanly /usr/libexec/wgpathd/daemon.uc
+# The daemon echoes its log to stderr only on a tty or when asked to.
+check "daemon with default config fails cleanly" fails_cleanly env WGPATHD_STDERR=1 /usr/libexec/wgpathd/daemon.uc
 check "config check fails cleanly on the example" fails_cleanly /usr/libexec/wgpathd/check.uc --config
 check "status without a daemon fails cleanly" fails_cleanly /usr/libexec/wgpathd/status.uc
 

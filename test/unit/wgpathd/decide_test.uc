@@ -1,4 +1,4 @@
-import { describe, it, prop, gen, assert } from 'utest';
+import { describe, it, prop, gen, assert, contains } from 'utest';
 import * as state from 'wgpathd.state';
 import * as effects from 'wgpathd.effects';
 import { decide } from 'wgpathd.decide';
@@ -521,9 +521,13 @@ describe('decide: observe mode', () => {
 		let s = sim();
 		to_direct(s);
 		s.params = OBSERVE;
+		let backoff = s.ctl.backoff;
 		let out = s.cycle({ tunnel_ok: true });
 		assert.match([ state.RELAY, RELAY_EP ], [ out.ctl.state, endpoint(out) ]);
 		assert.match(false, has(out, 'tunnel_probe'));
+		assert.match([ { event: 'transition', from: state.DIRECT, to: state.RELAY, reason: 'observe_mode' } ], logs(out));
+		assert.match(contains({ from: state.DIRECT, to: state.RELAY, reason: 'observe_mode' }), out.ctl.last_change);
+		assert.match(backoff, out.ctl.backoff, 'no backoff bump');
 	});
 
 	it('treats an unknown mode as observe', () => {

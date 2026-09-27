@@ -64,7 +64,7 @@ unmanaged:
   hub  HubMeshP  missing wgpathd_relay
 ```
 
-Each peer should be in `RELAY` with its `wgpathd_relay` as the endpoint, and discovery should be `fresh`. If the first line is not `running`, look at `logread -e wgpathd | tail -n 5` and find the code in [Log messages](../reference/log-messages.md#startup-and-exit).
+Each peer should be in `RELAY` with its `wgpathd_relay` as the endpoint, and discovery should be `fresh`. The log has a matching `started role=spoke mode=observe managed=1 unmanaged=1` line. If the first line is not `running`, look at `logread -e wgpathd | tail -n 5` and find the code in [Log messages](../reference/log-messages.md#startup-and-exit).
 
 Then prove the relay carries traffic, using the other spoke's tunnel address:
 

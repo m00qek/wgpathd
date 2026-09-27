@@ -5,6 +5,11 @@
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
 
+// A url in a log line must not carry the credentials of its user:pass@ part.
+function redact(url) {
+	return replace(url, /^([a-z][a-z0-9+.-]*:\/\/)[^\/@]*@/i, '$1');
+}
+
 export function create(uclient, uloop) {
 	return {
 		get: function(url, timeout_ms, max_bytes, cb) {
@@ -36,7 +41,7 @@ export function create(uclient, uloop) {
 				error: (c, code) => fail(`uclient error ${code}`),
 			});
 			if (!con)
-				return cb(Result.err(errors.DISCOVERY_FETCH_FAILED, `invalid url ${url}`));
+				return cb(Result.err(errors.DISCOVERY_FETCH_FAILED, `invalid url ${redact(url)}`));
 
 			// uclient's own timeout is per inactivity; the timer bounds a slowly dribbling server too.
 			timer = uloop.timer(timeout_ms, () => fail('timeout'));

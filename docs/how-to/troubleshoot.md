@@ -8,6 +8,8 @@ service wgpathd check      # configuration and substrate
 logread -e wgpathd         # what happened
 ```
 
+To watch every message as it happens, including routine detail, stop the service and run the daemon in the foreground, where it also writes to the terminal: `service wgpathd stop; /usr/libexec/wgpathd/daemon.uc`. Press Ctrl+C and run `service wgpathd start` when done.
+
 `ubus call wgpathd status` has every field, such as `up_streak`, `ready` and `backoff`. The output of each is described in [Service commands](../reference/service-commands.md), [ubus status](../reference/ubus-status.md) and [Log messages](../reference/log-messages.md). This guide goes from symptom to cause.
 
 ---
@@ -28,10 +30,10 @@ logread -e wgpathd         # what happened
 The peer is not managed. Find it under `unmanaged` in the status, or in the `peer` lines of `service wgpathd check`; the reason says why. The reasons are listed in [Substrate annotations](../reference/substrate.md#managed-and-unmanaged-peers).
 
 - `missing ...` or `invalid ...`: fix the annotation in `/etc/config/network`, then run `service wgpathd reload`.
-- `relay routes into wg_mesh`: some `wg_mesh` peer's `allowed_ips` covers the relay address. Remove it and make sure the hub's `wg_hub` peer holds the transit range. Check with `ip route get <relay address>`; it must say `dev wg_hub`, and `service wgpathd check` must show the peer as `ok`. Then run `service wgpathd reload`: the reload guards the peer again and logs `relay route found, now managed`.
+- `relay routes into wg_mesh`: some `wg_mesh` peer's `allowed_ips` covers the relay address. Remove it and make sure the hub's `wg_hub` peer holds the transit range. Check with `ip route get <relay address>`; it must say `dev wg_hub`, and `service wgpathd check` must show the peer as `ok`. Then run `service wgpathd reload`: the reload guards the peer again and logs `peer <section> (<key prefix>): relay route found, now managed`.
 - `relay route lookup failed: ...`: usually `wg_hub` was not up yet. wgpathd retries every cycle and logs `relay route found, now managed` when it succeeds.
 
-A managed peer that is missing from the kernel's peer table is skipped and logged as `absent from wg_mesh, skipped`. Check `wg show wg_mesh`; the peer returns to normal once netifd has it again.
+A managed peer that is missing from the kernel's peer table is skipped and logged as `absent from wg_mesh, skipped`. Check `wg show wg_mesh`; the peer returns to normal once netifd has it again, logged as `back in wg_mesh`.
 
 ## A peer never becomes ready
 
@@ -46,12 +48,12 @@ A managed peer that is missing from the kernel's peer table is skipped and logge
 
 ## A peer is ready but never trials
 
-- `mode` is `observe`. Trials only happen in steer mode: [How to move a spoke from observe to steer](enable-steering.md).
+- `mode` is `observe`. Trials only happen in steer mode: [How to move a spoke from observe to steer](enable-steering.md). In observe mode the log says `ready, steer would trial endpoint=<endpoint>` when a peer becomes ready.
 - `backoff` is not 0: a trial waits until the backoff since the last failure has passed. `ready` can be `true` in the meantime.
 
 ## Trials time out
 
-The log shows `TRIALING -> RELAY (trial_timeout)` again and again, with `backoff` growing.
+The log shows `transition TRIALING -> RELAY reason=trial_timeout backoff=<s>s` again and again, with the backoff growing.
 
 The direct endpoint answers ping, but WireGuard traffic does not get through both ways. Common causes:
 
@@ -62,7 +64,7 @@ The direct endpoint answers ping, but WireGuard traffic does not get through bot
 
 ## A peer keeps falling back
 
-The log alternates `trial_ok` and `DIRECT -> RELAY (demoted)`. The direct path passes a trial, then loses `m_down` tunnel probes in a row.
+The log alternates `reason=trial_ok` and `transition DIRECT -> RELAY reason=demoted`. The direct path passes a trial, then loses `m_down` tunnel probes in a row.
 
 wgpathd already damps this: each demotion doubles the backoff up to 15 minutes, so a flapping path ends up parked on the relay. If the path is merely lossy, raising `m_down` makes it more tolerant. See [How to tune timing parameters](tune-timing.md).
 
@@ -76,4 +78,5 @@ Repeated failures are logged once, when they start, and again with `recovered` w
 
 - `discovery failed:`: the spoke cannot fetch from the hub. Fix discovery, or wait while the hub is down; direct paths that work are not affected.
 - `watchdog ping failed:`: procd does not know the service. This happens when the daemon is started by hand instead of through `service wgpathd start`.
-- `peer <pubkey>: setting endpoint failed:`: `wg set` itself fails for that peer. Check that `wg` is installed and the interface exists.
+- `saving the discovery cache failed:`: `/var/run/wgpathd` cannot be written, usually because the tmpfs is full. The payload is used all the same.
+- `peer <section> (<key prefix>): setting endpoint failed:`: `wg set` itself fails for that peer. Check that `wg` is installed and the interface exists.

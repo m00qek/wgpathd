@@ -158,7 +158,6 @@ export function world(kernel, opts) {
 		kernel: kernel,
 		routes: {},
 		unrouted: {},
-		stderr: [],
 		reachable: {},
 		payload: null,
 		http_status: 200,
@@ -205,7 +204,6 @@ export function world(kernel, opts) {
 		fs: w.fs,
 		clock: w.clock,
 		log: w.logs.log,
-		stderr: (msg) => push(w.stderr, msg),
 		route_get: (host) => w.unrouted[host]
 			? Result.err('ROUTE_LOOKUP_FAILED', `${host}: Network unreachable`)
 			: Result.ok({ dst: `${host}/32`, oif: w.routes[host] ?? 'wg_hub' }),

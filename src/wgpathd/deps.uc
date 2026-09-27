@@ -55,14 +55,23 @@ export function route_get(host) {
 	return route ? Result.ok(route) : Result.err(errors.ROUTE_LOOKUP_FAILED, `${host}: ${rtnl.error()}`);
 };
 
-const PRIORITIES = { error: log.LOG_ERR, warn: log.LOG_WARNING, info: log.LOG_INFO, debug: log.LOG_DEBUG };
+const PRIORITIES = { err: 'LOG_ERR', warning: 'LOG_WARNING', notice: 'LOG_NOTICE', info: 'LOG_INFO' };
 
-export function syslog_channel() {
+// With a stderr handle, every message is echoed there as well, for a run in the foreground.
+export function syslog_channel(log, stderr) {
 	log.openlog('wgpathd', log.LOG_PID, log.LOG_DAEMON);
 	return function(level, msg) {
-		log.syslog(PRIORITIES[level] ?? log.LOG_INFO, msg);
+		if (!exists(PRIORITIES, level))
+			die(`unknown log level '${level}'`);
+		log.syslog(log[PRIORITIES[level]], '%s', msg);
+		stderr?.write(`${level}: ${msg}\n`);
 	};
 };
+
+// procd captures stderr into syslog, so echoing there under procd would log everything twice.
+function stderr_echo() {
+	return (getenv('WGPATHD_STDERR') == '1' || fs.stderr.isatty()) ? fs.stderr : null;
+}
 
 // uloop is initialised before connecting, so the ubus connection joins the loop.
 export function create() {
@@ -77,8 +86,7 @@ export function create() {
 		http: http.create(uclient, uloop),
 		clock: clock.create(),
 		exec: exec.create(uloop),
-		log: syslog_channel(),
-		stderr: (msg) => warn(`wgpathd: ${msg}\n`),
+		log: syslog_channel(log, stderr_echo()),
 	};
 };
 

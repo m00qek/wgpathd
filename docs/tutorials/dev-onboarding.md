@@ -113,7 +113,7 @@ This rebuilds the package, starts a clean OpenWrt rootfs container, installs the
 
 ```
 ok   shipped disabled
-     -> wgpathd: invalid configuration: CONFIG_INVALID_ROLE (unset)
+     -> err: invalid configuration: CONFIG_INVALID_ROLE (unset)
 ok   daemon with default config fails cleanly
      -> FAIL  config: option role must be 'spoke' or 'hub' (is unset)
 ok   config check fails cleanly on the example

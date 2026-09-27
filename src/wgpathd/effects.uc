@@ -6,7 +6,7 @@ import { RELAY, TRIALING, DIRECT } from 'wgpathd.state';
 
 const STATES  = [ RELAY, TRIALING, DIRECT ];
 const EVENTS  = [ 'transition', 'roam' ];
-const REASONS = [ 'trial_start', 'trial_ok', 'trial_timeout', 'demoted', 'roam_adopted' ];
+const REASONS = [ 'trial_start', 'trial_ok', 'trial_timeout', 'demoted', 'observe_mode', 'roam_adopted' ];
 
 export function set_endpoint(addr) {
 	return { set_endpoint: addr };

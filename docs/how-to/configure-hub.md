@@ -56,7 +56,7 @@ published peers:
   SpokeBme  [2001:db8:b::20]:51820  handshake 7s ago
 ```
 
-If the first line is `not running`, or `wgpathd: cannot read status` follows it, look at `logread -e wgpathd | tail -n 5` and find the code in [Log messages](../reference/log-messages.md#startup-and-exit). A common one is `startup failed: PUBLISHER_LISTEN_FAILED (...: bind(): Address not available)`: `serve_addr` is not an address of this host, or `wg_hub` is not up.
+The log has a `started role=hub` line. If the first line is `not running`, or `wgpathd: cannot read status` follows it, look at `logread -e wgpathd | tail -n 5` and find the code in [Log messages](../reference/log-messages.md#startup-and-exit). A common one is `startup failed: PUBLISHER_LISTEN_FAILED (...: bind(): Address not available)`: `serve_addr` is not an address of this host, or `wg_hub` is not up.
 
 ## 4. Check what is published
 
