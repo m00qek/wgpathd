@@ -29,7 +29,7 @@ Before wgpathd can do anything useful you need:
 ## Documentation map
 
 ### [Tutorials](tutorials/index.md)
-**Learning-oriented.** A guided first session with the development environment: run the tests, build the package, check it installs.
+**Learning-oriented.** A first failover in a lab of OpenWrt containers: configure a hub and two spokes, go direct, cut the direct path, watch the relay take over. And a guided first session with the development environment.
 
 ### [How-to guides](how-to/index.md)
 **Goal-oriented.** Prepare the substrate, install, configure the hub and the spokes, turn on steering, apply changes, tune timing, troubleshoot, remove. Plus developer tasks.
