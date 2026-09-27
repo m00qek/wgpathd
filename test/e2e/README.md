@@ -12,7 +12,7 @@ make e2e SCENARIO=kill-direct              # one (or several, space-separated)
 - `../../devenv/scripts/e2e.sh` — the runner: host safety checks, `make package`,
   image build, one `up` for the whole run, convergence, scenarios, teardown.
 - `../../devenv/e2e.compose.yaml`, `../../devenv/services/e2e/` — the topology:
-  `hub`, `spoke-a` (anchor), `spoke-b` (roamer) on one internal v4+v6 network.
+  `hub`, `spoke-a` (anchor), `spoke-b` (roamer) on one internal docker network (IPv4 in docker, IPv6 from netifd).
 - `lib.sh` — helpers: `docker exec`, status via `jsonfilter`, waits, the
   background ping, nftables faults in a table `inet e2e` beside fw4's.
 - `<scenario>.sh` — one file per scenario, sourced in a subshell with `lib.sh`.

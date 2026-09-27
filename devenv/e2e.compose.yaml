@@ -2,7 +2,9 @@
 # devenv/scripts/e2e.sh. Addresses mirror services/e2e/topology.sh.
 #
 # Kept small on purpose: three nodes on one internal network, no client
-# containers, no privileges beyond NET_ADMIN and NET_RAW.
+# containers, no privileges beyond NET_ADMIN and NET_RAW. The network is not
+# IPv6-enabled, because docker would then turn on the host's IPv6 forwarding;
+# each endpoint re-enables IPv6 on its eth0 and netifd assigns the addresses.
 name: wgpathd-e2e
 
 x-image: &image
@@ -45,7 +47,10 @@ services:
     hostname: hub
     environment: [E2E_NODE=hub]
     networks:
-      transit: { ipv4_address: 172.31.250.10, ipv6_address: "fd77:e2e0:0:1::10" }
+      transit:
+        ipv4_address: 172.31.250.10
+        driver_opts:
+          com.docker.network.endpoint.sysctls: net.ipv6.conf.IFNAME.disable_ipv6=0
 
   spoke-a:
     <<: *node
@@ -53,7 +58,10 @@ services:
     hostname: spoke-a
     environment: [E2E_NODE=spoke-a]
     networks:
-      transit: { ipv4_address: 172.31.250.11, ipv6_address: "fd77:e2e0:0:1::11" }
+      transit:
+        ipv4_address: 172.31.250.11
+        driver_opts:
+          com.docker.network.endpoint.sysctls: net.ipv6.conf.IFNAME.disable_ipv6=0
 
   spoke-b:
     <<: *node
@@ -61,16 +69,17 @@ services:
     hostname: spoke-b
     environment: [E2E_NODE=spoke-b]
     networks:
-      transit: { ipv4_address: 172.31.250.12, ipv6_address: "fd77:e2e0:0:1::12" }
+      transit:
+        ipv4_address: 172.31.250.12
+        driver_opts:
+          com.docker.network.endpoint.sysctls: net.ipv6.conf.IFNAME.disable_ipv6=0
 
 networks:
   transit:
     internal: true
-    enable_ipv6: true
     ipam:
       config:
         - subnet: 172.31.250.0/24
-        - subnet: fd77:e2e0:0:1::/64
 
 volumes:
   keys:
