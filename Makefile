@@ -42,11 +42,17 @@ package:
 		-v $(CURDIR)/bin:/artifacts \
 		$(SDK_IMAGE) /usr/local/bin/build.sh
 
+PKGCHECK_IMAGE := wgpathd-pkgcheck:$(OPENWRT_ARCH)-$(OPENWRT_VERSION)
+
+# No network (the image carries the dependencies) and NET_ADMIN, so fw4 can load
+# rules into the container's own, otherwise empty, network namespace.
 package-check: package
-	docker run --rm $(if $(CI),,-t) \
+	docker build -q -t $(PKGCHECK_IMAGE) --build-arg OPENWRT_ARCH --build-arg OPENWRT_VERSION \
+		--build-arg PKG_DEPENDS="$(PKG_DEPENDS)" devenv/services/pkgcheck >/dev/null
+	docker run --rm $(if $(CI),,-t) --network none --cap-add NET_ADMIN \
 		-v $(CURDIR)/bin:/artifacts:ro \
 		-v $(CURDIR)/devenv/scripts/package-check.sh:/usr/local/bin/package-check.sh:ro \
-		ghcr.io/openwrt/rootfs:$(OPENWRT_ARCH)-$(OPENWRT_VERSION) /usr/local/bin/package-check.sh
+		$(PKGCHECK_IMAGE) /usr/local/bin/package-check.sh
 
 docs:       ; @$(MAKE) -C docs build
 docs-serve: ; @$(MAKE) -C docs serve

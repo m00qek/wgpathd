@@ -16,7 +16,7 @@ All targets run in Docker. Nothing is installed on the host.
 | `shell` | Open a throwaway shell in the development image. |
 | `image` | Rebuild the development image, pulling the base image again. |
 | `package` | Build `bin/wgpathd-<version>-r<release>.apk` in the OpenWrt SDK. |
-| `package-check` | Run `package`, then install the result in a fresh OpenWrt rootfs container and check files, modes, dependencies, package scripts, clean failure paths and removal. |
+| `package-check` | Run `package`, then install the result offline in an OpenWrt rootfs container that already carries its dependencies (no network, `NET_ADMIN` in its own empty namespace) and check files, modes, package scripts, clean failure paths, that fw4 loads and unloads the firewall rules, and removal. |
 | `e2e` | Not built yet; prints a message and fails. |
 | `docs` | Build the documentation site (same as `make -C docs build`). |
 | `docs-serve` | Serve the documentation with live reload (same as `make -C docs serve`). |

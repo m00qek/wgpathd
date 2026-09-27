@@ -26,17 +26,18 @@ The build mounts `openwrt/wgpathd/Makefile`, `src/` and `files/` read-only into 
 make package-check
 ```
 
-This builds the package, then installs it into a fresh `ghcr.io/openwrt/rootfs` container and checks that:
+This builds the package and a check image (the pinned rootfs plus the package's dependencies), then installs the package offline in a container with no network and `NET_ADMIN` in its own empty network namespace, and checks that:
 
-- its dependencies resolve and it installs, and the service start during install does nothing;
+- it installs without fetching anything, and the service start during install does nothing;
 - every file is in place with the right mode, nothing is installed on the `PATH`, there is no uci-defaults script, and `/etc/config/wgpathd` is a conffile shipped with `enabled '0'`;
 - the modules load from the default ucode search path;
 - `daemon.uc` and `check.uc --config` with the shipped configuration, and `status.uc` with no daemon, fail with a one-line reason rather than a ucode stack trace;
 - the full `check.uc` passes a valid hub configuration without ubus;
-- the init script enables, fw4 includes the firewall file, and the package scripts reload the firewall on install, upgrade and removal;
-- the package removes cleanly, taking the firewall file with it.
+- the init script enables; fw4 includes the firewall file, installing loads the four wgpathd rules into the kernel, and the ruleset passes `nft -c`;
+- the package scripts reload the firewall on install, upgrade and removal, restart a running daemon on upgrade, and parse;
+- the package removes cleanly, taking the firewall file and its loaded rules with it.
 
-The last line is `package-check: all passed`, or the number of failed checks. The container runs no procd or ubusd, so starting the service, the ubus object and the firewall reload itself are out of its reach.
+The last line is `package-check: all passed`, or the number of failed checks. The container runs no procd or ubusd, so starting the service and the ubus object are out of its reach.
 
 ## Build for another release
 

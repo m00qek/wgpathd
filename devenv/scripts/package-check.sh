@@ -1,7 +1,7 @@
 #!/bin/sh
-# Installs the built .apk into a pristine rootfs container and checks what a
-# plain one-shot container can show. Nothing here boots procd or ubusd, so
-# service start/stop and the daemon's ubus object are out of reach.
+# Installs the built .apk offline into a rootfs that already carries its
+# dependencies, with NET_ADMIN in an otherwise empty network namespace, so fw4
+# can load rules for real. Nothing here boots procd or ubusd.
 set -u
 
 APK=$(ls /artifacts/wgpathd-*.apk 2>/dev/null | head -n1)
@@ -40,13 +40,14 @@ scripts_parse() {
 [ -n "$APK" ] || { echo "no wgpathd-*.apk in /artifacts (run make package)" >&2; exit 1; }
 echo "checking $APK"
 
-mkdir -p /var/lock
-apk update >/dev/null 2>&1 || { echo "apk update failed" >&2; exit 1; }
+wgpathd_rules_are() { [ "$(nft list ruleset 2>/dev/null | grep -c 'comment "wgpathd: ')" = "$1" ]; }
+fw4_starts_clean() { fw4 start >/dev/null 2>&1 && wgpathd_rules_are 0; }
 
-check "dependencies resolve" apk add --allow-untrusted --simulate "$APK"
-# No module load attempts against the host kernel from kmod-wireguard's scripts.
-check "kmod-wireguard installs (scripts skipped)" apk add --no-scripts kmod-wireguard
-check "package installs" sh -c 'apk add --allow-untrusted "$1" >/tmp/install.log 2>&1' - "$APK"
+# The image build already installed every dependency from the feeds.
+check "dependencies present" apk add --allow-untrusted --no-network --simulate "$APK"
+# The postinst reloads fw4, which only has a ruleset to reload if it is running.
+check "fw4 loads the base ruleset" fw4_starts_clean
+check "package installs" sh -c 'apk add --allow-untrusted --no-network "$1" >/tmp/install.log 2>&1' - "$APK"
 # The default postinst runs `/etc/init.d/wgpathd start`; shipped disabled, it must not even validate.
 check "install start is inert" sh -c '! grep -qE "not starting|Runtime error" /tmp/install.log'
 
@@ -86,7 +87,8 @@ check "init script enables" sh -c '/etc/init.d/wgpathd enable && [ -L /etc/rc.d/
 
 check "fw4 includes the nft file" sh -c \
 	'fw4 print 2>/dev/null | grep -q "include \"/usr/share/nftables.d/chain-pre/input/wgpathd.nft\""'
-# fw4 itself cannot run here (no procd, no NET_ADMIN), so only the hooks are checked.
+check "install loads the four wgpathd rules" wgpathd_rules_are 4
+check "fw4 ruleset passes nft -c" sh -c 'fw4 print 2>/dev/null | nft -c -f -'
 check "install, upgrade and removal reload fw4" sh -c \
 	'[ "$(apk adbdump "$1" | grep -c "/etc/init.d/firewall reload")" = 3 ]' - "$APK"
 check "upgrade restarts a running daemon" sh -c \
@@ -94,6 +96,7 @@ check "upgrade restarts a running daemon" sh -c \
 check "package scripts parse" scripts_parse "$APK"
 check "package removes cleanly" sh -c \
 	'apk del wgpathd >/dev/null 2>&1 && [ ! -e /usr/share/nftables.d/chain-pre/input/wgpathd.nft ]'
+check "removal unloads the wgpathd rules" wgpathd_rules_are 0
 
 [ "$failures" -eq 0 ] && echo "package-check: all passed" && exit 0
 echo "package-check: $failures failed"
