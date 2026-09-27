@@ -17,7 +17,7 @@ for f in $(find src test -name '*.uc' ! -path 'test/proxies/*' ! -name utest.con
 done
 rm -f "$importer"
 
-for f in test/proxies/*.uc test/utest.config.uc files/usr/libexec/wgpathd/*.uc; do
+for f in test/proxies/*.uc test/proxies/real/*.uc test/utest.config.uc files/usr/libexec/wgpathd/*.uc; do
 	check "$f" "$f"
 done
 
