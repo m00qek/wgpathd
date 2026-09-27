@@ -30,8 +30,8 @@ check() { # description command...
 # Ends the scenario: what follows depends on it.
 require() { check "$@" || exit 1; }
 
-timing() { # name seconds
-	printf '     %s: %ss\n' "$1" "$2"
+timing() { # name value (seconds, or lost/sent)
+	printf '     %s: %s\n' "$1" "$2"
 	printf '%s\t%s\t%s\n' "$SCENARIO" "$1" "$2" >>"$E2E_OUT/timings.tsv"
 }
 
@@ -64,7 +64,7 @@ holds() {
 
 # --- wgpathd -------------------------------------------------------------------
 
-status() { x "$1" "ubus call wgpathd status 2>/dev/null | jsonfilter -e '$2'"; }
+status() { x "$1" "ubus call wgpathd status 2>/dev/null | jsonfilter -e '$2' 2>/dev/null"; }
 # Each spoke manages exactly one peer: the other spoke.
 peer() { status "$1" "@.peers[*].$2"; }
 state() { peer "$1" state; }
@@ -119,14 +119,14 @@ uci_set() {
 # --- traffic -------------------------------------------------------------------
 
 PING=/usr/libexec/iputils-ping
-SITE_PING="$PING -I $(site_addr spoke-a) $(site_addr spoke-b)"
+SITE_ROUTE="-I $(site_addr spoke-a) $(site_addr spoke-b)"
 
-cross_site_ping() { x spoke-a "$SITE_PING -q -c${1:-3} -i0.2 -W1" >/dev/null; }
+cross_site_ping() { x spoke-a "$PING -q -c${1:-3} -i0.2 -W1 $SITE_ROUTE" >/dev/null; }
 
 # A 5 Hz ping from site a to site b in the background, measured by ping_stop.
 ping_start() {
 	x spoke-a 'killall -q iputils-ping; rm -f /tmp/bgping.log'
-	docker exec -d wgpathd-e2e-spoke-a sh -c "exec $SITE_PING -i0.2 -W1 >/tmp/bgping.log 2>&1"
+	docker exec -d wgpathd-e2e-spoke-a sh -c "exec $PING -i0.2 -W1 $SITE_ROUTE >/tmp/bgping.log 2>&1"
 }
 
 # Sets PING_SENT, PING_LOST and PING_GAP (longest run of lost replies, in seconds).

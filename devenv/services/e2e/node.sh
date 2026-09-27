@@ -19,14 +19,20 @@ install_package() {
 key() { cat "/keys/$1.$2.key"; }
 pub() { cat "/keys/$1.$2.pub"; }
 
-# netifd leaves eth0 to docker, which already holds the transit addresses; the
-# firewall zones name the device instead.
+# netifd owns eth0 with the addresses docker assigned: preinit flushes and
+# downs the board's first interface before procd starts the network.
 common_network() {
 	cat <<-EOF
 		config interface 'loopback'
 		option device 'lo'
 		option proto 'static'
 		option ipaddr '127.0.0.1/8'
+
+		config interface 'wan'
+		option device 'eth0'
+		option proto 'static'
+		option ipaddr '$(transit4 "$node")/24'
+		option ip6addr '$(transit6 "$node")/64'
 
 	EOF
 }
@@ -49,12 +55,12 @@ hub_network() {
 	wg_interface wg_mesh "$(mesh_addr hub)/32" "$MESH_PORT" 1360
 	for spoke in spoke-a spoke-b; do
 		cat <<-EOF
-			config wireguard_wg_hub '${spoke#spoke-}'
+			config wireguard_wg_hub 'hub_${spoke#spoke-}'
 			option public_key '$(pub "$spoke" wg_hub)'
 			list allowed_ips '$(hub_addr "$spoke")/32'
 			option route_allowed_ips '1'
 
-			config wireguard_wg_mesh '${spoke#spoke-}'
+			config wireguard_wg_mesh 'mesh_${spoke#spoke-}'
 			option public_key '$(pub "$spoke" wg_mesh)'
 			list allowed_ips '$(mesh_addr "$spoke")/32'
 			option route_allowed_ips '1'
@@ -82,7 +88,7 @@ spoke_network() {
 	wg_interface wg_hub "$(hub_addr "$node")/32"
 	wg_interface wg_mesh "$(mesh_addr "$node")/32" "$MESH_PORT" 1360
 	cat <<-EOF
-		config wireguard_wg_hub 'hub'
+		config wireguard_wg_hub 'hub_transit'
 		option public_key '$(pub hub wg_hub)'
 		option endpoint_host '$(transit4 hub)'
 		option endpoint_port '$HUB_WG_PORT'
@@ -133,7 +139,7 @@ common_firewall() {
 
 		config zone
 		option name 'wan'
-		list device 'eth0'
+		list network 'wan'
 		option input 'REJECT'
 		option output 'ACCEPT'
 		option forward 'REJECT'

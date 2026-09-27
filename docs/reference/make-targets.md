@@ -34,6 +34,7 @@ All targets run in Docker. Nothing is installed on the host.
 | `MODULES` | — | `test`, `unit`, `integration`, `watch` | Run only these test files or directories. |
 | `CI` | — | all | When set, runs containers without a TTY. |
 | `SCENARIO` | all | `e2e` | Run only these scenarios (space-separated names from `test/e2e/`). |
+| `E2E_IGNORE_CONTAINERS` | — | `e2e` | Space-separated names of other projects' containers the e2e runner may start beside, such as a `docs-serve` container. Each is tolerated only while it is unprivileged, on the default bridge, with no added capabilities; any other running container still stops the run. |
 | `E2E_WATCH_IFACE` | `wlan0` | `e2e` | Host interface the e2e runner guards; the run stops if it goes down. |
 
 Examples:

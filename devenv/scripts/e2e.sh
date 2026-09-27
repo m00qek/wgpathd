@@ -27,11 +27,24 @@ host_sysctls() {
 	done
 }
 
+# An allowlisted container is tolerated only while it has no privileges that
+# could touch the host's networking.
+tolerated() {
+	case " ${E2E_IGNORE_CONTAINERS:-} " in *" $1 "*) ;; *) return 1 ;; esac
+	case $(docker inspect -f '{{.HostConfig.Privileged}} {{.HostConfig.NetworkMode}} {{len .HostConfig.CapAdd}}' "$1") in
+	"false bridge 0" | "false default 0") ;;
+	*) return 1 ;;
+	esac
+}
+
 preflight() {
 	iface_up || die "$WATCH_IFACE is not up, not starting"
-	others=$(docker ps --format '{{.Names}} {{.Label "com.docker.compose.project"}}' |
-		awk -v p="$PROJECT" '$2 != p { print $1 }')
-	[ -z "$others" ] || die "other containers are running, not starting:" $others
+	others=
+	for c in $(docker ps --format '{{.Names}} {{.Label "com.docker.compose.project"}}' |
+		awk -v p="$PROJECT" '$2 != p { print $1 }'); do
+		if tolerated "$c"; then echo "e2e: tolerating $c (E2E_IGNORE_CONTAINERS)"; else others="$others $c"; fi
+	done
+	[ -z "$others" ] || die "other containers are running, not starting:$others"
 	if [ -n "$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT")" ]; then
 		echo "e2e: removing a leftover $PROJECT stack"
 		$COMPOSE down -v --remove-orphans >/dev/null 2>&1
@@ -93,7 +106,7 @@ teardown() {
 
 diagnose() { # label
 	for n in hub spoke-a spoke-b; do
-		x "$n" 'logread; echo; ubus call wgpathd status; wg show; nft list table inet e2e' \
+		x "$n" 'logread; echo; ubus call wgpathd status; wg show; ip addr; ip route; ip -6 route; nft list table inet e2e' \
 			>"$E2E_OUT/$1.$n.log" 2>&1
 	done
 	echo "     diagnostics in $E2E_OUT/$1.*.log"
