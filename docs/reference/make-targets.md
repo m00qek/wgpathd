@@ -40,7 +40,7 @@ All targets run in Docker. Nothing is installed on the host.
 | `SCENARIO` | all | `e2e` | Run only these scenarios (space-separated names from `test/e2e/`). |
 | `NODE` | — | `lab-shell` | `hub`, `spoke-a` or `spoke-b`. |
 | `NAME` | — | `lab-fault` | `kill-direct` or `restore`. |
-| `E2E_IGNORE_CONTAINERS` | — | `e2e`, `lab-up` | Space-separated names of other projects' containers the e2e runner may start beside, such as a `docs-serve` container. Each is tolerated only while it is unprivileged, on the default bridge, with no added capabilities; any other running container still stops the run. |
+| `E2E_STRICT` | — | `e2e`, `lab-up` | Set to `1` to refuse to start while containers of other projects run. By default they are listed as a warning and the run goes ahead. The lab and the suite always refuse to run at the same time. |
 | `E2E_WATCH_IFACE` | `wlan0` | `e2e`, `lab-up` | Host interface the e2e runner and the lab guard; the stack is torn down if it goes down. |
 
 Examples:

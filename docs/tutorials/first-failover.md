@@ -23,7 +23,7 @@ The spokes talk to each other directly. When that path breaks, their traffic goe
 - A copy of the wgpathd repository.
 - About 6 GB of free disk space for the images, most of it for the OpenWrt SDK that builds the package, and a network connection for the first run.
 
-While the lab runs, it guards our machine's network. It will not start while containers of other projects are running (it names them, and we stop them first), and a watchdog checks our network interface and the kernel log every two seconds and tears the lab down if the interface goes away. It watches `wlan0` unless we name another interface, for example with `export E2E_WATCH_IFACE=eth0`. The guard exists because the lab gives kernel WireGuard and network privileges to containers on the machine we work on; running the lab inside a virtual machine is the cautious choice.
+While the lab runs, it guards our machine's network. It lists any containers of other projects that are running, as a warning, and a watchdog checks our network interface and the kernel log every two seconds and tears the lab down if the interface goes away. It watches `wlan0` unless we name another interface, for example with `export E2E_WATCH_IFACE=eth0`. The guard exists because the lab gives kernel WireGuard and network privileges to containers on the machine we work on; running the lab inside a virtual machine is the cautious choice.
 
 The lab uses wgpathd's default timing, so everything we wait for here takes as long as it would on a router. The exact seconds vary a little from run to run.
 

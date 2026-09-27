@@ -80,7 +80,7 @@ The containers get only `NET_ADMIN` and `NET_RAW`, share one internal docker net
 
 The runner guards the host:
 
-- It refuses to start while any container from another project runs. To allow a harmless one, such as a `make docs-serve` container, name it: `make e2e E2E_IGNORE_CONTAINERS=<name>`. It is tolerated only while it is unprivileged, on the default bridge, with no added capabilities.
+- It warns about containers of other projects that are running, and refuses to start beside them with `E2E_STRICT=1`. It always refuses while the lab runs, since both use the same addresses.
 - It records `ip monitor` and the kernel log for the whole run, and tears the stack down at once if the Wi-Fi interface (`wlan0`, or `E2E_WATCH_IFACE`) goes down or the kernel log mentions it.
 - It records `net.ipv6.conf.all.forwarding` and the interface's `accept_ra` before and after, and reports any change.
 - It always tears the stack down, including on failure or Ctrl+C.
