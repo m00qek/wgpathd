@@ -18,6 +18,10 @@ All targets run in Docker. Nothing is installed on the host.
 | `package` | Build `bin/wgpathd-<version>-r<release>.apk` in the OpenWrt SDK. |
 | `package-check` | Run `package`, then install the result offline in an OpenWrt rootfs container that already carries its dependencies (no network, `NET_ADMIN` in its own empty namespace) and check files, modes, package scripts, clean failure paths, that fw4 loads and unloads the firewall rules, and removal. |
 | `e2e` | Run `package`, then the end-to-end failover scenarios against a hub and two spokes in OpenWrt containers (procd as PID 1, kernel WireGuard, fw4), compose project `wgpathd-e2e`, image `wgpathd-e2e:<arch>-<version>`. Refuses to start while another project's containers run, guards the host's Wi-Fi interface for the whole run, and always tears down. Results in `bin/e2e/`. |
+| `lab-up` | Run `package`, then start the e2e topology as compose project `wgpathd-lab` (containers `wgpathd-lab-hub`, `wgpathd-lab-spoke-a`, `wgpathd-lab-spoke-b`) with the WireGuard substrate in place and wgpathd installed but disabled (shipped `/etc/config/wgpathd`, `enabled '0'`) on every node. Returns once the hub has handshakes with both spokes on `wg_hub` and `wg_mesh`. The same host guards as `e2e` apply, and the watchdog keeps running in the background until `lab-down`. Guard logs in `bin/lab/`. |
+| `lab-down` | Stop the lab's watchdog, tear the lab down and print the host report (sysctls, Wi-Fi interface, kernel log). Safe to run when the lab is not up. |
+| `lab-shell` | Open a login shell on the lab node named by `NODE`. |
+| `lab-fault` | Inject or clear a fault in the running lab, named by `NAME`: `kill-direct` drops the `wg_mesh` datagrams between the spokes (the e2e `kill-direct` fault: the hub leg, the relay and ICMPv6 stay up); `restore` clears every fault. |
 | `docs` | Build the documentation site (same as `make -C docs build`). |
 | `docs-serve` | Serve the documentation with live reload (same as `make -C docs serve`). |
 
@@ -34,8 +38,10 @@ All targets run in Docker. Nothing is installed on the host.
 | `MODULES` | — | `test`, `unit`, `integration`, `watch` | Run only these test files or directories. |
 | `CI` | — | all | When set, runs containers without a TTY. |
 | `SCENARIO` | all | `e2e` | Run only these scenarios (space-separated names from `test/e2e/`). |
-| `E2E_IGNORE_CONTAINERS` | — | `e2e` | Space-separated names of other projects' containers the e2e runner may start beside, such as a `docs-serve` container. Each is tolerated only while it is unprivileged, on the default bridge, with no added capabilities; any other running container still stops the run. |
-| `E2E_WATCH_IFACE` | `wlan0` | `e2e` | Host interface the e2e runner guards; the run stops if it goes down. |
+| `NODE` | — | `lab-shell` | `hub`, `spoke-a` or `spoke-b`. |
+| `NAME` | — | `lab-fault` | `kill-direct` or `restore`. |
+| `E2E_IGNORE_CONTAINERS` | — | `e2e`, `lab-up` | Space-separated names of other projects' containers the e2e runner may start beside, such as a `docs-serve` container. Each is tolerated only while it is unprivileged, on the default bridge, with no added capabilities; any other running container still stops the run. |
+| `E2E_WATCH_IFACE` | `wlan0` | `e2e`, `lab-up` | Host interface the e2e runner and the lab guard; the stack is torn down if it goes down. |
 
 Examples:
 

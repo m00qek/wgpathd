@@ -1,11 +1,12 @@
 # e2e failover topology (the design record, "E2E test harness"), driven by
-# devenv/scripts/e2e.sh. Addresses mirror services/e2e/topology.sh.
+# devenv/scripts/e2e.sh and, as project wgpathd-lab with E2E_LAB=1, by
+# devenv/scripts/lab.sh. Addresses mirror services/e2e/topology.sh.
 #
 # Kept small on purpose: three nodes on one internal network, no client
 # containers, no privileges beyond NET_ADMIN and NET_RAW. The network is not
 # IPv6-enabled, because docker would then turn on the host's IPv6 forwarding;
 # each endpoint re-enables IPv6 on its eth0 and netifd assigns the addresses.
-name: wgpathd-e2e
+name: ${E2E_PROJECT:-wgpathd-e2e}
 
 x-image: &image
   image: wgpathd-e2e:${OPENWRT_ARCH:-x86_64}-${OPENWRT_VERSION:-25.12.5}
@@ -43,9 +44,9 @@ services:
 
   hub:
     <<: *node
-    container_name: wgpathd-e2e-hub
+    container_name: ${E2E_PROJECT:-wgpathd-e2e}-hub
     hostname: hub
-    environment: [E2E_NODE=hub]
+    environment: [E2E_NODE=hub, E2E_LAB]
     networks:
       transit:
         ipv4_address: 172.31.250.10
@@ -54,9 +55,9 @@ services:
 
   spoke-a:
     <<: *node
-    container_name: wgpathd-e2e-spoke-a
+    container_name: ${E2E_PROJECT:-wgpathd-e2e}-spoke-a
     hostname: spoke-a
-    environment: [E2E_NODE=spoke-a]
+    environment: [E2E_NODE=spoke-a, E2E_LAB]
     networks:
       transit:
         ipv4_address: 172.31.250.11
@@ -65,9 +66,9 @@ services:
 
   spoke-b:
     <<: *node
-    container_name: wgpathd-e2e-spoke-b
+    container_name: ${E2E_PROJECT:-wgpathd-e2e}-spoke-b
     hostname: spoke-b
-    environment: [E2E_NODE=spoke-b]
+    environment: [E2E_NODE=spoke-b, E2E_LAB]
     networks:
       transit:
         ipv4_address: 172.31.250.12

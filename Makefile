@@ -8,7 +8,7 @@ RUN          = $(COMPOSE) --progress quiet run --rm $(if $(CI),-T) openwrt
 IMAGE_STAMP := devenv/.built-$(OPENWRT_ARCH)-$(OPENWRT_VERSION)
 TEST_ARGS    = $(if $(FILTER),-f '$(FILTER)') $(if $(VERBOSE),-v) $(MODULES)
 
-.PHONY: test unit integration watch lint shell image e2e package package-check docs docs-serve
+.PHONY: test unit integration watch lint shell image e2e lab-up lab-down lab-shell lab-fault package package-check docs docs-serve
 
 test:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh all $(TEST_ARGS)
 unit:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh unit $(TEST_ARGS)
@@ -27,6 +27,11 @@ $(IMAGE_STAMP): devenv/services/openwrt/Dockerfile openwrt/wgpathd/Makefile
 
 e2e:
 	@devenv/scripts/e2e.sh $(SCENARIO)
+
+lab-up:    ; @devenv/scripts/lab.sh up
+lab-down:  ; @devenv/scripts/lab.sh down
+lab-shell: ; @devenv/scripts/lab.sh shell $(NODE)
+lab-fault: ; @devenv/scripts/lab.sh fault $(NAME)
 
 SDK_IMAGE := wgpathd-sdk:$(OPENWRT_ARCH)-$(OPENWRT_VERSION)
 PKG_DIR   := /sdk/package/wgpathd

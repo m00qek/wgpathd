@@ -33,6 +33,21 @@ make e2e SCENARIO=kill-direct              # one (or several, space-separated)
 | `mixed` | one side DIRECT, the other held by backoff → no ping loss |
 | `observe` | observe mode → relay endpoints only, `ready` reported |
 
+The same topology can be left running as a lab, with the substrate in place
+and wgpathd installed but disabled, for `docs/tutorials/first-failover.md`:
+
+```bash
+make lab-up                                # guards on, nodes up, wgpathd disabled
+make lab-shell NODE=spoke-a                # a login shell on a node
+make lab-fault NAME=kill-direct            # the kill-direct fault; NAME=restore clears it
+make lab-down                              # always: tear down, stop the guards, host report
+```
+
+`../../devenv/scripts/lab.sh` runs it as compose project `wgpathd-lab` with the
+runner's host guards (`../../devenv/scripts/host-guard.sh`); the watchdog runs
+detached until `make lab-down`. The lab and the suite refuse to start while the
+other runs. Guard logs land in `bin/lab/`.
+
 Output lands in `bin/e2e/`: `results.tsv`, `timings.tsv`, per-failure node
 diagnostics, and the host guard's logs (`ip-monitor.log`, `kernel.log`,
 `sysctl.before`/`sysctl.after`).

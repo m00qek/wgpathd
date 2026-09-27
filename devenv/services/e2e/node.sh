@@ -1,8 +1,8 @@
 #!/bin/sh
 # Entrypoint of hub, spoke-a and spoke-b: install the built package, render the
 # node's UCI config (the substrate the design's render layer owns, plus
-# /etc/config/wgpathd), then hand over to procd so netifd, fw4, rpcd and the
-# wgpathd service boot for real.
+# /etc/config/wgpathd outside the lab), then hand over to procd so netifd, fw4,
+# rpcd and the wgpathd service boot for real.
 set -e
 . /e2e/topology.sh
 
@@ -241,9 +241,12 @@ spoke_wgpathd() {
 install_package
 "${role}_network" >/etc/config/network
 "${role}_firewall" >/etc/config/firewall
-"${role}_wgpathd" >/etc/config/wgpathd
-# The scenarios restore this after changing the role file.
-cp /etc/config/wgpathd /etc/config/wgpathd.e2e
+# The lab keeps the shipped, disabled config: configuring it is the lesson.
+if [ -z "${E2E_LAB:-}" ]; then
+	"${role}_wgpathd" >/etc/config/wgpathd
+	# The scenarios restore this after changing the role file.
+	cp /etc/config/wgpathd /etc/config/wgpathd.e2e
+fi
 /etc/init.d/wgpathd enable
 
 exec /sbin/init

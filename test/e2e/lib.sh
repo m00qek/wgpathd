@@ -1,6 +1,7 @@
 # Helpers for the e2e scenarios, sourced on the host by devenv/scripts/e2e.sh.
 # Every probe of a node goes through `docker exec`; JSON is read inside the node
-# with jsonfilter, so the host needs nothing but docker.
+# with jsonfilter, so the host needs nothing but docker. E2E_PROJECT names the
+# stack: wgpathd-e2e for the suite, wgpathd-lab for the lab.
 
 . devenv/services/e2e/topology.sh
 
@@ -8,12 +9,12 @@ HUB6=$(transit6 hub)
 
 x() { # node command...
 	node=$1; shift
-	docker exec "wgpathd-e2e-$node" sh -c "$*"
+	docker exec "$E2E_PROJECT-$node" sh -c "$*"
 }
 
 xi() { # node command..., stdin passed through
 	node=$1; shift
-	docker exec -i "wgpathd-e2e-$node" sh -c "$*"
+	docker exec -i "$E2E_PROJECT-$node" sh -c "$*"
 }
 
 # --- results -----------------------------------------------------------------
@@ -126,7 +127,7 @@ cross_site_ping() { x spoke-a "$PING -q -c${1:-3} -i0.2 -W1 $SITE_ROUTE" >/dev/n
 # A 5 Hz ping from site a to site b in the background, measured by ping_stop.
 ping_start() {
 	x spoke-a 'killall -q iputils-ping; rm -f /tmp/bgping.log'
-	docker exec -d wgpathd-e2e-spoke-a sh -c "exec $PING -i0.2 -W1 $SITE_ROUTE >/tmp/bgping.log 2>&1"
+	docker exec -d "$E2E_PROJECT-spoke-a" sh -c "exec $PING -i0.2 -W1 $SITE_ROUTE >/tmp/bgping.log 2>&1"
 }
 
 # Sets PING_SENT, PING_LOST and PING_GAP (longest run of lost replies, in seconds).
