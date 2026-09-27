@@ -87,7 +87,7 @@ The same lines go to standard error of the `service` command.
 | Level | Message | Meaning |
 | :--- | :--- | :--- |
 | notice | `configuration reloaded peers_kept=<n> added=<n> removed=<n>` | A spoke applied a reload. Kept peers had the same key, relay and tunnel address; a changed peer counts as removed and added. ` mode=<mode>` is appended when the mode changed. |
-| notice | `configuration reloaded` | A hub applied a reload. The hub has no option that applies live, so nothing changes. |
+| notice | `configuration reloaded` | A hub applied a reload. Only `cycle` applies live on a hub; its other options need a new process. |
 | info | `<peer>: added` | A reload added this managed peer. It starts in RELAY. |
 | info | `<peer>: changed` | A reload changed this peer's relay or tunnel address. It starts again in RELAY. |
 | info | `<peer>: removed` | A reload removed this peer from steering. |

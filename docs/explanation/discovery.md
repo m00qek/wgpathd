@@ -23,7 +23,7 @@ sequenceDiagram
     A->>H: GET /peers over wg_hub
     H-->>A: { spoke-b key: { direct, handshake_age } }
     Note over A: spoke-b's direct candidate is now<br/>[2001:db8:b::20]:51820
-    A->>B: underlay ping to 2001:db8:b::20
+    Note over A,B: only a candidate: the probes and a trial<br/>decide whether the direct path works
 ```
 
 The hub reads `wg_mesh` but serves on its `wg_hub` address. That split matters. `wg_mesh` is where the IPv6 endpoints live, so it is the only table worth reading. `wg_hub` is the tunnel that stays up when the mesh is broken, so serving there means discovery works exactly when it is needed.

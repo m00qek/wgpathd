@@ -49,8 +49,8 @@ make unit MODULES=test/unit/wgpathd/decide_test.uc
 | Target | Description |
 | :--- | :--- |
 | `build` | Build the site into `bin/site/` with `mkdocs build --strict`. |
-| `serve` | Serve the site with live reload on `http://localhost:8000`. `dev` is an alias. |
+| `serve` | Serve the site with live reload on `http://localhost:8000`, or on the port set by `DOCS_PORT`. `dev` is an alias. |
 | `clean` | Remove `bin/site/`. |
 | `help` | List the targets. This is the default. |
 
-Both run the pinned `squidfunk/mkdocs-material:9.5.17` image as the invoking user.
+Both run the pinned `squidfunk/mkdocs-material:9.5.17` image as the invoking user. `DOCS_PORT` (default `8000`) sets the host port for `serve`, for example when another project's preview already uses 8000: `make -C docs serve DOCS_PORT=8001`. It also works from the root: `make docs-serve DOCS_PORT=8001`.

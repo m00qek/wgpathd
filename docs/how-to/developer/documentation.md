@@ -10,7 +10,7 @@ The documentation is built with MkDocs Material, inside Docker. You need Docker 
 make -C docs serve
 ```
 
-Open `http://localhost:8000`. The page reloads when you save a file under `docs/` or change `mkdocs.yml`. `make docs-serve` from the repository root does the same.
+Open `http://localhost:8000`. The page reloads when you save a file under `docs/` or change `mkdocs.yml`. `make docs-serve` from the repository root does the same. If port 8000 is taken, for example by another project's preview, choose another: `make -C docs serve DOCS_PORT=8001`.
 
 ## Build the site
 

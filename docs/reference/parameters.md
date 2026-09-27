@@ -28,7 +28,7 @@ The hub uses only `cycle`, as the interval between snapshots of `read_iface`. It
 
 **`tunnel_timeout`.** Both probes run busybox `ping -c1 -W<n>`, where `<n>` is `tunnel_timeout` rounded up to whole seconds, and at least `1`: `0.5` and `1` give `-W1`, `1.5` and `2` give `-W2`. `ping` gives up on its own after `<n>` seconds. wgpathd stops waiting for the command half a second later, `<n> + 0.5` seconds after it started, and counts that as no answer.
 
-**`trial_window`.** Measured from the cycle in which the trial started. The deadline is checked before the probe result: an answer that is read at or after the deadline is a timeout. The tunnel probe answer is read one cycle after it is sent, so with the defaults a trial gets two chances.
+**`trial_window`.** Measured from the cycle in which the trial started. The deadline is checked before the probe result: an answer that is read at or after the deadline is a timeout. The tunnel probe answer is read one cycle after it is sent. A good path answers the first probe and commits one cycle after the trial starts. A second probe is read two cycles after the start; while the path fails, each of those cycles lasts `cycle` plus about `tunnel_timeout`, so with the defaults the second answer arrives after the 8-second deadline and the trial times out on its first probe.
 
 **Backoff.** A failed trial or a demotion sets the backoff to `backoff_min` if it was zero, otherwise to twice its value, capped at `backoff_max`. No trial starts until that many seconds have passed since the failure. While in DIRECT, once the peer has held DIRECT for `backoff_reset`, the backoff returns to zero. A demotion caused by switching to observe mode does not change the backoff.
 

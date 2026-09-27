@@ -62,6 +62,8 @@ The direct endpoint answers ping, but WireGuard traffic does not get through bot
 - The peer does not answer the tunnel probe: its firewall lacks the `wgpathd: tunnel probe` rule. Check `nft list ruleset | grep wgpathd:` on the peer.
 - One direction is broken. The trial needs a round trip, so one-way loss correctly fails it.
 
+Each failed trial also cuts that peer's traffic for up to `trial_window`, once per backoff interval, until the cause is fixed. See [What a trial costs](../explanation/state-machine.md#what-a-trial-costs).
+
 ## A peer keeps falling back
 
 The log alternates `reason=trial_ok` and `transition DIRECT -> RELAY reason=demoted`. The direct path passes a trial, then loses `m_down` tunnel probes in a row.

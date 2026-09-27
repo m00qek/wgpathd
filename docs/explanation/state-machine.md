@@ -16,6 +16,8 @@ stateDiagram-v2
     TRIALING --> RELAY: trial_window passed<br/>(trial_timeout, backoff grows)
     DIRECT --> DIRECT: re-assert target, probe,<br/>adopt roams
     DIRECT --> RELAY: m_down failed probes<br/>(demoted, backoff grows)
+    TRIALING --> RELAY: mode set to observe<br/>(observe_mode)
+    DIRECT --> RELAY: mode set to observe<br/>(observe_mode)
 ```
 
 Every peer starts in RELAY, including after a restart. State is kept in memory only, so a restarted daemon earns direct again from scratch. That takes a few seconds and keeps the design simple. A configuration reload is gentler: it keeps the state of every peer whose annotations did not change (see [Architecture](architecture.md#reload)).
@@ -39,6 +41,14 @@ Why a round trip, and not "wait for a new handshake"? Because changing an endpoi
 
 In DIRECT, the same tunnel ping runs every cycle. It is the health check, and it also keeps the session and any stateful firewall on the path warm.
 
+## What a trial costs
+
+A trial is not free. A WireGuard peer has one endpoint, so while a trial runs, all traffic to that peer takes the candidate path. On a good path the probe answers on the next cycle and nothing is lost. On a bad one, that peer's traffic is lost until the trial window ends, up to `trial_window` (8 seconds by default), and then it returns to the relay.
+
+There is no cheaper test. WireGuard ignores unauthenticated packets, so nothing outside the tunnel can prove a path works, and one peer cannot use two endpoints at once.
+
+The cost repeats when the evidence is misleading: a peer that answers ICMPv6 echo while a firewall blocks UDP to its WireGuard port. The echo keeps producing evidence, so each backoff expiry starts another trial and loses another window. The backoff grows to 15 minutes, which bounds the loss to one trial window per backoff interval, about 1% of that peer's traffic once the backoff reaches its cap.
+
 ## Why the anchor needs roams
 
 Picture the common case. spoke-a is the **anchor**: it accepts inbound IPv6. spoke-b is a **roamer** behind a stateful firewall that drops unsolicited traffic.
@@ -48,6 +58,25 @@ Picture the common case. spoke-a is the **anchor**: it accepts inbound IPv6. spo
 
 If echo were the only evidence, spoke-a would stay on the relay forever. It does not, because spoke-b's trial and health pings arrive at spoke-a directly. Each one roams spoke-a's kernel endpoint to spoke-b's direct address. spoke-a reads that roam as evidence, and after `n_up` cycles it trials toward the roamed address and goes DIRECT too.
 
+```mermaid
+sequenceDiagram
+    participant A as spoke-a (anchor)
+    participant B as spoke-b (roamer)
+    A-xB: underlay ping (dropped by spoke-b's firewall)
+    B->>A: underlay ping to spoke-a's public address
+    A-->>B: echo reply
+    Note over B: n_up cycles of echo evidence,<br/>then a trial toward spoke-a
+    B->>A: tunnel ping over the direct path
+    Note over A: kernel roams spoke-b's endpoint<br/>to its direct address
+    A-->>B: reply, sent to the roamed address
+    Note over B: DIRECT (trial_ok)
+    loop every cycle
+        B->>A: tunnel health ping
+        Note over A: roam seen: evidence
+    end
+    Note over A: n_up cycles of roam evidence,<br/>then a trial toward the roamed address: DIRECT
+```
+
 This is also why wgpathd reads roams before it re-asserts. A daemon that blindly overwrote the endpoint every cycle would fight WireGuard's per-packet roaming instead of learning from it.
 
 In DIRECT, a roam to a new direct address is adopted as the new target, logged as a `roam` event. This is how a spoke follows a peer that changes address while direct is healthy, with no dip to the relay. A roam to the relay address is not adopted: it only means the other side is relaying for now.
@@ -56,7 +85,7 @@ In DIRECT, a roam to a new direct address is adopted as the new target, logged a
 
 The rules are asymmetric on purpose.
 
-- **Falling back is fast.** In DIRECT, `m_down` failed tunnel probes in a row (2 by default, about 6 seconds) demote the peer to RELAY. A probe that did not complete in time counts as failed. The relay is the safe place to be when in doubt.
+- **Falling back is fast.** In DIRECT, `m_down` failed tunnel probes in a row (2 by default) demote the peer to RELAY. Each probe's answer is read on the next cycle, and on a dead path every cycle also waits for its probes to time out, so with the defaults a dead path is left in roughly 8 to 15 seconds. A probe that did not complete in time counts as failed. The relay is the safe place to be when in doubt.
 - **Coming back is slow.** A return to direct needs `n_up` cycles of evidence **and** a successful trial, **and** the backoff must have expired.
 
 The backoff is what stops a flapping path from bouncing. Each failed trial and each demotion bumps it: the first time to `backoff_min` (30 seconds), then doubling each time up to `backoff_max` (15 minutes). It resets only after DIRECT has held for `backoff_reset` (10 minutes). A path that works for a minute and then breaks walks its backoff up to the cap and ends up parked on the relay, which is the outcome you want from a bad path. Evidence keeps counting during the backoff, so a peer that is ready trials as soon as the backoff ends.

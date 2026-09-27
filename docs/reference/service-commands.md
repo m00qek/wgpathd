@@ -36,7 +36,7 @@ On `SIGHUP` the daemon reads `/etc/config/wgpathd` and `/etc/config/network` aga
 
 | What changed | Effect |
 | :--- | :--- |
-| `role`, `mesh_iface`, `hub_iface`, `read_iface`, `serve_addr` or `serve_port` | The daemon logs `reload: <option> changed, exiting for procd to start afresh` and exits. procd starts it again after 5 seconds, and every peer starts in RELAY. |
+| `role`, `mesh_iface`, `hub_iface`, `read_iface`, `serve_addr` or `serve_port` | The daemon logs `reload: exiting for procd to start afresh changed=<option>` and exits. procd starts it again after 5 seconds, and every peer starts in RELAY. |
 | Timing parameters | Apply from the next cycle. |
 | `mode` | Applies from the next cycle. Switching to `observe` demotes TRIALING and DIRECT peers to RELAY. |
 | `discovery` | The new URL is fetched on the next cycle. The discovery map already held is kept until then. |
@@ -132,10 +132,10 @@ FAIL  peer spoke_c: not steered (invalid wgpathd_relay)
 | `warn` | `config: unknown mode '<mode>' runs as observe` | `mode` is neither `steer` nor `observe`. |
 | `warn` | `service disabled (option enabled '<value>'): it will not start` | `enabled` is off. |
 | `skip` | `ubus unavailable: interfaces not checked` | ubus cannot be reached. The interface lines are left out; the peer lines still appear. |
-| `ok` | `<iface>: up, <n> peers` | The interface is in the `wireguard status` reply. |
+| `ok` | `<iface>: up, <n> peer(s)` | The interface is in the `wireguard status` reply. |
 | `FAIL` | `<iface>: <reason>` | `mesh_iface` or `read_iface` is not in the `wireguard status` reply, or the reply cannot be read. |
 | `warn` | `<hub_iface>: <reason>` | The same, for `hub_iface`. |
-| `ok` | `peer <section>: relay <relay> via <oif>, probes <tunnel>` | The peer is managed; its relay host routes out of `<oif>`. |
+| `ok` | `peer <section>: relay <relay> via <oif>, probes <tunnel>` | The peer is managed; the route to its relay host leaves via `<oif>`. |
 | `FAIL` | `peer <section>: relay routes into <mesh_iface>` | The relay host routes into the mesh. |
 | `warn` | `peer <section>: relay route lookup failed: <CODE> (<detail>) (retried every cycle)` | No route to the relay host yet. |
 | `warn` | `peer <section>: not in <mesh_iface> yet, skipped until it appears` | The peer is managed but not in the kernel's peer table. |

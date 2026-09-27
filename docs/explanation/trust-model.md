@@ -32,7 +32,7 @@ So wgpathd is a tenant, not a landlord. You own the substrate. wgpathd checks at
 
 ## Relay loop guard
 
-A relay endpoint must route into `wg_hub`. If it routed into `wg_mesh` instead, relayed packets would loop into the tunnel they are supposed to carry. At startup, and again each cycle for peers still waiting, wgpathd looks up the route to each peer's relay address. A peer whose relay routes out of `mesh_iface` is left unmanaged, with the reason `relay routes into <mesh_iface>`, and is guarded again on every reload.
+A relay endpoint must route into `wg_hub`. If it routed into `wg_mesh` instead, relayed packets would loop into the tunnel they are supposed to carry. At startup, and again each cycle for peers still waiting, wgpathd looks up the route to each peer's relay address. A peer whose relay route leaves via `mesh_iface` is left unmanaged, with the reason `relay routes into <mesh_iface>`, and is guarded again on every reload.
 
 ## Authenticated roams
 
@@ -40,7 +40,7 @@ Roams count as evidence because they are authenticated. The kernel only moves a 
 
 ## Firewall
 
-The package ships its own firewall rules so that the probes and the relay work as soon as it is installed. Those rules are broad; read the [firewall rules reference](../reference/firewall.md) before you deploy, in particular the note on the discovery port.
+The package ships its own firewall rules so that the probes and the relay work as soon as it is installed. Three of the four rules accept only packets that came out of a WireGuard interface, which only a key holder can produce. The fourth accepts ICMPv6 echo requests from anywhere, so that other spokes can probe this node's public address. Read the [firewall rules reference](../reference/firewall.md) before you deploy.
 
 ## Why wgpathd runs as root
 

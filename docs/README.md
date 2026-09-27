@@ -9,7 +9,7 @@ Built with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/). Stru
 Both commands run inside a Docker container, so no local Python installation is required.
 
 ```bash
-make -C docs serve     # Live preview at http://localhost:8000
+make -C docs serve     # Live preview at http://localhost:8000 (DOCS_PORT=<n> to change)
 make -C docs build     # Build static site to bin/site/ (mkdocs build --strict)
 ```
 

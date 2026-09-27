@@ -49,9 +49,7 @@ Which changes apply live and which need a new process is listed in [Service comm
 
 ## When to restart instead
 
-Run `service wgpathd restart` when you want the daemon to start from scratch:
-
-- to put every peer back on the relay and let each earn direct again.
+Run `service wgpathd restart` when you want the daemon to start from scratch, with every peer back on the relay, earning direct again.
 
 An upgrade restarts a running daemon by itself, and a reload re-checks peers rejected with `relay routes into wg_mesh`, so neither needs a manual restart.
 

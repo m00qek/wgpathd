@@ -41,4 +41,4 @@ Before wgpathd can do anything useful you need:
 **Understanding-oriented.** Why direct-versus-relay works the way it does: the state machine, discovery, the trust model and the architecture.
 
 ### Project records
-The [design record](design.md) is the internal design contract, with the full rationale and failure-mode catalog. The [substrate build history](history.md) is the dated log of how the original WireGuard substrate was built. Both are kept as written.
+The [design record](design.md) is the internal design contract, with the full rationale and failure-mode catalog. The [substrate build history](history.md) is the dated log of how the original WireGuard substrate was built. Both are internal records rather than user documentation.

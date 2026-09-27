@@ -18,7 +18,7 @@ If you already run hub-and-spoke on one interface, that interface can be your `w
 ## Before you start
 
 - Generate **two keypairs per node**, one for `wg_hub` and one for `wg_mesh`. Do not reuse a key across interfaces.
-- Name the mesh interface `wg_mesh` and give it listen port `51820` on every node. The firewall rules shipped with the package assume both; see [Firewall rules](../reference/firewall.md).
+- Give the mesh interface listen port `51820` on every node. The firewall rules shipped with the package assume that port; see [Firewall rules](../reference/firewall.md). The examples call the interfaces `wg_hub` and `wg_mesh`, but any names work: you tell wgpathd which is which.
 - Keep the `wg_mesh` MTU at least 60 bytes below the `wg_hub` MTU, so a relayed packet fits inside the hub tunnel. The examples use `1360` inside the default `1420`.
 
 ## 1. Configure the hub
@@ -32,11 +32,11 @@ config interface 'wg_hub'
 	option listen_port '51830'
 	list addresses '10.10.0.1/24'
 
-config wireguard_wg_hub 'spoke_a'
+config wireguard_wg_hub 'spoke_a_transit'
 	option public_key 'SpokeAhubPublicKeyExample000000000000000000='
 	list allowed_ips '10.10.0.11/32'
 
-config wireguard_wg_hub 'spoke_b'
+config wireguard_wg_hub 'spoke_b_transit'
 	option public_key 'SpokeBhubPublicKeyExample000000000000000000='
 	list allowed_ips '10.10.0.12/32'
 
@@ -57,6 +57,8 @@ config wireguard_wg_mesh 'spoke_b'
 	list allowed_ips '10.20.0.12/32'
 	option route_allowed_ips '1'
 ```
+
+Section names must be unique in the whole file, even across section types: UCI refuses a `wireguard_wg_mesh 'spoke_a'` next to a `wireguard_wg_hub 'spoke_a'`. The examples add `_transit` to the `wg_hub` peers.
 
 On `wg_mesh`, give each spoke only its tunnel `/32`, never its site network. The hub relays encrypted `wg_mesh` packets and must not be able to decrypt site traffic.
 
@@ -89,7 +91,7 @@ config interface 'wg_hub'
 	option private_key '<spoke-a wg_hub private key>'
 	list addresses '10.10.0.11/32'
 
-config wireguard_wg_hub 'hub'
+config wireguard_wg_hub 'hub_transit'
 	option public_key 'HubHubPublicKeyExample000000000000000000000='
 	option endpoint_host '203.0.113.10'
 	option endpoint_port '51830'

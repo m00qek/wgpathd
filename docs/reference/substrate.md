@@ -11,7 +11,7 @@ netifd ignores the `wgpathd_*` options, so they can sit next to the peer's norma
 | Option | Required | Format | Description |
 | :--- | :--- | :--- | :--- |
 | `public_key` | Yes | WireGuard public key: 43 base64 characters followed by `=` | Identifies the peer in the kernel, in discovery and in the status output. |
-| `wgpathd_relay` | Yes | Endpoint: `v4:port` or `[v6]:port`, port 1–65535 | The endpoint used on the relay path: the peer's address on the hub tunnel and the peer's `wg_mesh` listen port. Must route out of an interface other than `mesh_iface`. |
+| `wgpathd_relay` | Yes | Endpoint: `v4:port` or `[v6]:port`, port 1–65535 | The endpoint used on the relay path: the peer's address on the hub tunnel and the peer's `wg_mesh` listen port. Its route must leave via an interface other than `mesh_iface`. |
 | `wgpathd_tunnel` | Yes | IPv4 or IPv6 address, no port | The peer's address inside `wg_mesh`. Target of the tunnel probe. Must be inside the peer's `allowed_ips`. |
 
 wgpathd does not read `endpoint`, `allowed_ips` or any other option of the peer. A steered peer should have no `endpoint` option; wgpathd sets the endpoint at runtime.
@@ -32,21 +32,21 @@ config wireguard_wg_mesh 'spoke_b'
 
 ## Managed and unmanaged peers
 
-A peer is **managed** when all three options are present and valid, and its relay address routes out of an interface other than `mesh_iface`. wgpathd steers only managed peers.
+A peer is **managed** when all three options are present and valid, and the route to its relay address leaves via an interface other than `mesh_iface`. wgpathd steers only managed peers.
 
 Any other peer is **unmanaged**: wgpathd never touches its endpoint. Unmanaged peers are logged at startup and on reload, reported by `service wgpathd check`, and listed in the `unmanaged` array of [`ubus call wgpathd status`](ubus-status.md). The checks run in this order; the first failure is the reason reported.
 
-| Reason | Cause | Permanent |
+| Reason | Cause | Rechecked |
 | :--- | :--- | :--- |
-| `invalid public_key` | `public_key` missing or not a valid key | Yes |
-| `missing wgpathd_relay` | No `wgpathd_relay` option | Yes |
-| `invalid wgpathd_relay` | `wgpathd_relay` is not a valid `v4:port` or `[v6]:port` | Yes |
-| `missing wgpathd_tunnel` | No `wgpathd_tunnel` option | Yes |
-| `invalid wgpathd_tunnel` | `wgpathd_tunnel` is not a valid IP address | Yes |
-| `relay routes into <mesh_iface>` | The route to the relay host leaves via `mesh_iface` | Yes |
-| `relay route lookup failed: <error>` | The route lookup for the relay host failed, for example because `wg_hub` is not up yet | No: rechecked every cycle |
+| `invalid public_key` | `public_key` missing or not a valid key | On reload |
+| `missing wgpathd_relay` | No `wgpathd_relay` option | On reload |
+| `invalid wgpathd_relay` | `wgpathd_relay` is not a valid `v4:port` or `[v6]:port` | On reload |
+| `missing wgpathd_tunnel` | No `wgpathd_tunnel` option | On reload |
+| `invalid wgpathd_tunnel` | `wgpathd_tunnel` is not a valid IP address | On reload |
+| `relay routes into <mesh_iface>` | The route to the relay host leaves via `mesh_iface` | On reload |
+| `relay route lookup failed: <error>` | The route lookup for the relay host failed, for example because `wg_hub` is not up yet | Every cycle |
 
-"Permanent" means it is not retried each cycle. Every reload guards the peer again, so fixing the routes and reloading is enough: a peer whose relay now routes elsewhere becomes managed, starting in RELAY, with `relay route found, now managed`. A peer waiting on a failed route lookup is rechecked at the start of every cycle. When its route resolves out of another interface it becomes managed, starting in RELAY, and wgpathd logs `relay route found, now managed`. If the route resolves into `mesh_iface`, it becomes permanently unmanaged.
+Every reload reads the annotations again and repeats the route check, so fixing a peer and reloading is enough. A peer waiting on a failed route lookup is also rechecked at the start of every cycle. Either way, a peer whose relay route now leaves via another interface becomes managed, starting in RELAY, and wgpathd logs `relay route found, now managed`. A waiting peer whose route resolves into `mesh_iface` becomes unmanaged with `relay routes into <mesh_iface>`.
 
 The spoke's own `wg_mesh` peer for the hub normally has no annotations, so it is always listed as unmanaged with `missing wgpathd_relay`. That is expected: the hub peer keeps its static endpoint.
 

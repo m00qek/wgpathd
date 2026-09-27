@@ -37,7 +37,7 @@ Then the tests run. Each dot is one passing test, grouped by bundle, and the run
 ```
 Summary:
 
-  278 successes / 0 failures / 0 errors / 0 skipped / 0 ignored (11076 ms)
+  293 successes / 0 failures / 0 errors / 0 skipped / 0 ignored (11945 ms)
   Seed:   1790466118615660777
 ```
 
