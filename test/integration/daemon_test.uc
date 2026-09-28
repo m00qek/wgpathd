@@ -364,6 +364,22 @@ describe('daemon: spoke cycle, gathering obs', () => {
 });
 
 describe('daemon: spoke cycle, applying effects', () => {
+	it('reads the kernel once the underlay probes are in, so a roam during them is seen', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		let d = start(w);
+		cycle(w, d);
+		w.icmp.deferred = true;
+		let reads = w.ubus.status_reads();
+		let finished = false;
+		d.cycle(() => { finished = true; });
+		assert.match(reads, w.ubus.status_reads(), 'not while the probe waits');
+		w.kernel[SPOKE_B].endpoint = SPOKE_B_ROAMED;
+		w.icmp.flush();
+		assert.match(contains({ state: 'TRIALING', target: SPOKE_B_ROAMED }), d.status().peers[SPOKE_B]);
+		w.icmp.flush();
+		assert.match(true, finished);
+	});
+
 	it('sends the underlay probes together, and sets nothing before they are all in', () => {
 		let w = h.world(kernel_of(SPOKE_B, SPOKE_A), { deferred: true,
 			files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT, [SPOKE_A]: SPOKE_A_DIRECT }) });

@@ -24,18 +24,6 @@ const WATCHDOG      = { name: 'wgpathd', instance: 'wgpathd' };
 // Options a running daemon cannot change: a reload that touches one exits, and procd respawns it.
 const STRUCTURAL = [ 'role', 'mesh_iface', 'hub_iface', 'read_iface', 'serve_addr', 'serve_port' ];
 
-// Runs every task (each takes a completion callback), then calls done once.
-function all(tasks, done) {
-	let left = length(tasks);
-	if (left == 0)
-		return done();
-	for (let task in tasks)
-		task(() => {
-			if (--left == 0)
-				done();
-		});
-}
-
 function command_error(res, code) {
 	if (!res.ok)
 		return Result.err(code, Result.describe(res));
@@ -294,16 +282,15 @@ function create_spoke(deps, cfg, params) {
 		return probes;
 	};
 
+	// The kernel is read after the underlay probes, just before deciding. The cycle
+	// re-asserts every endpoint, and a roam that landed while the probes waited
+	// would be overwritten before any cycle had seen it (R2).
 	let gather = function(cb) {
-		let read = null;
 		let underlay = {};
-		all([
-			(done) => read_peers(deps, cfg.mesh_iface, (res) => { read = res; done(); }),
-			(done) => probe_all(underlay_probes(), (p, answered, finish) => {
-				underlay[p.rec.peer.pubkey] = answered;
-				finish();
-			}, done),
-		], () => cb(read, underlay));
+		probe_all(underlay_probes(), (p, answered, finish) => {
+			underlay[p.rec.peer.pubkey] = answered;
+			finish();
+		}, () => read_peers(deps, cfg.mesh_iface, (read) => cb(read, underlay)));
 	};
 
 	// tunnel_ok answers the previous cycle's probe only, so it is consumed even for a skipped peer.
