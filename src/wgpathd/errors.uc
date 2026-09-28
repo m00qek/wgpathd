@@ -21,8 +21,12 @@ export const EXEC_TIMEOUT            = "EXEC_TIMEOUT";
 export const WG_COMMAND_FAILED       = "WG_COMMAND_FAILED";
 export const WG_PARSE_FAILED         = "WG_PARSE_FAILED";
 
-// Routing
+// Probes
+export const PROBE_SEND_FAILED       = "PROBE_SEND_FAILED";
+
+// Routing and links
 export const ROUTE_LOOKUP_FAILED     = "ROUTE_LOOKUP_FAILED";
+export const LINK_LOOKUP_FAILED      = "LINK_LOOKUP_FAILED";
 
 // ubus
 export const UBUS_CONNECT_FAILED     = "UBUS_CONNECT_FAILED";

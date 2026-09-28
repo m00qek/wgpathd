@@ -1,6 +1,6 @@
 'use strict';
 
-// deps.create(): the real fs, uci, ubus, uloop, socket, rtnl, http, clock, exec runner and syslog;
+// deps.create(): the real fs, uci, ubus, uloop, socket, rtnl, http, clock, exec runner, ICMP prober and syslog;
 // deps.oneshot(): the subset a one-shot tool needs.
 
 import * as fs from 'fs';
@@ -14,6 +14,7 @@ import * as log from 'log';
 import * as clock from 'wgpathd.components.clock';
 import * as exec from 'wgpathd.components.exec';
 import * as http from 'wgpathd.components.http';
+import * as icmp from 'wgpathd.components.icmp';
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
 
@@ -55,6 +56,16 @@ export function route_get(host) {
 	return route ? Result.ok(route) : Result.err(errors.ROUTE_LOOKUP_FAILED, `${host}: ${rtnl.error()}`);
 };
 
+export function link_mtu(dev) {
+	let link = rtnl.request(rtnl.const.RTM_GETLINK, 0, { dev: dev });
+	return link?.mtu ? Result.ok(link.mtu) : Result.err(errors.LINK_LOOKUP_FAILED, `${dev}: ${rtnl.error()}`);
+};
+
+// The echo id ping would use: the pid, which no other process on the host has.
+function echo_id() {
+	return +fs.readlink('/proc/self') & 0xffff;
+}
+
 const PRIORITIES = { err: 'LOG_ERR', warning: 'LOG_WARNING', notice: 'LOG_NOTICE', info: 'LOG_INFO' };
 
 // With a stderr handle, every message is echoed there as well, for a run in the foreground.
@@ -83,9 +94,11 @@ export function create() {
 		uloop: uloop,
 		socket: socket,
 		route_get: route_get,
+		link_mtu: link_mtu,
 		http: http.create(uclient, uloop),
 		clock: clock.create(),
 		exec: exec.create(uloop),
+		icmp: icmp.create(socket, uloop, echo_id()),
 		log: syslog_channel(log, stderr_echo()),
 	};
 };
