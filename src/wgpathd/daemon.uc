@@ -99,6 +99,7 @@ function peer_record(peer) {
 		answered_via: null,
 		absent: false,
 		switches: 0,
+		relayed_answers: 0,
 		ready_logged: false,
 		quiet: 0,
 		metric: { state: ctl.state, up_streak: ctl.up_streak, down_streak: ctl.down_streak,
@@ -112,7 +113,7 @@ function peer_status(rec, clock) {
 	if (change != null)
 		change = { ...change, ts: int(clock.wall() - (clock.now() - change.ts)) };
 	return { ...rec.metric, section: rec.peer.section, endpoint: rec.ctl.asserted, target: rec.ctl.target,
-		switches: rec.switches, last_change: change };
+		switches: rec.switches, relayed_answers: rec.relayed_answers, last_change: change };
 }
 
 function unmanaged_entry(peer, reason) {
@@ -408,6 +409,8 @@ function create_spoke(deps, cfg, params) {
 			return finish();
 		read_after_answer((res) => {
 			p.rec.answered_via = res.ok ? res.data[p.rec.peer.pubkey]?.endpoint : null;
+			if (p.rec.answered_via == p.rec.peer.relay)
+				p.rec.relayed_answers++;
 			finish();
 		});
 	};

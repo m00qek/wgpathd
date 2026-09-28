@@ -323,13 +323,14 @@ describe('daemon: spoke cycle, gathering obs', () => {
 				w.kernel[SPOKE_B].endpoint = SPOKE_B_RELAY;
 		};
 		cycles(w, d, 2);
-		assert.match('TRIALING', d.status().peers[SPOKE_B].state, 'answered over the relay');
+		assert.match(contains({ state: 'TRIALING', relayed_answers: 2 }), d.status().peers[SPOKE_B], 'answered over the relay');
 
 		w.on_probe = null;
 		cycle(w, d);
 		w.kernel[SPOKE_B].endpoint = SPOKE_B_RELAY;
 		cycle(w, d);
-		assert.match('DIRECT', d.status().peers[SPOKE_B].state, 'answered direct, whatever came over the relay later');
+		assert.match(contains({ state: 'DIRECT', relayed_answers: 2 }), d.status().peers[SPOKE_B],
+			'answered direct, whatever came over the relay later');
 	});
 
 	it('skips a peer absent from the kernel and logs it once', () => {
@@ -839,7 +840,7 @@ describe('daemon: status', () => {
 		assert.match({
 			role: 'spoke', mode: 'steer', discovery: { fresh: false, last_ok: null },
 			peers: { [SPOKE_B]: { state: 'RELAY', section: 'spoke_b', endpoint: null, target: null, up_streak: 0, down_streak: 0,
-				backoff: 0, ready: false, switches: 0, last_change: null } },
+				backoff: 0, ready: false, switches: 0, relayed_answers: 0, last_change: null } },
 			unmanaged: [ HUB_UNMANAGED ],
 		}, d.status());
 	});
@@ -850,7 +851,7 @@ describe('daemon: status', () => {
 		let d = start(w);
 		cycles(w, d, 2);
 		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, up_streak: 2, down_streak: 0,
-			backoff: 0, ready: false, switches: 0, last_change: null }, d.status().peers[SPOKE_B]);
+			backoff: 0, ready: false, switches: 0, relayed_answers: 0, last_change: null }, d.status().peers[SPOKE_B]);
 	});
 });
 
@@ -887,7 +888,7 @@ describe('daemon: scenario through the real decide', () => {
 		let demoted_at = w.clock.wall();
 		cycle(w, d);
 		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, up_streak: 0, down_streak: 0,
-			backoff: 30, ready: false, switches: 3,
+			backoff: 30, ready: false, switches: 3, relayed_answers: 0,
 			last_change: { ts: demoted_at, from: 'DIRECT', to: 'RELAY', reason: 'demoted' } }, peer());
 		assert.match(SPOKE_B_RELAY, w.kernel[SPOKE_B].endpoint);
 		assert.match([

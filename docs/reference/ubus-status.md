@@ -35,6 +35,7 @@ The reply depends on the role. Fields that have no value yet are `null`.
 			"endpoint": "[2001:db8:b::20]:51820",
 			"target": "[2001:db8:b::20]:51820",
 			"switches": 2,
+			"relayed_answers": 0,
 			"last_change": {
 				"ts": 1790456400,
 				"from": "TRIALING",
@@ -83,6 +84,7 @@ The reply depends on the role. Fields that have no value yet are `null`.
 | `endpoint` | string or null | The endpoint wgpathd asserted on the last decided cycle: the relay endpoint in RELAY, the target otherwise. `null` before the first cycle. It is what wgpathd asked for, even if that `wg set` failed, and can differ from the kernel's current endpoint after a roam. |
 | `target` | string or null | The direct endpoint being trialed or held. `null` in RELAY. |
 | `switches` | integer | Number of state transitions since the daemon started, or since a reload added the peer or changed its annotations. Roam adoptions are not counted. |
+| `relayed_answers` | integer | Tunnel probe answers that came back over the relay, and so did not count, over the same span as `switches`. It grows while the peer's side is in RELAY and sends traffic, whose packets move the kernel endpoint back onto the relay. |
 | `last_change` | object or null | The most recent state transition; `null` if none since the peer started being managed. |
 
 `state`, `up_streak`, `down_streak`, `backoff` and `ready` are updated at the end of each cycle in which the peer was decided. A peer skipped in a cycle (missing from the kernel, or while `wireguard status` cannot be read) keeps its previous values.
