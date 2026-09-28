@@ -24,6 +24,8 @@ make e2e SCENARIO=kill-direct              # one (or several, space-separated)
 | `baseline` | both DIRECT, cross-site ping, status/check/discovery/fw4 rules |
 | `kill-direct` | direct dies → both RELAY, traffic survives via the hub; restore → DIRECT |
 | `anchor-only` | spoke-b unreachable → both DIRECT (anchor promotes on roams, R2) |
+| `anchor-traffic` | spoke-b unreachable, 100–1000 packets/s from either site → both still DIRECT (R4) |
+| `relay-traffic` | direct dead, relay traffic from spoke-a → spoke-b never committed, backoff grows (R4) |
 | `crash` | `kill -9` → procd respawn → RELAY → DIRECT |
 | `hang` | `kill -STOP` → procd watchdog restart (G2) → RELAY → DIRECT |
 | `neither-reachable` | no anchor → both stay RELAY |

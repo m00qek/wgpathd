@@ -89,6 +89,7 @@ kernel_endpoint() {
 }
 
 kernel_on_relay() { [ "$(kernel_endpoint "$1")" = "$(relay_of "$1")" ]; }
+kernel_on_direct() { [ "$(kernel_endpoint "$1")" = "[$(transit6 "$(other_spoke "$1")")]:$MESH_PORT" ]; }
 
 # spoke-a holds spoke-b's direct endpoint at this address.
 follows() { [ "$(kernel_endpoint spoke-a)" = "[$1]:$MESH_PORT" ]; }
@@ -143,6 +144,21 @@ ping_stop() {
 	note "background ping: $PING_SENT sent, $PING_LOST lost, longest gap ${PING_GAP}s"
 }
 
+# Steady traffic from one site to the other: a ping every INTERVAL seconds
+# (0.001 is 1000 packets/s), measured by traffic_stop.
+traffic_start() { # from interval
+	x "$1" 'killall -q iputils-ping; rm -f /tmp/traffic.log'
+	docker exec -d "$E2E_PROJECT-$1" sh -c \
+		"exec $PING -q -i$2 -W1 -I $(site_addr "$1") $(site_addr "$(other_spoke "$1")") >/tmp/traffic.log 2>&1"
+}
+
+# Sets TRAFFIC_LOSS, the percentage of the traffic lost.
+traffic_stop() { # from
+	x "$1" 'killall -INT iputils-ping; sleep 1'
+	TRAFFIC_LOSS=$(x "$1" "grep -o '[0-9.]*% packet loss' /tmp/traffic.log | cut -d% -f1")
+	note "traffic from $1: ${TRAFFIC_LOSS}% lost"
+}
+
 # --- faults: an nftables table of the harness's own, beside fw4's --------------
 
 fault() { # node chain rule...
@@ -188,7 +204,8 @@ roam_to() { # new-address old-address
 restore_all() {
 	clear_faults
 	for n in spoke-a spoke-b; do
-		x "$n" 'killall -CONT ucode 2>/dev/null
+		x "$n" 'killall -q iputils-ping
+			killall -CONT ucode 2>/dev/null
 			cmp -s /etc/config/wgpathd /etc/config/wgpathd.e2e && exit
 			cp /etc/config/wgpathd.e2e /etc/config/wgpathd && service wgpathd restart'
 	done
@@ -197,5 +214,7 @@ restore_all() {
 }
 
 converged() { both DIRECT; }
+# Both DIRECT, and each kernel really holds the other's direct endpoint.
+direct_path() { converged && kernel_on_direct spoke-a && kernel_on_direct spoke-b; }
 
 baseline() { require "both spokes DIRECT" wait_for 90 converged; }

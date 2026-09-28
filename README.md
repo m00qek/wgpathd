@@ -34,6 +34,6 @@ make package-check             # install it in a fresh rootfs and verify it
 ```
 `OPENWRT_VERSION` / `OPENWRT_ARCH` select the rootfs (default `25.12.5` / `x86_64`).
 
-Status: **implemented, packaged and end-to-end tested** — unit, integration and a docker failover harness (all eleven scenarios); not yet deployed.
+Status: **implemented, packaged and end-to-end tested** — unit, integration and a docker failover harness (all thirteen scenarios); not yet deployed.
 Build order (see design §Phases): devenv → decide+utest → shell+integration → e2e (incl. relay floor) → deploy.
 Substrate build log (Phases 0–2): [the build history](the build history).
