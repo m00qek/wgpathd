@@ -5,8 +5,6 @@
 # back direct counts (design R4): spoke-b is never committed, its trials time
 # out and its backoff grows.
 
-never_logged() { ! logged "$@"; }
-
 baseline
 unreachable spoke-b
 kill_direct

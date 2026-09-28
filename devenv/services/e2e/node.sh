@@ -52,7 +52,7 @@ wg_interface() { # name address [port] [mtu]
 hub_network() {
 	common_network
 	wg_interface wg_hub "$(hub_addr hub)/24" "$HUB_WG_PORT"
-	wg_interface wg_mesh "$(mesh_addr hub)/32" "$MESH_PORT" 1360
+	wg_interface wg_mesh "$(mesh_addr hub)/32" "$MESH_PORT" "$MESH_MTU"
 	for spoke in spoke-a spoke-b; do
 		cat <<-EOF
 			config wireguard_wg_hub 'hub_${spoke#spoke-}'
@@ -86,7 +86,7 @@ spoke_network() {
 
 	EOF
 	wg_interface wg_hub "$(hub_addr "$node")/32"
-	wg_interface wg_mesh "$(mesh_addr "$node")/32" "$MESH_PORT" 1360
+	wg_interface wg_mesh "$(mesh_addr "$node")/32" "$MESH_PORT" "$MESH_MTU"
 	cat <<-EOF
 		config wireguard_wg_hub 'hub_transit'
 		option public_key '$(pub hub wg_hub)'

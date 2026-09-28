@@ -4,6 +4,8 @@
 TRANSIT4=172.31.250
 TRANSIT6=fd77:e2e0:0:1
 MESH_PORT=51820
+# The wg_mesh MTU of every node; full-size probes and pings fill it.
+MESH_MTU=1360
 HUB_WG_PORT=51830
 DISCOVERY_PORT=7780
 

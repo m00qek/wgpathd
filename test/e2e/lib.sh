@@ -105,6 +105,7 @@ logs_since_mark() {
 	x "$1" "logread -e wgpathd | tail -n +$((m + 1))"
 }
 logged() { logs_since_mark "$1" | grep -q -- "$2"; }
+never_logged() { ! logged "$@"; }
 
 restart_daemon() { x "$1" 'service wgpathd restart'; }
 
@@ -124,6 +125,8 @@ PING=/usr/libexec/iputils-ping
 SITE_ROUTE="-I $(site_addr spoke-a) $(site_addr spoke-b)"
 
 cross_site_ping() { x spoke-a "$PING -q -c${1:-3} -i0.2 -W1 $SITE_ROUTE" >/dev/null; }
+# Packets that fill the wg_mesh MTU, which nothing on the way may fragment.
+full_size_ping() { x spoke-a "$PING -q -c${1:-3} -i0.2 -W1 -M do -s $((MESH_MTU - 28)) $SITE_ROUTE" >/dev/null; }
 
 # A 5 Hz ping from site a to site b in the background, measured by ping_stop.
 ping_start() {
@@ -182,6 +185,16 @@ kill_direct() {
 	for n in spoke-a spoke-b; do
 		fault "$n" output "ip6 daddr != $HUB6 udp dport $MESH_PORT drop"
 		fault "$n" input "ip6 saddr != $HUB6 udp sport $MESH_PORT drop"
+	done
+}
+
+# Direct-path wg_mesh datagrams longer than SIZE bytes are dropped both ways, like
+# a link with a smaller MTU that drops what does not fit instead of reporting it.
+# Small datagrams, the hub leg, the relay and ICMPv6 all pass.
+mtu_blackhole() { # size
+	for n in spoke-a spoke-b; do
+		fault "$n" output "ip6 daddr != $HUB6 udp dport $MESH_PORT meta length > $1 drop"
+		fault "$n" input "ip6 saddr != $HUB6 udp sport $MESH_PORT meta length > $1 drop"
 	done
 }
 

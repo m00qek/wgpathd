@@ -11,7 +11,7 @@ cd "$(dirname "$0")/../.."
 PROJECT=wgpathd-e2e
 E2E_OUT=$PWD/bin/e2e
 OUT=$E2E_OUT
-ALL="baseline kill-direct anchor-only anchor-traffic relay-traffic crash hang neither-reachable one-way roam hub-down mixed observe"
+ALL="baseline kill-direct mtu-blackhole anchor-only anchor-traffic relay-traffic crash hang neither-reachable one-way roam hub-down mixed observe"
 WATCHDOG_PID=
 . devenv/scripts/host-guard.sh
 
