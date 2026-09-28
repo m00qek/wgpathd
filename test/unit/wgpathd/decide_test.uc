@@ -15,15 +15,17 @@ const ROAM     = '[2001:db8:ffff::5]:40000';
 const ROAM2    = '[2001:db8:eeee::6]:40001';
 const T0       = 1000.5;
 
-const BASE = { underlay_ok: null, tunnel_ok: null, cur_endpoint: null, last_hs_ts: null,
+const BASE = { underlay_ok: null, tunnel_ok: null, answered_via: null, cur_endpoint: null, last_hs_ts: null,
 	direct_cand: CAND, relay_endpoint: RELAY_EP, tunnel_addr: TUNNEL, discovery_fresh: true };
 
-// By default the kernel endpoint is whatever we last asserted (no roam).
+// By default the kernel endpoint is whatever we last asserted (no roam), and an
+// answered probe came back on the endpoint it was sent to.
 function sim(params) {
 	let s = { ctl: state.init(), now: T0, params: params ?? P };
 
 	s.cycle = function(o) {
-		let out = decide(s.ctl, { ...BASE, cur_endpoint: s.ctl.asserted, ...o }, s.params, s.now);
+		let obs = { ...BASE, cur_endpoint: s.ctl.asserted, answered_via: s.ctl.asserted, ...o };
+		let out = decide(s.ctl, obs, s.params, s.now);
 		s.ctl = out.ctl;
 		s.now += s.params.cycle;
 		return out;
@@ -148,13 +150,34 @@ describe('decide: RELAY', () => {
 		assert.match(0, out.ctl.up_streak);
 	});
 
-	it('a roam to a direct source counts as evidence while relay is re-asserted', () => {
+	it('a roam during a backoff counts as evidence while relay is re-asserted', () => {
 		let s = sim();
 		s.cycle({});
+		s.ctl = { ...s.ctl, backoff: 30, backoff_until: s.now + 10 };
 		let out = s.cycle({ cur_endpoint: ROAM, underlay_ok: false });
 		assert.match(1, out.ctl.up_streak);
 		assert.match(RELAY_EP, endpoint(out));
 		assert.match(state.RELAY, out.ctl.state);
+		assert.match(true, of_kind(out.effects, 'metric')[0].ready);
+	});
+
+	it('a roam starts a trial at once, toward the roam source (R4)', () => {
+		let s = sim();
+		s.cycle({});
+		let out = s.cycle({ cur_endpoint: ROAM, underlay_ok: false });
+		assert.match(state.TRIALING, out.ctl.state);
+		assert.match(ROAM, out.ctl.target);
+		assert.match(ROAM, endpoint(out));
+		assert.match([ TUNNEL ], of_kind(out.effects, 'tunnel_probe'));
+		assert.match([ { event: 'transition', from: state.RELAY, to: state.TRIALING, reason: 'trial_start' } ], logs(out));
+	});
+
+	it('a roam trials as soon as the backoff expires', () => {
+		let s = sim();
+		s.cycle({});
+		s.ctl = { ...s.ctl, backoff: 30, backoff_until: s.now + 2 * P.cycle };
+		assert.match(state.RELAY, s.cycles(2, { cur_endpoint: ROAM }).ctl.state);
+		assert.match(state.TRIALING, s.cycle({ cur_endpoint: ROAM }).ctl.state);
 	});
 
 	it('the trial target is the roam source when a roam is seen', () => {
@@ -212,6 +235,45 @@ describe('decide: TRIALING', () => {
 		assert.match([ TUNNEL ], of_kind(out.effects, 'tunnel_probe'));
 		assert.match([ { event: 'transition', from: state.TRIALING, to: state.DIRECT, reason: 'trial_ok' } ], logs(out));
 		assert.match({ ts: now, from: state.TRIALING, to: state.DIRECT, reason: 'trial_ok' }, out.ctl.last_change);
+	});
+
+	it('an answer that came back over the relay does not commit (R4)', () => {
+		let s = sim();
+		to_trialing(s);
+		let out = s.cycle({ tunnel_ok: true, answered_via: RELAY_EP });
+		assert.match(state.TRIALING, out.ctl.state);
+		assert.match(CAND, endpoint(out));
+		assert.match([ TUNNEL ], of_kind(out.effects, 'tunnel_probe'));
+		assert.match([], logs(out));
+		assert.match(state.DIRECT, s.cycle({ tunnel_ok: true }).ctl.state);
+	});
+
+	it('answers that only ever come over the relay time out with backoff (R4)', () => {
+		let s = sim();
+		let deadline = to_trialing(s).ctl.trial_deadline;
+		while (s.now < deadline)
+			assert.match(state.TRIALING, s.cycle({ tunnel_ok: true, answered_via: RELAY_EP }).ctl.state);
+		let out = s.cycle({ tunnel_ok: true, answered_via: RELAY_EP });
+		assert.match([ state.RELAY, 30 ], [ out.ctl.state, out.ctl.backoff ]);
+		assert.match([ { event: 'transition', from: state.TRIALING, to: state.RELAY, reason: 'trial_timeout' } ], logs(out));
+	});
+
+	it('an answer that came back from a new direct source commits', () => {
+		let s = sim();
+		to_trialing(s);
+		assert.match(state.DIRECT, s.cycle({ tunnel_ok: true, answered_via: ROAM }).ctl.state);
+	});
+
+	it('an answer that came back direct commits, wherever relay traffic has moved the kernel since', () => {
+		let s = sim();
+		to_trialing(s);
+		assert.match(state.DIRECT, s.cycle({ tunnel_ok: true, cur_endpoint: RELAY_EP }).ctl.state);
+	});
+
+	it('an answer whose path could not be read does not commit', () => {
+		let s = sim();
+		to_trialing(s);
+		assert.match(state.TRIALING, s.cycle({ tunnel_ok: true, answered_via: null }).ctl.state);
 	});
 
 	it('re-sets the target and re-probes while not yet answered', () => {
@@ -339,10 +401,27 @@ describe('decide: DIRECT', () => {
 		to_direct(s);
 		for (let i = 0; i < 4; i++) {
 			let out = s.cycle({ tunnel_ok: true, cur_endpoint: RELAY_EP });
-			assert.match(state.DIRECT, out.ctl.state);
+			assert.match([ state.DIRECT, 0 ], [ out.ctl.state, out.ctl.down_streak ]);
 			assert.match(CAND, endpoint(out));
 			assert.match([], logs(out));
 		}
+	});
+
+	it('an answer that came back over the relay counts as a failed probe (R4)', () => {
+		let s = sim();
+		to_direct(s);
+		let out = s.cycle({ tunnel_ok: true, answered_via: RELAY_EP });
+		assert.match([ state.DIRECT, 1 ], [ out.ctl.state, out.ctl.down_streak ]);
+		assert.match(0, s.cycle({ tunnel_ok: true }).ctl.down_streak);
+	});
+
+	it('answers that only ever come over the relay demote after m_down cycles (R4)', () => {
+		let s = sim();
+		to_direct(s);
+		s.cycles(P.m_down - 1, { tunnel_ok: true, answered_via: RELAY_EP });
+		let out = s.cycle({ tunnel_ok: true, answered_via: RELAY_EP });
+		assert.match([ state.RELAY, RELAY_EP, 30 ], [ out.ctl.state, endpoint(out), out.ctl.backoff ]);
+		assert.match([ { event: 'transition', from: state.DIRECT, to: state.RELAY, reason: 'demoted' } ], logs(out));
 	});
 
 	it('demotion wins over a roam seen in the same cycle', () => {
@@ -444,13 +523,27 @@ describe('decide: failure-mode catalog', () => {
 		assert.match(true, trials >= 3);
 	});
 
-	it('anchor (#17): echo fails but authenticated roams promote with the roam as target', () => {
+	it('anchor (#17): echo fails but an authenticated roam promotes with the roam as target', () => {
 		let s = sim();
 		s.cycle({ underlay_ok: false });
-		let out = s.cycles(P.n_up, { underlay_ok: false, cur_endpoint: ROAM });
+		let out = s.cycle({ underlay_ok: false, cur_endpoint: ROAM });
 		assert.match(state.TRIALING, out.ctl.state);
 		assert.match(ROAM, out.ctl.target);
 		assert.match(ROAM, endpoint(out));
+		assert.match(state.DIRECT, s.cycle({ underlay_ok: false, tunnel_ok: true, cur_endpoint: ROAM }).ctl.state);
+	});
+
+	it('dead direct path under relay traffic: answers over the relay never commit', () => {
+		let s = sim();
+		let backoffs = [];
+		for (let i = 0; i < 2000; i++) {
+			let out = s.cycle({ underlay_ok: true, tunnel_ok: (s.ctl.state == state.RELAY) ? null : true,
+				cur_endpoint: RELAY_EP, answered_via: RELAY_EP });
+			assert.match(true, out.ctl.state != state.DIRECT);
+			if (out.ctl.last_change?.reason == 'trial_timeout' && out.ctl.last_change.ts == s.now - P.cycle)
+				push(backoffs, out.ctl.backoff);
+		}
+		assert.match([ 30, 60, 120, 240, 480, 900 ], slice(backoffs, 0, 6));
 	});
 
 	it('neither end reachable (#15): parks in RELAY', () => {
@@ -486,6 +579,13 @@ describe('decide: metric', () => {
 			assert.match({ state: out.ctl.state, up_streak: out.ctl.up_streak, down_streak: out.ctl.down_streak,
 				backoff: out.ctl.backoff, ready: out.ctl.up_streak >= P.n_up }, m[0]);
 		}
+	});
+
+	it('reports ready on a roam seen in RELAY', () => {
+		let s = sim(OBSERVE);
+		s.cycle({});
+		assert.match(true, of_kind(s.cycle({ cur_endpoint: ROAM }).effects, 'metric')[0].ready);
+		assert.match(false, of_kind(s.cycle({}).effects, 'metric')[0].ready);
 	});
 
 	it('reports ready while a streak is held back by backoff', () => {
@@ -578,7 +678,8 @@ const STEPS = [ 3, 3, 3, 3, 3, 40, 700 ];
 const MAX_TRIAL_CYCLES = int((P.trial_window + P.cycle - 1) / P.cycle);
 const RECOVERY_BOUND = MAX_TRIAL_CYCLES + P.m_down;
 
-const obs_choice = gen.tuple(gen.int(0, 2), gen.int(0, 2), gen.int(0, 4), gen.int(0, 2), gen.int(0, length(STEPS) - 1));
+const obs_choice = gen.tuple(gen.int(0, 2), gen.int(0, 2), gen.int(0, 4), gen.int(0, 2), gen.int(0, length(STEPS) - 1),
+	gen.int(0, 3));
 const sequence = gen.array(obs_choice, { max_len: 80 });
 
 function make_obs(ctl, c) {
@@ -586,6 +687,7 @@ function make_obs(ctl, c) {
 		underlay_ok: TRI[c[0]],
 		tunnel_ok: TRI[c[1]],
 		cur_endpoint: [ RELAY_EP, ctl.asserted, CAND, STRANGER, null ][c[2]],
+		answered_via: [ ctl.asserted, RELAY_EP, STRANGER, null ][c[5]],
 		direct_cand: [ CAND, CAND2, null ][c[3]] };
 }
 
@@ -660,6 +762,18 @@ describe('decide: invariants', () => {
 			if (i + 1 >= RECOVERY_BOUND)
 				assert.match(state.RELAY, ctl.state);
 		}
+	});
+
+	prop('I6: an answer that came back over the relay never commits or holds DIRECT', sequence, (seq, ctx) => {
+		replay(seq, P, (out, obs, prev) => {
+			if (obs.answered_via != obs.relay_endpoint)
+				return;
+			ctx.classify(`from ${prev.state}`);
+			if (prev.state == state.TRIALING)
+				assert.match(true, out.ctl.state != state.DIRECT);
+			if (prev.state == state.DIRECT && out.ctl.state == state.DIRECT)
+				assert.match(prev.down_streak + 1, out.ctl.down_streak);
+		});
 	});
 
 	prop('I5: observe mode only ever sets the relay and never probes the tunnel', sequence, (seq) => {

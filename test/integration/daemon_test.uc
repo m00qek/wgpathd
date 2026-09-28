@@ -233,6 +233,25 @@ describe('daemon: spoke cycle, gathering obs', () => {
 		assert.match(1, d.status().peers[SPOKE_B].down_streak, 'no probe went out, so no answer');
 	});
 
+	it('judges a tunnel answer by the endpoint the kernel holds right after it', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		w.reachable[SPOKE_B_TUNNEL] = true;
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1, trial_window: 20 } }));
+		w.on_ping = (host) => {
+			if (host == SPOKE_B_TUNNEL)
+				w.kernel[SPOKE_B].endpoint = SPOKE_B_RELAY;
+		};
+		cycles(w, d, 2);
+		assert.match('TRIALING', d.status().peers[SPOKE_B].state, 'answered over the relay');
+
+		w.on_ping = null;
+		cycle(w, d);
+		w.kernel[SPOKE_B].endpoint = SPOKE_B_RELAY;
+		cycle(w, d);
+		assert.match('DIRECT', d.status().peers[SPOKE_B].state, 'answered direct, whatever came over the relay later');
+	});
+
 	it('skips a peer absent from the kernel and logs it once', () => {
 		let w = h.world(kernel_of(SPOKE_B));
 		let d = start(w, spoke_cfg({ peers: { managed: [ SPOKE_B_PEER, SPOKE_A_PEER ], unmanaged: [] } }));

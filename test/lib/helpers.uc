@@ -150,7 +150,8 @@ export function status_reply(iface, kernel) {
 // A fake kernel and network. `kernel` maps pubkey -> { endpoint, hs } and is what
 // `wireguard status` reports and `wg set` writes; routes default to dev wg_hub, and
 // hosts in `unrouted` fail the lookup;
-// pings succeed for hosts in `reachable`; discovery returns `payload` (null: the fetch fails).
+// pings succeed for hosts in `reachable`, and `on_ping(host)`, if set, runs as each
+// ping is answered; discovery returns `payload` (null: the fetch fails).
 export function world(kernel, opts) {
 	opts ??= {};
 	let w = {
@@ -163,6 +164,7 @@ export function world(kernel, opts) {
 		http_status: 200,
 		status_ok: true,
 		set_code: 0,
+		on_ping: null,
 		watchdog: Result.ok(null),
 	};
 
@@ -172,8 +174,14 @@ export function world(kernel, opts) {
 				w.kernel[argv[4]].endpoint = argv[6];
 			return { code: w.set_code };
 		}
-		if (argv[0] == 'ping')
-			return { code: w.reachable[argv[length(argv) - 1]] ? 0 : 1 };
+		if (argv[0] == 'ping') {
+			let host = argv[length(argv) - 1];
+			if (!w.reachable[host])
+				return { code: 1 };
+			if (w.on_ping)
+				w.on_ping(host);
+			return { code: 0 };
+		}
 		die(`unexpected command: ${join(' ', argv)}`);
 	};
 

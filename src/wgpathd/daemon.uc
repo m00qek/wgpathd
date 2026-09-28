@@ -79,6 +79,7 @@ function peer_record(peer) {
 		peer: peer,
 		ctl: ctl,
 		tunnel_ok: null,
+		answered_via: null,
 		absent: false,
 		switches: 0,
 		metric: { state: ctl.state, up_streak: ctl.up_streak, down_streak: ctl.down_streak,
@@ -251,7 +252,9 @@ function create_spoke(deps, cfg, params) {
 	// tunnel_ok answers the previous cycle's probe only, so it is consumed even for a skipped peer.
 	let build_obs = function(rec, kernel_peers, underlay_ok) {
 		let tunnel_ok = rec.tunnel_ok;
+		let answered_via = rec.answered_via;
 		rec.tunnel_ok = null;
+		rec.answered_via = null;
 		if (kernel_peers == null)
 			return null;
 		let kernel = kernel_peers[rec.peer.pubkey];
@@ -267,6 +270,7 @@ function create_spoke(deps, cfg, params) {
 		return {
 			underlay_ok: underlay_ok ?? null,
 			tunnel_ok: tunnel_ok,
+			answered_via: answered_via,
 			cur_endpoint: kernel.endpoint,
 			last_hs_ts: kernel.last_hs_ts,
 			direct_cand: candidate(rec),
@@ -319,7 +323,14 @@ function create_spoke(deps, cfg, params) {
 			let argv = probe.tunnel_command(probe_addr, params.tunnel_timeout);
 			deps.exec(argv, probe.backstop(params.tunnel_timeout), (pres) => {
 				rec.tunnel_ok = probe.reachable(pres);
-				done();
+				if (!rec.tunnel_ok)
+					return done();
+				// The answer roamed the kernel onto the path it came back on; read it before
+				// the next packet from the peer can move it again.
+				read_peers(deps, cfg.mesh_iface, (res) => {
+					rec.answered_via = res.ok ? res.data[rec.peer.pubkey]?.endpoint : null;
+					done();
+				});
 			});
 		});
 	};
