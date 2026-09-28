@@ -28,7 +28,7 @@ A value that is not a positive decimal number is refused: the reload prints `FAI
 
 ## Common adjustments
 
-**Fall back faster or slower.** A cycle lasts `cycle` plus the time its probes wait, and on a dead path the probes wait for their timeout: with the defaults a cycle then takes 4 to 5 seconds. A dead path is left after `m_down` to `m_down + 1` such cycles. Lower `m_down` to `1` to fall back on the first missed probe; raise it if a lossy link causes needless fallbacks.
+**Fall back faster or slower.** A cycle lasts `cycle` plus the time its probes wait, and on a dead path the tunnel probe waits for its timeout: with the defaults a cycle then takes about 4 seconds. A dead path is left after `m_down` to `m_down + 1` such cycles. Lower `m_down` to `1` to fall back on the first missed probe; raise it if a lossy link causes needless fallbacks.
 
 **Return to direct more cautiously.** Raise `n_up` to demand a longer run of evidence, and raise `backoff_min` so a failed trial or a fallback waits longer before the next attempt.
 
@@ -55,7 +55,7 @@ config wgpathd 'main'
 wgpathd does not cross-check parameters, so keep them consistent yourself:
 
 - `trial_window` should be longer than one cycle plus `tunnel_timeout`, or even a good path can fail its trial. The tunnel probe answer is read one cycle after it is sent, and the deadline is checked first. A second attempt fits only if two cycles, including their probe waits, end before the deadline. With the defaults they usually do not, so a trial normally stands or falls on its first probe.
-- `tunnel_timeout` is rounded up to whole seconds for `ping`, so `0.5` waits as long as `1`. Raise it only for a path whose replies are slow: a cycle waits for its probes, so while a path is dead each cycle takes up to twice the rounded value plus one second longer (the underlay probe, then the tunnel probe).
+- `tunnel_timeout` must exceed the round-trip time of the slowest direct path, or answers arrive too late and count as lost. Fractions work: `0.5` waits half a second. Raise it only for a path whose replies are slow: a cycle waits for its probes, so while a path is dead each cycle takes up to `tunnel_timeout` longer, or twice that when some peers are in RELAY (their underlay probes) and others trialing or DIRECT (their tunnel probes).
 - `backoff_min` should not exceed `backoff_max`. Otherwise the second failure lowers the backoff to `backoff_max`.
 - procd restarts the daemon if 30 seconds pass without a watchdog ping, and the daemon pings once per cycle. Keep `cycle` well below 30.
 

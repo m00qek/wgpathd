@@ -12,7 +12,7 @@ The package is `wgpathd`, version `0.1.0`, release `1`, architecture `all`, lice
 | `/usr/libexec/wgpathd/status.uc` | 0755 | Prints the running daemon's status as text, for `service wgpathd status`. |
 | `/usr/libexec/wgpathd/check.uc` | 0755 | The validator behind `service wgpathd check`; with `--config`, the check that `start` and `reload` run. |
 | `/usr/share/ucode/wgpathd/*.uc` | 0644 | The ucode modules, imported as `wgpathd.<module>`. |
-| `/usr/share/ucode/wgpathd/components/*.uc` | 0644 | I/O components: command runner, HTTP client, clock. |
+| `/usr/share/ucode/wgpathd/components/*.uc` | 0644 | I/O components: command runner, ICMP prober, HTTP client, clock. |
 | `/etc/config/wgpathd` | 0600 | UCI configuration; a conffile, kept on upgrade. See [UCI configuration](uci-config.md). |
 | `/etc/init.d/wgpathd` | 0755 | procd init script. See [below](#etcinitdwgpathd). |
 | `/usr/share/nftables.d/chain-pre/input/wgpathd.nft` | 0644 | fw4 include. See [Firewall rules](firewall.md). |
@@ -59,16 +59,16 @@ The firewall reload is skipped when the package is installed into a firmware ima
 | Package | Used for |
 | :--- | :--- |
 | `ucode` | The interpreter |
-| `ucode-mod-uloop` | Event loop, timers, child processes |
+| `ucode-mod-uloop` | Event loop, timers, the `wg set` process |
 | `ucode-mod-fs` | Discovery cache |
 | `ucode-mod-ubus` | `wireguard status`, status object, watchdog ping |
 | `ucode-mod-uci` | Configuration |
 | `ucode-mod-log` | syslog |
-| `ucode-mod-socket` | Hub discovery listener |
-| `ucode-mod-rtnl` | Relay route lookup |
+| `ucode-mod-socket` | Spoke probes (raw ICMP and ICMPv6 sockets), hub discovery listener |
+| `ucode-mod-rtnl` | Relay route lookup, the MTU of `mesh_iface` |
 | `ucode-mod-uclient` | Spoke discovery fetch |
 | `rpcd-mod-wireguard` | The `wireguard status` ubus method |
 | `wireguard-tools` | `wg set` |
 | `kmod-wireguard` | WireGuard in the kernel |
 
-The probes use busybox `ping`, which must support `-6`, `-c` and `-W`; the OpenWrt default busybox does.
+The probes need no command: the daemon sends them itself on raw sockets, which needs root, as procd runs it.

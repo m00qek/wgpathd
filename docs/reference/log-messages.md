@@ -138,8 +138,12 @@ peer spoke_b (SpokeBme): transition DIRECT -> RELAY reason=demoted failed_probes
 | notice | `reading <iface> recovered` | both | The first successful read after a failure. |
 | warning | `<peer>: absent from <mesh_iface>, skipped` | spoke | A managed peer is not in the kernel's peer table. Logged once each time it disappears; the peer is skipped until it returns. |
 | notice | `<peer>: back in <mesh_iface>` | spoke | The absent peer is in the kernel's peer table again and is steered from this cycle. |
-| warning | `<peer>: setting endpoint failed: WG_COMMAND_FAILED (<detail>)` | spoke | `wg set` failed. The detail is `exit <code>`, or `EXEC_TIMEOUT (wg)` if it took more than 2 seconds. No tunnel probe is sent for that peer while it fails. |
-| notice | `<peer>: setting endpoint recovered` | spoke | The first successful `wg set` for that peer after a failure. |
+| warning | `setting endpoints on <mesh_iface> failed: WG_COMMAND_FAILED (<detail>)` | spoke | The cycle's `wg set`, which sets every peer's endpoint in one command, failed. The detail is `exit <code>`, or `EXEC_TIMEOUT (wg)` if it took more than 2 seconds. No tunnel probe is sent while it fails. |
+| notice | `setting endpoints on <mesh_iface> recovered` | spoke | The first successful `wg set` after a failure. |
+| warning | `reading the MTU of <mesh_iface> failed: LINK_LOOKUP_FAILED (<detail>)` | spoke | The MTU that sizes the tunnel probes could not be read. No tunnel probe is sent while it fails. |
+| notice | `reading the MTU of <mesh_iface> recovered` | spoke | The first successful MTU read after a failure. |
+| warning | `sending probes failed: PROBE_SEND_FAILED (<detail>)` | spoke | At least one probe of a cycle could not be sent; the detail is the first such failure. The probe counts as unanswered. |
+| notice | `sending probes recovered` | spoke | The first cycle whose probes could all be sent, after a failure. |
 | warning | `discovery failed: <CODE> (<detail>)` | spoke | A discovery fetch failed. See [Discovery HTTP API](discovery-api.md#spoke-side-validation). |
 | notice | `discovery recovered` | spoke | The first successful fetch after a failure. |
 | warning | `saving the discovery cache failed: CACHE_SAVE_FAILED (/var/run/wgpathd/cache.json)` | spoke | A valid payload was received but the cache file could not be written. The payload is still used. |

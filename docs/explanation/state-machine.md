@@ -30,7 +30,7 @@ A direct path needs two different kinds of support before wgpathd commits to it.
 
 **Evidence** is cheap and gathered every cycle. There are two kinds:
 
-- **Underlay echo.** wgpathd pings the peer's public IPv6 address (the candidate learned from [discovery](discovery.md)) outside the tunnel. A reply means the peer's host is reachable on IPv6.
+- **Underlay echo.** wgpathd pings the peer's public IPv6 address (the candidate learned from [discovery](discovery.md)) outside the tunnel. A reply means the peer's host is reachable on IPv6. Only a peer in RELAY is pinged: that is the only state in which the echo decides anything.
 - **Authenticated roam.** WireGuard moves a peer's endpoint to the source address of the last valid packet from that peer. If the kernel shows an endpoint that is neither what wgpathd set nor the relay, the peer has just reached us directly, and it did so with a packet that passed its static key. Nobody can fake that without the key.
 
 A peer needs `n_up` consecutive cycles of evidence (5 by default, about 15 seconds) before a trial may start. A roam is the exception: one is enough, for reasons explained [below](#why-the-anchor-needs-roams).
@@ -40,6 +40,8 @@ Evidence is not proof. A host can answer ICMP while its firewall drops UDP to th
 Why a round trip, and not "wait for a new handshake"? Because changing an endpoint does not start a handshake. The session keys stay the same, and the kernel only rekeys every two minutes or after sends go unanswered. A trial that waited for a handshake would fail on good paths and bad paths alike. So wgpathd never uses handshake age to decide anything; it is shown in the hub's discovery data for diagnosis only.
 
 In DIRECT, the same tunnel ping runs every cycle. It is the health check, and it also keeps the session and any stateful firewall on the path warm.
+
+The tunnel ping is as large as `wg_mesh` allows: the whole packet fills the interface's MTU, and it is never fragmented on the way out. A direct path that carries small packets but loses large ones, such as a link with a smaller MTU that drops them instead of reporting it, would pass a small ping while real traffic stalls. With a full-size ping such a path fails its trial or its health check, and the peer stays on, or returns to, the relay. The ping is also bound to `wg_mesh`, so whatever the routes say, it can only leave through the tunnel.
 
 ## Relay traffic and the proof
 

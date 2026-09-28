@@ -26,16 +26,18 @@ The I/O each part uses:
 | Need | Mechanism |
 | :--- | :--- |
 | Read WireGuard peer state | `ubus call wireguard status` (from `rpcd-mod-wireguard`), asynchronous |
-| Set an endpoint | `wg set <iface> peer <key> endpoint <addr>`, exit code only |
-| Underlay and tunnel probes | busybox `ping`, exit code only |
-| Relay route check | rtnl `RTM_GETROUTE` via `ucode-mod-rtnl` |
+| Set the endpoints | one `wg set <iface> peer <key> endpoint <addr> ...` per cycle, exit code only |
+| Underlay and tunnel probes | ICMP echo on raw sockets via `ucode-mod-socket`, on the uloop |
+| Relay route check, mesh MTU | rtnl `RTM_GETROUTE` and `RTM_GETLINK` via `ucode-mod-rtnl` |
 | Discovery fetch (spoke) | asynchronous HTTP GET via `ucode-mod-uclient` |
 | Discovery server (hub) | TCP listener via `ucode-mod-socket` on the uloop |
 | Status | a `wgpathd` ubus object with a `status` method |
 | Liveness | procd watchdog ping, `ubus call service watchdog` |
 | Configuration | UCI, read at startup and on `SIGHUP` |
 
-Commands run through `uloop.process` with their output discarded. Nothing in the daemon parses command output. Each command has a timer backstop, because a child process cannot be killed from ucode, only forgotten.
+The one command, `wg set`, runs through `uloop.process` with its output discarded, under a timer backstop, because a child process cannot be killed from ucode, only forgotten. A spoke therefore starts one process per cycle, however many peers it steers.
+
+The probes are sent by the daemon itself. It keeps a raw socket per address family and device, registered on the loop, and matches each echo reply to its probe by source address, echo id and sequence number: the id is the daemon's own and every probe takes a new sequence number, so a late reply to an earlier probe, or a reply to someone else's ping, never counts. Anything else the socket receives is dropped.
 
 Everything runs on one single-threaded uloop. Nothing blocks: the ubus read, the probes, `wg set` and the HTTP fetch are all callbacks.
 
@@ -44,10 +46,11 @@ Everything runs on one single-threaded uloop. Nothing blocks: the ubus read, the
 ```mermaid
 flowchart TD
     T([cycle timer fires]) --> R[recheck relay routes of peers still waiting]
-    R --> G["gather in parallel:<br/>wireguard status<br/>+ one underlay ping per peer with a candidate"]
+    R --> G["gather in parallel:<br/>wireguard status<br/>+ an underlay ping to each peer in RELAY with a candidate"]
     G --> D[decide, per peer]
-    D --> A["apply in parallel, per peer:<br/>wg set endpoint, then tunnel ping if asked,<br/>then wireguard status if it was answered"]
-    A --> F{discovery fetch due?}
+    D --> S["one wg set for every peer's endpoint"]
+    S --> P["tunnel pings, all at once, for the peers that asked;<br/>a wireguard status read right after answers"]
+    P --> F{discovery fetch due?}
     F -- yes --> BG[start fetch in background] --> W
     F -- no --> W[ping procd watchdog]
     W --> N([arm next timer, cycle seconds later])
@@ -55,8 +58,8 @@ flowchart TD
 
 Some details that matter operationally:
 
-- **A tunnel probe answer belongs to the next cycle.** The ping is sent right after `wg set` returns, and its result is stored for the next cycle's `obs`. If `wg set` fails, no probe is sent, so a probe over the old path can never commit a trial.
-- **An answer is read together with the path it came back on.** The answer, like every authenticated packet, moves the kernel endpoint to where it came from, so the shell reads `wireguard status` right after it and stores that endpoint with the result. `decide` does not count an answer that came back over the relay (see [the state machine](state-machine.md#relay-traffic-and-the-proof)).
+- **A tunnel probe answer belongs to the next cycle.** The pings are sent right after `wg set` returns, and their results are stored for the next cycle's `obs`. If `wg set` fails, no probe is sent at all, since the command may have set some endpoints and not others, so a probe over the old path can never commit a trial.
+- **An answer is read together with the path it came back on.** The answer, like every authenticated packet, moves the kernel endpoint to where it came from, so the shell reads `wireguard status` right after it and stores that endpoint with the result. `decide` does not count an answer that came back over the relay (see [the state machine](state-machine.md#relay-traffic-and-the-proof)). Answers that arrive while such a read is in flight share the next read, which starts as soon as it returns; a read made before an answer arrived could show the endpoint from before that answer moved it, so it never serves one.
 - **A cycle only waits for gathering and applying.** The timer for the next cycle is armed `cycle` seconds after the current one finishes. With probes and `wg set` taking up to their timeouts, the real period is a little longer than `cycle`.
 - **The watchdog ping is the last step.** procd restarts the daemon if it has not been pinged for 30 seconds. A stuck cycle stops pinging, so a hang becomes a restart, and a restart puts every peer back on the relay.
 - **An unreadable `wireguard status` skips deciding for that cycle.** Peers keep their state and no endpoint is set. Any pending tunnel probe result is discarded, so a DIRECT peer counts a failed probe on the next cycle.
@@ -101,8 +104,9 @@ If the configuration is invalid by the time the daemon reads it, the daemon logs
 | `publisher.uc` | Hub snapshot and the HTTP request/response mapping and listener |
 | `discovery.uc` | Spoke payload validation and the cache |
 | `config.uc`, `params.uc` | Configuration loading and timing defaults |
-| `wg.uc`, `probe.uc`, `endpoint.uc` | Parsers and command builders: `wireguard status`, `wg set`, `ping`, endpoint canonical form |
-| `deps.uc`, `components/` | Real I/O: ubus, syslog, rtnl, uclient HTTP, command runner, clock |
+| `wg.uc`, `endpoint.uc` | The `wireguard status` parser, the `wg set` command, the endpoint canonical form |
+| `probe.uc`, `icmp.uc` | What each probe is (host, size, device), and ICMP echo on the wire |
+| `deps.uc`, `components/` | Real I/O: ubus, syslog, rtnl, uclient HTTP, command runner, ICMP prober, clock |
 | `result.uc`, `errors.uc` | The ok/err result type and the [error codes](../reference/error-codes.md) |
 
 Endpoints are compared as plain strings, so every endpoint that enters the core — from the kernel, discovery, the cache or the annotations — is first put in one canonical form (`[v6]:port` or `v4:port`, lowercase and compressed, as `wg` prints it). Without that, the same address written two ways would look like a roam every cycle.

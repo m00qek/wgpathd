@@ -32,20 +32,27 @@ These make a spoke's discovery fetch fail. The spoke keeps its previous map.
 
 | Code | Detail | Trigger |
 | :--- | :--- | :--- |
-| `EXEC_TIMEOUT` | the command name, `wg` or `ping` | A command did not exit within its time limit: 2 seconds for `wg set`, and half a second more than `ping`'s own `-W` wait for a probe (see [`tunnel_timeout`](parameters.md#behavior-details)). For a probe this counts as no answer; for `wg set` it appears inside `WG_COMMAND_FAILED`. |
+| `EXEC_TIMEOUT` | the command name, `wg` | `wg set` did not exit within 2 seconds. It appears inside `WG_COMMAND_FAILED`. |
+
+## Probes
+
+| Code | Detail | Trigger |
+| :--- | :--- | :--- |
+| `PROBE_SEND_FAILED` | `<host>: <socket error>`, `raw socket: <socket error>`, `raw socket on <device>: <socket error>`, or `<host>: not an IP address` | A probe could not be sent: the raw socket could not be opened or bound to `mesh_iface`, or the kernel refused the packet, for example with `Message too large` when a full-size tunnel probe does not fit the route. The probe counts as unanswered. |
 
 ## WireGuard
 
 | Code | Detail | Trigger |
 | :--- | :--- | :--- |
-| `WG_COMMAND_FAILED` | `exit <code>`, or a nested `EXEC_TIMEOUT` | `wg set <iface> peer <key> endpoint <addr>` failed. |
+| `WG_COMMAND_FAILED` | `exit <code>`, or a nested `EXEC_TIMEOUT` | `wg set <iface> peer <key> endpoint <addr> [peer <key> endpoint <addr> ...]`, one command for every peer, failed. |
 | `WG_PARSE_FAILED` | `no interface <iface>`, `no peer table`, `invalid peer entry` | The `ubus call wireguard status` reply does not contain the interface, has no peer table for it, or has a peer entry with a malformed key or handshake time. |
 
-## Routing
+## Routing and links
 
 | Code | Detail | Trigger |
 | :--- | :--- | :--- |
 | `ROUTE_LOOKUP_FAILED` | `<host>: <error>` | The route lookup for a peer's relay host failed. The peer stays unmanaged and is rechecked every cycle. |
+| `LINK_LOOKUP_FAILED` | `<iface>: <error>` | The MTU of `mesh_iface` could not be read. No tunnel probe is sent that cycle. |
 
 ## ubus
 
