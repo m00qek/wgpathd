@@ -142,7 +142,7 @@ function create_spoke(deps, cfg, params) {
 	let report_mtu = streak_reporter(deps, `reading the MTU of ${cfg.mesh_iface}`);
 	let report_probes = streak_reporter(deps, 'sending probes');
 	let read_after_answer = coalesced((cb) => read_peers(deps, cfg.mesh_iface, cb));
-	let probe_error = null;
+	let probe_outcome = null;
 
 	let log_peer = (level, peer, msg) => deps.log(level, `${peer_name(peer)}: ${msg}`);
 	let candidate = (rec) => disc.peers[rec.peer.pubkey]?.direct;
@@ -265,18 +265,20 @@ function create_spoke(deps, cfg, params) {
 	};
 
 	// Collects a batch's results; done runs once every probe has been answered or given
-	// up on and on_result has called its finish.
+	// up on and on_result has called its finish. The cycle's outcome is its first
+	// failure to send, if any.
 	let probe_all = function(probes, on_result, done) {
 		let left = length(probes);
 		if (left == 0)
 			return done();
+		probe_outcome ??= Result.ok();
 		let finish = () => {
 			if (--left == 0)
 				done();
 		};
 		deps.icmp.send(probes, params.tunnel_timeout, (p, res) => {
-			if (!res.ok)
-				probe_error ??= res;
+			if (!res.ok && probe_outcome.ok)
+				probe_outcome = res;
 			on_result(p, res.ok && res.data === true, finish);
 		});
 	};
@@ -503,7 +505,7 @@ function create_spoke(deps, cfg, params) {
 
 		cycle: function(done) {
 			recheck_relays();
-			probe_error = null;
+			probe_outcome = null;
 			gather((read, underlay) => {
 				report_read(read);
 				let kernel_peers = read.ok ? read.data : null;
@@ -520,7 +522,8 @@ function create_spoke(deps, cfg, params) {
 					push(steps, take_effects(rec, out.effects));
 				}
 				apply(steps, () => {
-					report_probes(probe_error ?? Result.ok());
+					if (probe_outcome != null)
+						report_probes(probe_outcome);
 					refresh_discovery(now, wants_refresh);
 					ping_watchdog();
 					done();

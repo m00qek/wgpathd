@@ -37,28 +37,40 @@ export function create(socket, uloop, id) {
 
 	// The kernel must not fragment a probe on its way out: a full-size probe that
 	// does not fit is refused at once, which reads as not answered.
-	let configure = function(sock, fam, device) {
-		if (device != null && !sock.setopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, device))
-			return false;
+	let configure = function(sock, fam) {
 		if (fam == 6)
 			return sock.setopt(socket.IPPROTO_IPV6, socket.IPV6_DONTFRAG, 1);
 		return sock.setopt(socket.IPPROTO_IP, socket.IP_MTU_DISCOVER, IP_PMTUDISC_DO);
 	};
 
-	let open = function(fam, device) {
-		let key = `${fam} ${device ?? ''}`;
-		if (sockets[key])
-			return Result.ok(sockets[key].sock);
+	// A socket stays bound to the index its device had, and netifd deletes and
+	// creates an interface again on ifup: so it is bound again, by name, for every probe.
+	let bind = (sock, device) => device == null || sock.setopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, device);
+
+	let create = function(fam) {
 		let sock = socket.create((fam == 6) ? socket.AF_INET6 : socket.AF_INET,
 			socket.SOCK_RAW | socket.SOCK_NONBLOCK, PROTOCOL[fam]);
 		if (!sock)
 			return Result.err(errors.PROBE_SEND_FAILED, `raw socket: ${socket.error()}`);
-		if (!configure(sock, fam, device)) {
+		if (!configure(sock, fam)) {
 			let e = socket.error();
 			sock.close();
-			return Result.err(errors.PROBE_SEND_FAILED, `raw socket on ${device ?? 'any device'}: ${e}`);
+			return Result.err(errors.PROBE_SEND_FAILED, `raw socket: ${e}`);
 		}
-		sockets[key] = { sock: sock, handle: uloop.handle(sock, () => receive(fam, sock), uloop.ULOOP_READ) };
+		return Result.ok({ sock: sock, handle: uloop.handle(sock, () => receive(fam, sock), uloop.ULOOP_READ) });
+	};
+
+	let open = function(fam, device) {
+		let key = `${fam} ${device ?? ''}`;
+		if (sockets[key] == null) {
+			let created = create(fam);
+			if (!created.ok)
+				return created;
+			sockets[key] = created.data;
+		}
+		let sock = sockets[key].sock;
+		if (!bind(sock, device))
+			return Result.err(errors.PROBE_SEND_FAILED, `raw socket on ${device}: ${socket.error()}`);
 		return Result.ok(sock);
 	};
 

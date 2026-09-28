@@ -493,6 +493,21 @@ describe('daemon: spoke cycle, applying effects', () => {
 		], w.logs.matching(/sending probes/));
 	});
 
+	it('takes a cycle that sends no probe as no news about sending them', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		w.payload = payload({});
+		w.send_error[SPOKE_B_TUNNEL] = 'No such device';
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1, trial_window: 2 } }));
+		cycles(w, d, 3);
+		assert.match(contains({ state: 'RELAY', last_change: contains({ reason: 'trial_timeout' }) }), d.status().peers[SPOKE_B]);
+		let seen = length(w.icmp.sent);
+		cycles(w, d, 3);
+		assert.match([], probed_since(w, seen), 'discovery took the candidate away');
+		assert.match([ [ 'warning', `sending probes failed: PROBE_SEND_FAILED (${SPOKE_B_TUNNEL}: No such device)` ] ],
+			w.logs.matching(/sending probes/), 'no probe went out, so no recovery either');
+	});
+
 	it('reads the endpoints at once after an answer, and once for all the answers that came meanwhile', () => {
 		let t = direct_trio();
 		let w = t.w, d = t.d;

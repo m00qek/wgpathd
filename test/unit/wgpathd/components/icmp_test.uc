@@ -97,15 +97,22 @@ describe('components.icmp: sockets', () => {
 		assert.match([ 1, 1, 1 ], map(t.uloop.handles, (h) => h.flags));
 	});
 
-	it('binds to the device and forbids local fragmentation', () => {
+	it('forbids local fragmentation and binds to the device', () => {
 		let t = setup();
 		t.send([ { host: '10.0.0.2', size: 8, device: 'wg_mesh' }, { host: '2001:db8::2', size: 8, device: null },
 			{ host: 'fd00::2', size: 8, device: 'wg_mesh' } ]);
 		assert.match([
-			[ [ 1, 25, 'wg_mesh' ], [ 0, 10, 2 ] ],
+			[ [ 0, 10, 2 ], [ 1, 25, 'wg_mesh' ] ],
 			[ [ 41, 62, 1 ] ],
-			[ [ 1, 25, 'wg_mesh' ], [ 41, 62, 1 ] ],
+			[ [ 41, 62, 1 ], [ 1, 25, 'wg_mesh' ] ],
 		], map(t.socket.opened, (s) => s.opts));
+	});
+
+	it('binds again by name for every probe, so a device created anew is used', () => {
+		let t = setup();
+		t.send([ { host: '10.0.0.2', size: 8, device: 'wg_mesh' }, { host: '10.0.0.3', size: 8, device: 'wg_mesh' } ]);
+		t.send([ { host: '10.0.0.2', size: 8, device: 'wg_mesh' } ]);
+		assert.match(3, length(filter(t.socket.opened[0].opts, (o) => o[1] == 25)));
 	});
 
 	it('sends an echo request with the daemon id, a fresh sequence number and the payload size asked for', () => {
@@ -216,15 +223,26 @@ describe('components.icmp: failures', () => {
 		assert.match([], t.uloop.timers);
 	});
 
-	it('closes a socket it cannot bind, and opens it again for the next probe', () => {
+	it('fails a probe while its device is missing, and sends the next one once it is back', () => {
 		let t = setup();
 		t.socket.refuse_opt = 25;
-		t.send([ { host: '10.0.0.2', size: 16, device: 'wg_nope' } ]);
-		assert.match('raw socket on wg_nope: setsockopt(): No such device', t.results[0][1].details);
-		assert.match(true, t.socket.opened[0].closed);
+		t.send([ { host: '10.0.0.2', size: 16, device: 'wg_mesh' } ]);
+		assert.match('raw socket on wg_mesh: setsockopt(): No such device', t.results[0][1].details);
 		t.socket.refuse_opt = null;
-		t.send([ { host: '10.0.0.2', size: 16, device: 'wg_nope' } ]);
-		assert.match([ 1 ], map(slice(t.socket.opened, 1), (s) => length(s.sent)));
+		t.send([ { host: '10.0.0.2', size: 16, device: 'wg_mesh' } ]);
+		assert.match([ 1 ], map(t.socket.opened, (s) => length(s.sent)), 'the same socket');
+	});
+
+	it('closes a socket it cannot configure, and tries a new one for the next probe', () => {
+		let t = setup();
+		t.socket.refuse_opt = 10;
+		t.send([ { host: '10.0.0.2', size: 16, device: null } ]);
+		assert.match('raw socket: setsockopt(): No such device', t.results[0][1].details);
+		assert.match(true, t.socket.opened[0].closed);
+		assert.match([], t.uloop.handles);
+		t.socket.refuse_opt = null;
+		t.send([ { host: '10.0.0.2', size: 16, device: null } ]);
+		assert.match([ 0, 1 ], map(t.socket.opened, (s) => length(s.sent)));
 	});
 
 	it('fails a probe to something that is not an IP address', () => {
