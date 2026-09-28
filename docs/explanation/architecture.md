@@ -46,8 +46,9 @@ Everything runs on one single-threaded uloop. Nothing blocks: the ubus read, the
 ```mermaid
 flowchart TD
     T([cycle timer fires]) --> R[recheck relay routes of peers still waiting]
-    R --> G["gather in parallel:<br/>wireguard status<br/>+ an underlay ping to each peer in RELAY with a candidate"]
-    G --> D[decide, per peer]
+    R --> G["an underlay ping to each peer in RELAY with a candidate, all at once"]
+    G --> K[wireguard status]
+    K --> D[decide, per peer]
     D --> S["one wg set for every peer's endpoint"]
     S --> P["tunnel pings, all at once, for the peers that asked;<br/>a wireguard status read right after answers"]
     P --> F{discovery fetch due?}
@@ -58,6 +59,7 @@ flowchart TD
 
 Some details that matter operationally:
 
+- **The kernel is read last, just before deciding.** Every cycle re-asserts every endpoint, and a peer's direct packet may roam the kernel while the underlay pings wait. Reading `wireguard status` after them, rather than alongside, lets `decide` see such a roam before the re-assert overwrites it.
 - **A tunnel probe answer belongs to the next cycle.** The pings are sent right after `wg set` returns, and their results are stored for the next cycle's `obs`. If `wg set` fails, no probe is sent at all, since the command may have set some endpoints and not others, so a probe over the old path can never commit a trial.
 - **An answer is read together with the path it came back on.** The answer, like every authenticated packet, moves the kernel endpoint to where it came from, so the shell reads `wireguard status` right after it and stores that endpoint with the result. `decide` does not count an answer that came back over the relay (see [the state machine](state-machine.md#relay-traffic-and-the-proof)). Answers that arrive while such a read is in flight share the next read, which starts as soon as it returns; a read made before an answer arrived could show the endpoint from before that answer moved it, so it never serves one.
 - **A cycle only waits for gathering and applying.** The timer for the next cycle is armed `cycle` seconds after the current one finishes. With probes and `wg set` taking up to their timeouts, the real period is a little longer than `cycle`.
