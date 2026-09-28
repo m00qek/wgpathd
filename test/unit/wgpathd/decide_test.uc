@@ -258,9 +258,19 @@ describe('decide: TRIALING', () => {
 		assert.match([ { event: 'transition', from: state.TRIALING, to: state.RELAY, reason: 'trial_timeout' } ], logs(out));
 	});
 
-	it('an answer that came back from a new direct source commits', () => {
+	it('an answer that came back from another direct address does not commit the target', () => {
 		let s = sim();
 		to_trialing(s);
+		let out = s.cycle({ tunnel_ok: true, answered_via: ROAM });
+		assert.match([ state.TRIALING, CAND ], [ out.ctl.state, endpoint(out) ]);
+		assert.match(state.DIRECT, s.cycle({ tunnel_ok: true, answered_via: CAND }).ctl.state);
+	});
+
+	it('a trial on a roam commits on an answer from that roam', () => {
+		let s = sim();
+		s.cycle({});
+		assert.match(ROAM, s.cycle({ cur_endpoint: ROAM }).ctl.target);
+		assert.match(state.TRIALING, s.cycle({ tunnel_ok: true, answered_via: ROAM2 }).ctl.state);
 		assert.match(state.DIRECT, s.cycle({ tunnel_ok: true, answered_via: ROAM }).ctl.state);
 	});
 
@@ -405,6 +415,14 @@ describe('decide: DIRECT', () => {
 			assert.match(CAND, endpoint(out));
 			assert.match([], logs(out));
 		}
+	});
+
+	it('an answer from another direct address holds DIRECT, and the roam there is adopted', () => {
+		let s = sim();
+		to_direct(s);
+		let out = s.cycle({ tunnel_ok: true, answered_via: ROAM, cur_endpoint: ROAM });
+		assert.match([ state.DIRECT, 0, ROAM ], [ out.ctl.state, out.ctl.down_streak, endpoint(out) ]);
+		assert.match(0, s.cycle({ tunnel_ok: true, answered_via: ROAM2 }).ctl.down_streak);
 	});
 
 	it('an answer that came back over the relay counts as a failed probe (R4)', () => {
@@ -679,7 +697,7 @@ const MAX_TRIAL_CYCLES = int((P.trial_window + P.cycle - 1) / P.cycle);
 const RECOVERY_BOUND = MAX_TRIAL_CYCLES + P.m_down;
 
 const obs_choice = gen.tuple(gen.int(0, 2), gen.int(0, 2), gen.int(0, 4), gen.int(0, 2), gen.int(0, length(STEPS) - 1),
-	gen.int(0, 3));
+	gen.int(0, 4));
 const sequence = gen.array(obs_choice, { max_len: 80 });
 
 function make_obs(ctl, c) {
@@ -687,7 +705,7 @@ function make_obs(ctl, c) {
 		underlay_ok: TRI[c[0]],
 		tunnel_ok: TRI[c[1]],
 		cur_endpoint: [ RELAY_EP, ctl.asserted, CAND, STRANGER, null ][c[2]],
-		answered_via: [ ctl.asserted, RELAY_EP, STRANGER, null ][c[5]],
+		answered_via: [ ctl.asserted, RELAY_EP, STRANGER, null, CAND ][c[5]],
 		direct_cand: [ CAND, CAND2, null ][c[3]] };
 }
 
@@ -773,6 +791,31 @@ describe('decide: invariants', () => {
 				assert.match(true, out.ctl.state != state.DIRECT);
 			if (prev.state == state.DIRECT && out.ctl.state == state.DIRECT)
 				assert.match(prev.down_streak + 1, out.ctl.down_streak);
+		});
+	});
+
+	prop('I7: a trial starts only once the backoff has run out', sequence, (seq, ctx) => {
+		replay(seq, P, (out, obs, prev, now) => {
+			if (prev.state != state.RELAY || out.ctl.state != state.TRIALING)
+				return;
+			ctx.classify(prev.backoff_until > T0 ? 'after a backoff' : 'no backoff yet');
+			assert.match(true, now >= prev.backoff_until);
+		});
+	});
+
+	prop('I8: only a proven answer commits a trial or clears the down streak', sequence, (seq, ctx) => {
+		let direct = (obs) => obs.tunnel_ok === true && obs.answered_via != null && obs.answered_via != obs.relay_endpoint;
+		replay(seq, P, (out, obs, prev) => {
+			if (out.ctl.state != state.DIRECT)
+				return;
+			if (prev.state == state.TRIALING) {
+				ctx.classify('trial_ok');
+				assert.match(true, direct(obs) && obs.answered_via == prev.target);
+			}
+			else if (prev.state == state.DIRECT && out.ctl.down_streak == 0) {
+				ctx.classify('held');
+				assert.match(true, direct(obs));
+			}
 		});
 	});
 
