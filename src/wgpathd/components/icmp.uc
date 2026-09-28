@@ -47,7 +47,7 @@ export function create(socket, uloop, id) {
 	// creates an interface again on ifup: so it is bound again, by name, for every probe.
 	let bind = (sock, device) => device == null || sock.setopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, device);
 
-	let create = function(fam) {
+	let new_socket = function(fam) {
 		let sock = socket.create((fam == 6) ? socket.AF_INET6 : socket.AF_INET,
 			socket.SOCK_RAW | socket.SOCK_NONBLOCK, PROTOCOL[fam]);
 		if (!sock)
@@ -63,7 +63,7 @@ export function create(socket, uloop, id) {
 	let open = function(fam, device) {
 		let key = `${fam} ${device ?? ''}`;
 		if (sockets[key] == null) {
-			let created = create(fam);
+			let created = new_socket(fam);
 			if (!created.ok)
 				return created;
 			sockets[key] = created.data;
