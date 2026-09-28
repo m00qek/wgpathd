@@ -52,6 +52,8 @@ So an answer only counts if it came back direct. The answer is itself an authent
 - in TRIALING the trial carries on, setting the target and probing again each cycle, and times out with a backoff if no answer comes back direct before the deadline;
 - in DIRECT it counts as a failed probe toward `m_down`.
 
+A trial asks one more thing of its answer: that it came back from the trial's target, not merely from some direct address. The trial is about to commit to that target, and an answer from elsewhere proves a path, not the one DIRECT would then assert. If the peer moves to a new direct address in the middle of a trial, the trial therefore times out, and the next one, after the backoff, can start on the new address. DIRECT is not as strict: there any answer that came back direct keeps the peer DIRECT, because the kernel now sends to where it came from, and the next cycle follows the peer there as a roam.
+
 The endpoint is read right after the answer, not at the start of the next cycle, on purpose. A peer in RELAY re-asserts its relay endpoint every cycle. If it has traffic to send, its next packet comes through the relay and moves our endpoint back there, well before our next cycle begins. A check made then would reject every answer while the other side is in RELAY, even on a healthy path, and two sides whose backoffs run out at different times could each wait for the other forever.
 
 A trial is still at the mercy of timing under heavy traffic from the other side: if a relayed packet lands between `wg set` and the ping, the ping itself goes through the relay. The trial then simply tries again on its next cycle.
