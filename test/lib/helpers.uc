@@ -1,7 +1,7 @@
 'use strict';
 
-// Hand-built fakes for driving the daemon: exec by argv, ubus, http, fs, clock, log, uloop, and a
-// fake kernel and network ("world") that answers all of them consistently.
+// Hand-built fakes for driving the daemon: exec by argv, ICMP probes, ubus, http, fs, clock, log,
+// uloop, and a fake kernel and network ("world") that answers all of them consistently.
 
 import * as Result from 'wgpathd.result';
 
@@ -13,11 +13,12 @@ function as_result(answer) {
 
 // Answers each command through answer(argv). Immediate mode calls back at once;
 // deferred mode queues callbacks until flush(), to observe what runs concurrently.
+// `deferred` may be switched at any time.
 export function exec(answer, deferred) {
-	let fake = { calls: [], pending: [] };
+	let fake = { calls: [], pending: [], deferred: deferred };
 	fake.run = function(argv, timeout, cb) {
 		push(fake.calls, { argv: argv, timeout: timeout });
-		if (!deferred)
+		if (!fake.deferred)
 			return cb(as_result(answer(argv)));
 		push(fake.pending, () => cb(as_result(answer(argv))));
 	};
@@ -32,14 +33,58 @@ export function exec(answer, deferred) {
 	return fake;
 };
 
-export function ubus(answer) {
-	let fake = { calls: [], published: {} };
+// Answers each probe through answer(probe): true, false or a Result error. Deferred
+// mode queues the answers until flush(), in the order the probes were sent.
+export function icmp(answer, deferred) {
+	let fake = { sent: [], pending: [], deferred: deferred };
+	let resolver = (p, cb) => function() {
+		let a = answer(p);
+		cb(p, Result.is(a) ? a : Result.ok(a));
+	};
+	fake.send = function(probes, timeout, cb) {
+		for (let p in probes) {
+			push(fake.sent, { host: p.host, size: p.size, device: p.device, timeout: timeout });
+			let resolve = resolver(p, cb);
+			if (fake.deferred)
+				push(fake.pending, resolve);
+			else
+				resolve();
+		}
+	};
+	fake.flush = function() {
+		let batch = fake.pending;
+		fake.pending = [];
+		for (let resolve in batch)
+			resolve();
+		return length(batch);
+	};
+	fake.hosts = () => map(fake.sent, (p) => p.host);
+	return fake;
+};
+
+// Deferred mode answers a deferred call when it is made but delivers the answer only
+// on flush(), like an rpcd reply waiting in the socket.
+export function ubus(answer, deferred) {
+	let fake = { calls: [], published: {}, pending: [], deferred: deferred };
 	let respond = function(obj, method, args) {
 		push(fake.calls, { obj: obj, method: method, args: args });
 		return answer(obj, method, args);
 	};
 	fake.call = respond;
-	fake.defer = (obj, method, args, cb) => cb(respond(obj, method, args));
+	fake.defer = function(obj, method, args, cb) {
+		let res = respond(obj, method, args);
+		if (!fake.deferred)
+			return cb(res);
+		push(fake.pending, () => cb(res));
+	};
+	fake.flush = function() {
+		let batch = fake.pending;
+		fake.pending = [];
+		for (let resolve in batch)
+			resolve();
+		return length(batch);
+	};
+	fake.status_reads = () => length(filter(fake.calls, (c) => c.obj == 'wireguard'));
 	fake.publish = function(name, methods) {
 		fake.published[name] = methods;
 		return Result.ok({});
@@ -148,10 +193,13 @@ export function status_reply(iface, kernel) {
 };
 
 // A fake kernel and network. `kernel` maps pubkey -> { endpoint, hs } and is what
-// `wireguard status` reports and `wg set` writes; routes default to dev wg_hub, and
-// hosts in `unrouted` fail the lookup;
-// pings succeed for hosts in `reachable`, and `on_ping(host)`, if set, runs as each
-// ping is answered; discovery returns `payload` (null: the fetch fails).
+// `wireguard status` reports and the batched `wg set` writes (all of it, or with
+// `set_code` != 0 none of it); routes default to dev wg_hub, and hosts in
+// `unrouted` fail the lookup; the mesh interface has MTU `mtu` (null: the lookup
+// fails). A probe is answered when its host is in `reachable` and it fits the path:
+// `max_size` caps the payload that gets through, `send_error[host]` fails the send;
+// `on_probe(probe)`, if set, runs as each probe is answered. Discovery returns
+// `payload` (null: the fetch fails).
 export function world(kernel, opts) {
 	opts ??= {};
 	let w = {
@@ -160,29 +208,34 @@ export function world(kernel, opts) {
 		routes: {},
 		unrouted: {},
 		reachable: {},
+		max_size: null,
+		send_error: {},
+		mtu: 1360,
 		payload: null,
 		http_status: 200,
 		status_ok: true,
 		set_code: 0,
-		on_ping: null,
+		on_probe: null,
 		watchdog: Result.ok(null),
 	};
 
 	let run_command = function(argv) {
-		if (argv[0] == 'wg') {
-			if (w.set_code == 0)
-				w.kernel[argv[4]].endpoint = argv[6];
-			return { code: w.set_code };
-		}
-		if (argv[0] == 'ping') {
-			let host = argv[length(argv) - 1];
-			if (!w.reachable[host])
-				return { code: 1 };
-			if (w.on_ping)
-				w.on_ping(host);
-			return { code: 0 };
-		}
-		die(`unexpected command: ${join(' ', argv)}`);
+		if (argv[0] != 'wg' || argv[1] != 'set')
+			die(`unexpected command: ${join(' ', argv)}`);
+		if (w.set_code == 0)
+			for (let i = 3; i < length(argv); i += 4)
+				w.kernel[argv[i + 1]].endpoint = argv[i + 3];
+		return { code: w.set_code };
+	};
+
+	let answer_probe = function(p) {
+		if (w.send_error[p.host])
+			return Result.err('PROBE_SEND_FAILED', `${p.host}: ${w.send_error[p.host]}`);
+		if (!w.reachable[p.host] || (w.max_size != null && p.size > w.max_size))
+			return false;
+		if (w.on_probe)
+			w.on_probe(p);
+		return true;
 	};
 
 	let ubus_answer = function(obj, method) {
@@ -200,13 +253,18 @@ export function world(kernel, opts) {
 	};
 
 	w.exec = exec(run_command, opts.deferred);
-	w.ubus = ubus(ubus_answer);
+	w.icmp = icmp(answer_probe, opts.deferred);
+	w.ubus = ubus(ubus_answer, opts.ubus_deferred);
 	w.http = http(fetch, opts.http_deferred);
 	w.fs = fs(opts.files ?? {});
 	w.clock = clock(100, 1790456500);
 	w.logs = logger();
 	w.deps = {
 		exec: w.exec.run,
+		icmp: w.icmp,
+		link_mtu: (dev) => (w.mtu != null)
+			? Result.ok(w.mtu)
+			: Result.err('LINK_LOOKUP_FAILED', `${dev}: interface not found`),
 		ubus: w.ubus,
 		http: w.http,
 		fs: w.fs,

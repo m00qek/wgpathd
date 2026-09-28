@@ -10,8 +10,12 @@ export function is_pubkey(s) {
 	return type(s) == 'string' && match(s, /^[A-Za-z0-9+\/]{43}=$/) != null;
 };
 
-export function set_endpoint_command(iface, pubkey, endpoint) {
-	return [ 'wg', 'set', iface, 'peer', pubkey, 'endpoint', endpoint ];
+// One command for every peer: sets: [ { pubkey, endpoint } ].
+export function set_endpoints_command(iface, sets) {
+	let argv = [ 'wg', 'set', iface ];
+	for (let s in sets)
+		push(argv, 'peer', s.pubkey, 'endpoint', s.endpoint);
+	return argv;
 };
 
 function parse_peer(value) {

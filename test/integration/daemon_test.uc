@@ -7,6 +7,7 @@ import * as Result from 'wgpathd.result';
 const SPOKE_B = 'O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=';
 const SPOKE_A = 'ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc=';
 const HUB  = 'W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=';
+const SPOKE_C = 'hQrcvDZE8wGkiQzp3/zDaTL3dY0PfbFTcQ4r3sG1UUk=';
 
 const URL          = 'http://10.10.0.1:7780/peers';
 const SPOKE_B_RELAY   = '10.10.0.12:51820';
@@ -16,6 +17,9 @@ const SPOKE_A_TUNNEL  = '10.20.0.11';
 const SPOKE_B_DIRECT  = '[2001:db8::12]:51820';
 const SPOKE_B_ROAMED  = '[2001:db8::99]:51820';
 const SPOKE_A_DIRECT  = '[2001:db8::11]:51820';
+const SPOKE_C_RELAY   = '10.10.0.13:51820';
+const SPOKE_C_TUNNEL  = '10.20.0.13';
+const SPOKE_C_DIRECT  = '[2001:db8::13]:51820';
 
 const B   = 'peer spoke_b (O0LYRo/R)';
 const A   = 'peer spoke_a (ckRTxoRC)';
@@ -23,6 +27,7 @@ const HUB_NAME = 'peer hub (W+1CXUTT)';
 
 const SPOKE_B_PEER = { section: 'spoke_b', pubkey: SPOKE_B, relay: SPOKE_B_RELAY, tunnel: SPOKE_B_TUNNEL };
 const SPOKE_A_PEER = { section: 'spoke_a', pubkey: SPOKE_A, relay: SPOKE_A_RELAY, tunnel: SPOKE_A_TUNNEL };
+const SPOKE_C_PEER = { section: 'spoke_c', pubkey: SPOKE_C, relay: SPOKE_C_RELAY, tunnel: SPOKE_C_TUNNEL };
 const HUB_UNMANAGED = { section: 'hub', pubkey: HUB, reason: 'missing wgpathd_relay' };
 
 function spoke_cfg(extra) {
@@ -78,6 +83,34 @@ function commands_since(w, from) {
 	return slice(w.exec.commands(), from);
 }
 
+function probed_since(w, from) {
+	return slice(w.icmp.hosts(), from);
+}
+
+function trio_states(d) {
+	return map([ SPOKE_B, SPOKE_A, SPOKE_C ], (k) => [ d.status().peers[k].state, d.status().peers[k].down_streak ]);
+}
+
+// Three peers, all DIRECT on paths that answer.
+function direct_trio(overrides) {
+	let w = h.world(kernel_of(SPOKE_B, SPOKE_A, SPOKE_C),
+		{ files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT, [SPOKE_A]: SPOKE_A_DIRECT, [SPOKE_C]: SPOKE_C_DIRECT }) });
+	for (let host in [ '2001:db8::12', '2001:db8::11', '2001:db8::13', SPOKE_B_TUNNEL, SPOKE_A_TUNNEL, SPOKE_C_TUNNEL ])
+		w.reachable[host] = true;
+	let d = start(w, spoke_cfg({ overrides: { n_up: 1, ...(overrides ?? {}) },
+		peers: { managed: [ SPOKE_B_PEER, SPOKE_A_PEER, SPOKE_C_PEER ], unmanaged: [] } }));
+	cycles(w, d, 2);
+	assert.match([ [ 'DIRECT', 0 ], [ 'DIRECT', 0 ], [ 'DIRECT', 0 ] ], trio_states(d));
+	return { w: w, d: d };
+}
+
+function set_all(...pairs) {
+	let argv = [ 'wg set wg_mesh' ];
+	for (let i = 0; i < length(pairs); i += 2)
+		push(argv, `peer ${pairs[i]} endpoint ${pairs[i + 1]}`);
+	return join(' ', argv);
+}
+
 describe('daemon: spoke startup', () => {
 	it('refuses to start when the mesh interface is not in the kernel', () => {
 		let w = h.world(kernel_of(SPOKE_B), { iface: 'wg_other' });
@@ -128,7 +161,7 @@ describe('daemon: spoke startup', () => {
 		cycle(w, d);
 		assert.match(contains({ state: 'RELAY', endpoint: SPOKE_B_RELAY, switches: 0 }), d.status().peers[SPOKE_B]);
 		assert.match([ HUB_UNMANAGED ], d.status().unmanaged);
-		assert.match([ `wg set wg_mesh peer ${SPOKE_B} endpoint ${SPOKE_B_RELAY}` ], w.exec.commands());
+		assert.match([ set_all(SPOKE_B, SPOKE_B_RELAY) ], w.exec.commands());
 		assert.match([ [ 'notice', `${B}: relay route found, now managed` ] ], w.logs.matching(/now managed/));
 	});
 
@@ -194,28 +227,68 @@ describe('daemon: spoke cycle, gathering obs', () => {
 		w.payload = payload({ [SPOKE_B]: SPOKE_B_ROAMED });
 		let d = start(w);
 		cycle(w, d);
-		assert.match(true, 'ping -6 -c1 -W1 2001:db8::12' in w.exec.commands());
-		let seen = length(w.exec.commands());
+		assert.match([ '2001:db8::12' ], w.icmp.hosts());
 		cycle(w, d);
-		assert.match(true, 'ping -6 -c1 -W1 2001:db8::99' in commands_since(w, seen));
+		assert.match([ '2001:db8::99' ], probed_since(w, 1));
 	});
 
 	it('sends no underlay probe for a peer without a candidate', () => {
 		let w = h.world(kernel_of(SPOKE_B));
 		let d = start(w);
 		cycle(w, d);
-		assert.match([], filter(w.exec.commands(), (c) => index(c, 'ping -6') == 0));
+		assert.match([], w.icmp.sent);
 	});
 
-	it('lets ping wait tunnel_timeout, rounded up, under a runner backstop just above it', () => {
+	it('sends a small underlay probe by the routes, and a full-size tunnel probe bound to the mesh', () => {
 		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
 		w.reachable['2001:db8::12'] = true;
-		let d = start(w, spoke_cfg({ overrides: { n_up: 1, tunnel_timeout: 1.5 } }));
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1 } }));
 		cycle(w, d);
-		let pings = filter(w.exec.calls, (c) => c.argv[0] == 'ping');
-		assert.match([ 'ping -6 -c1 -W2 2001:db8::12', `ping -c1 -W2 ${SPOKE_B_TUNNEL}` ],
-			map(pings, (c) => join(' ', c.argv)));
-		assert.match([ 2.5, 2.5 ], map(pings, (c) => c.timeout));
+		assert.match([
+			{ host: '2001:db8::12', size: 16, device: null, timeout: 1 },
+			{ host: SPOKE_B_TUNNEL, size: 1360 - 20 - 8, device: 'wg_mesh', timeout: 1 },
+		], w.icmp.sent);
+	});
+
+	it('sizes a tunnel probe to the MTU the mesh has now, for either address family', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		let peer = { ...SPOKE_B_PEER, tunnel: 'fd00:2::12' };
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1, trial_window: 20 }, peers: { managed: [ peer ], unmanaged: [] } }));
+		cycle(w, d);
+		w.mtu = 1420;
+		cycle(w, d);
+		assert.match([ [ 'fd00:2::12', 1360 - 40 - 8 ], [ 'fd00:2::12', 1420 - 40 - 8 ] ],
+			map(slice(w.icmp.sent, 1), (p) => [ p.host, p.size ]));
+	});
+
+	it('waits tunnel_timeout for every probe, to the fraction of a second', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1, tunnel_timeout: 0.35 } }));
+		cycle(w, d);
+		assert.match([ 0.35, 0.35 ], map(w.icmp.sent, (p) => p.timeout));
+	});
+
+	it('probes the underlay only while the peer is in RELAY, observe mode included', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		w.reachable[SPOKE_B_TUNNEL] = true;
+		let cfg = spoke_cfg({ overrides: { n_up: 1 } });
+		let d = start(w, cfg);
+		let underlay = () => length(filter(w.icmp.hosts(), (host) => host == '2001:db8::12'));
+		cycle(w, d);
+		assert.match('TRIALING', d.status().peers[SPOKE_B].state);
+		cycles(w, d, 3);
+		assert.match('DIRECT', d.status().peers[SPOKE_B].state);
+		assert.match(1, underlay(), 'none while TRIALING or DIRECT');
+
+		cfg = { ...cfg, mode: 'observe' };
+		d.reload(cfg, params.build(cfg));
+		cycle(w, d);
+		assert.match(1, underlay(), 'the cycle that returns to RELAY starts in DIRECT');
+		cycles(w, d, 3);
+		assert.match(4, underlay());
 	});
 
 	it('uses a tunnel answer in the next cycle only', () => {
@@ -238,14 +311,14 @@ describe('daemon: spoke cycle, gathering obs', () => {
 		w.reachable['2001:db8::12'] = true;
 		w.reachable[SPOKE_B_TUNNEL] = true;
 		let d = start(w, spoke_cfg({ overrides: { n_up: 1, trial_window: 20 } }));
-		w.on_ping = (host) => {
-			if (host == SPOKE_B_TUNNEL)
+		w.on_probe = (p) => {
+			if (p.host == SPOKE_B_TUNNEL)
 				w.kernel[SPOKE_B].endpoint = SPOKE_B_RELAY;
 		};
 		cycles(w, d, 2);
 		assert.match('TRIALING', d.status().peers[SPOKE_B].state, 'answered over the relay');
 
-		w.on_ping = null;
+		w.on_probe = null;
 		cycle(w, d);
 		w.kernel[SPOKE_B].endpoint = SPOKE_B_RELAY;
 		cycle(w, d);
@@ -291,15 +364,18 @@ describe('daemon: spoke cycle, gathering obs', () => {
 });
 
 describe('daemon: spoke cycle, applying effects', () => {
-	it('runs the underlay probes concurrently', () => {
+	it('sends the underlay probes together, and sets nothing before they are all in', () => {
 		let w = h.world(kernel_of(SPOKE_B, SPOKE_A), { deferred: true,
 			files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT, [SPOKE_A]: SPOKE_A_DIRECT }) });
 		let d = start(w, spoke_cfg({ peers: { managed: [ SPOKE_B_PEER, SPOKE_A_PEER ], unmanaged: [] } }));
 		d.cycle(() => {});
-		assert.match([ 'ping -6 -c1 -W1 2001:db8::12', 'ping -6 -c1 -W1 2001:db8::11' ], w.exec.commands());
+		assert.match([ '2001:db8::12', '2001:db8::11' ], w.icmp.hosts());
+		assert.match([], w.exec.commands());
+		w.icmp.flush();
+		assert.match(1, length(w.exec.commands()));
 	});
 
-	it('sets each endpoint before sending its tunnel probe', () => {
+	it('sets every endpoint in one wg set, then sends the tunnel probes', () => {
 		let w = h.world(kernel_of(SPOKE_B, SPOKE_A), { deferred: true,
 			files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT, [SPOKE_A]: SPOKE_A_DIRECT }) });
 		w.reachable['2001:db8::12'] = true;
@@ -307,14 +383,22 @@ describe('daemon: spoke cycle, applying effects', () => {
 		let d = start(w, spoke_cfg({ overrides: { n_up: 1 }, peers: { managed: [ SPOKE_B_PEER, SPOKE_A_PEER ], unmanaged: [] } }));
 		let finished = false;
 		d.cycle(() => { finished = true; });
+		w.icmp.flush();
+		assert.match([ set_all(SPOKE_B, SPOKE_B_DIRECT, SPOKE_A, SPOKE_A_DIRECT) ], w.exec.commands());
+		assert.match([], probed_since(w, 2), 'no tunnel probe before the endpoints are set');
 		w.exec.flush();
-		assert.match([ `wg set wg_mesh peer ${SPOKE_B} endpoint ${SPOKE_B_DIRECT}`, `wg set wg_mesh peer ${SPOKE_A} endpoint ${SPOKE_A_DIRECT}` ],
-			commands_since(w, 2));
-		w.exec.flush();
-		assert.match([ `ping -c1 -W1 ${SPOKE_B_TUNNEL}`, `ping -c1 -W1 ${SPOKE_A_TUNNEL}` ], commands_since(w, 4));
+		assert.match([ SPOKE_B_TUNNEL, SPOKE_A_TUNNEL ], probed_since(w, 2));
 		assert.match(false, finished);
-		w.exec.flush();
+		w.icmp.flush();
 		assert.match(true, finished);
+	});
+
+	it('runs no command at all while no peer is decided', () => {
+		let w = h.world(kernel_of(SPOKE_A));
+		let d = start(w);
+		cycles(w, d, 2);
+		assert.match([], w.exec.commands());
+		assert.match(2, w.ubus.watchdog_pings());
 	});
 
 	it('logs a failed wg set, sends no tunnel probe and completes the cycle', () => {
@@ -323,9 +407,26 @@ describe('daemon: spoke cycle, applying effects', () => {
 		w.set_code = 1;
 		let d = start(w, spoke_cfg({ overrides: { n_up: 1 } }));
 		cycle(w, d);
-		assert.match([ [ 'warning', `${B}: setting endpoint failed: WG_COMMAND_FAILED (exit 1)` ] ],
-			w.logs.matching(/setting endpoint/));
-		assert.match([], filter(w.exec.commands(), (c) => index(c, 'ping -c1') == 0));
+		assert.match([ [ 'warning', 'setting endpoints on wg_mesh failed: WG_COMMAND_FAILED (exit 1)' ] ],
+			w.logs.matching(/setting endpoints/));
+		assert.match([ '2001:db8::12' ], w.icmp.hosts());
+		assert.match(1, w.ubus.watchdog_pings());
+	});
+
+	it('probes no peer after a failed wg set, and every peer once the next one works', () => {
+		let t = direct_trio({ m_down: 3 });
+		let w = t.w, d = t.d;
+		w.set_code = 1;
+		let seen = length(w.icmp.sent);
+		cycle(w, d);
+		assert.match([], probed_since(w, seen));
+		w.set_code = 0;
+		cycle(w, d);
+		assert.match([ [ 'DIRECT', 1 ], [ 'DIRECT', 1 ], [ 'DIRECT', 1 ] ], trio_states(d), 'no probe went out, so no answer');
+		assert.match([ SPOKE_B_TUNNEL, SPOKE_A_TUNNEL, SPOKE_C_TUNNEL ], probed_since(w, seen));
+		assert.match(set_all(SPOKE_B, SPOKE_B_DIRECT, SPOKE_A, SPOKE_A_DIRECT, SPOKE_C, SPOKE_C_DIRECT), w.exec.commands()[-1]);
+		cycle(w, d);
+		assert.match([ [ 'DIRECT', 0 ], [ 'DIRECT', 0 ], [ 'DIRECT', 0 ] ], trio_states(d));
 	});
 
 	it('logs a failing wg set once per outage, then its recovery', () => {
@@ -338,9 +439,105 @@ describe('daemon: spoke cycle, applying effects', () => {
 		cycle(w, d);
 		cycle(w, d);
 		assert.match([
-			[ 'warning', `${B}: setting endpoint failed: WG_COMMAND_FAILED (exit 1)` ],
-			[ 'notice', `${B}: setting endpoint recovered` ],
-		], w.logs.matching(/setting endpoint/));
+			[ 'warning', 'setting endpoints on wg_mesh failed: WG_COMMAND_FAILED (exit 1)' ],
+			[ 'notice', 'setting endpoints on wg_mesh recovered' ],
+		], w.logs.matching(/setting endpoints/));
+	});
+
+	it('demotes a direct path that drops full-size packets, though small ones cross', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		w.reachable[SPOKE_B_TUNNEL] = true;
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1 } }));
+		cycles(w, d, 2);
+		assert.match('DIRECT', d.status().peers[SPOKE_B].state);
+		w.max_size = 1200;
+		cycles(w, d, 3);
+		assert.match(contains({ state: 'RELAY', last_change: contains({ reason: 'demoted' }) }), d.status().peers[SPOKE_B]);
+	});
+
+	it('probes nothing through the mesh while its MTU cannot be read, and logs it once per outage', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		w.reachable[SPOKE_B_TUNNEL] = true;
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1, m_down: 4 } }));
+		cycles(w, d, 2);
+		w.mtu = null;
+		let seen = length(w.icmp.sent);
+		cycles(w, d, 3);
+		assert.match([], probed_since(w, seen));
+		assert.match(contains({ state: 'DIRECT', down_streak: 2 }), d.status().peers[SPOKE_B]);
+		w.mtu = 1360;
+		cycles(w, d, 2);
+		assert.match(contains({ state: 'DIRECT', down_streak: 0 }), d.status().peers[SPOKE_B]);
+		assert.match([
+			[ 'warning', 'reading the MTU of wg_mesh failed: LINK_LOOKUP_FAILED (wg_mesh: interface not found)' ],
+			[ 'notice', 'reading the MTU of wg_mesh recovered' ],
+		], w.logs.matching(/MTU/));
+	});
+
+	it('counts a probe that could not be sent as unanswered, and logs it once per outage', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		w.reachable[SPOKE_B_TUNNEL] = true;
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1, m_down: 3 } }));
+		cycles(w, d, 2);
+		w.send_error[SPOKE_B_TUNNEL] = 'Message too large';
+		cycles(w, d, 3);
+		assert.match(contains({ state: 'DIRECT', down_streak: 2 }), d.status().peers[SPOKE_B]);
+		w.send_error = {};
+		cycles(w, d, 2);
+		assert.match([
+			[ 'warning', `sending probes failed: PROBE_SEND_FAILED (${SPOKE_B_TUNNEL}: Message too large)` ],
+			[ 'notice', 'sending probes recovered' ],
+		], w.logs.matching(/sending probes/));
+	});
+
+	it('reads the endpoints at once after an answer, and once for all the answers that came meanwhile', () => {
+		let t = direct_trio();
+		let w = t.w, d = t.d;
+		w.icmp.deferred = true;
+		w.ubus.deferred = true;
+		let finished = false;
+		d.cycle(() => { finished = true; });
+		w.ubus.flush();
+		let reads = w.ubus.status_reads();
+		assert.match(3, w.icmp.flush(), 'three answers arrive together');
+		assert.match(reads + 1, w.ubus.status_reads(), 'the first answer is read at once');
+		w.ubus.flush();
+		assert.match(reads + 2, w.ubus.status_reads(), 'the other two share the next read');
+		assert.match(false, finished);
+		w.ubus.flush();
+		assert.match(true, finished);
+		assert.match(reads + 2, w.ubus.status_reads());
+
+		w.icmp.deferred = false;
+		w.ubus.deferred = false;
+		cycle(w, d);
+		assert.match([ [ 'DIRECT', 0 ], [ 'DIRECT', 0 ], [ 'DIRECT', 0 ] ], trio_states(d));
+	});
+
+	it('judges each answer by a read made after it arrived', () => {
+		let t = direct_trio();
+		let w = t.w, d = t.d;
+		w.icmp.deferred = true;
+		w.ubus.deferred = true;
+		w.on_probe = (p) => {
+			if (p.host == SPOKE_A_TUNNEL)
+				w.kernel[SPOKE_A].endpoint = SPOKE_A_RELAY;
+		};
+		d.cycle(() => {});
+		w.ubus.flush();
+		w.icmp.flush();
+		w.ubus.flush();
+		w.ubus.flush();
+
+		w.icmp.deferred = false;
+		w.ubus.deferred = false;
+		w.on_probe = null;
+		cycle(w, d);
+		assert.match([ [ 'DIRECT', 0 ], [ 'DIRECT', 1 ], [ 'DIRECT', 0 ] ], trio_states(d),
+			'spoke-a answered over the relay after the first read was made');
 	});
 
 	it('only re-asserts the relay in observe mode', () => {
@@ -351,8 +548,9 @@ describe('daemon: spoke cycle, applying effects', () => {
 		cycles(w, d, 8);
 		let sets = filter(w.exec.commands(), (c) => index(c, 'wg set') == 0);
 		assert.match(8, length(sets));
-		assert.match([ `wg set wg_mesh peer ${SPOKE_B} endpoint ${SPOKE_B_RELAY}` ], uniq(sets));
-		assert.match([], filter(w.exec.commands(), (c) => index(c, 'ping -c1') == 0));
+		assert.match([ set_all(SPOKE_B, SPOKE_B_RELAY) ], uniq(sets));
+		assert.match([ '2001:db8::12' ], uniq(w.icmp.hosts()), 'underlay probes only');
+		assert.match(8, length(w.icmp.sent));
 		assert.match(contains({ state: 'RELAY', ready: true }), d.status().peers[SPOKE_B]);
 	});
 
@@ -434,9 +632,9 @@ describe('daemon: discovery', () => {
 		cycle(w, d);
 		assert.match({ fresh: false, last_ok: 1790456500 }, d.status().discovery);
 		assert.match([ [ 'warning', 'discovery failed: DISCOVERY_FETCH_FAILED (uclient error 4)' ] ], w.logs.matching(/^discovery failed/));
-		let seen = length(w.exec.commands());
+		let seen = length(w.icmp.sent);
 		cycle(w, d);
-		assert.match(true, 'ping -6 -c1 -W1 2001:db8::12' in commands_since(w, seen));
+		assert.match([ '2001:db8::12' ], probed_since(w, seen));
 	});
 
 	it('treats an HTTP error or an invalid payload as a failed fetch', () => {
@@ -503,9 +701,9 @@ describe('daemon: discovery never blocks the cycle', () => {
 		cycles(w, d, 4);
 		w.http.flush();
 		assert.match(true, d.status().discovery.fresh);
-		let seen = length(w.exec.commands());
+		let seen = length(w.icmp.sent);
 		cycle(w, d);
-		assert.match(true, 'ping -6 -c1 -W1 2001:db8::12' in commands_since(w, seen));
+		assert.match([ '2001:db8::12' ], probed_since(w, seen));
 		assert.match([ URL, URL ], w.http.calls, 'the next fetch counts from the last attempt');
 	});
 });
@@ -755,9 +953,11 @@ describe('daemon: reload on SIGHUP', () => {
 		let r = run(w, MAIN, network(SPOKE_B_PEER, SPOKE_A_PEER));
 		reload(r, MAIN, network(SPOKE_B_PEER));
 		let seen = length(w.exec.commands());
+		let probed = length(w.icmp.sent);
 		tick(r);
 		assert.match([ SPOKE_B ], keys(r.status().peers));
-		assert.match([], filter(commands_since(w, seen), (c) => index(c, SPOKE_A) >= 0 || index(c, '2001:db8::11') >= 0));
+		assert.match([], filter(commands_since(w, seen), (c) => index(c, SPOKE_A) >= 0));
+		assert.match([ '2001:db8::12' ], probed_since(w, probed));
 		assert.match(1, length(w.logs.matching(/peers_kept=1 added=0 removed=1/)));
 		assert.match([ [ 'info', `${A}: removed` ] ], w.logs.matching(/: (added|removed|changed)$/));
 	});
@@ -769,7 +969,7 @@ describe('daemon: reload on SIGHUP', () => {
 		reload(r, MAIN, network({ ...SPOKE_B_PEER, relay: '10.10.0.99:51820' }));
 		assert.match(contains({ up_streak: 0, endpoint: null }), r.status().peers[SPOKE_B]);
 		tick(r);
-		assert.match(`wg set wg_mesh peer ${SPOKE_B} endpoint 10.10.0.99:51820`,
+		assert.match(set_all(SPOKE_B, '10.10.0.99:51820'),
 			filter(w.exec.commands(), (c) => index(c, 'wg set') == 0)[-1]);
 		assert.match([ [ 'info', `${B}: changed` ] ], w.logs.matching(/: (added|removed|changed)$/));
 		assert.match(1, length(w.logs.matching(/peers_kept=0 added=1 removed=1/)));

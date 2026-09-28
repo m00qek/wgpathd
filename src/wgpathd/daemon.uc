@@ -62,6 +62,35 @@ function streak_reporter(deps, what) {
 	};
 }
 
+// Several answers may each need a read of the kernel endpoints right after them. A
+// read already in flight may have been served before a later answer arrived, so it
+// serves only the answers that came before it; the ones that arrive meanwhile share
+// the next read, which starts the moment it returns.
+function coalesced(read) {
+	let current = null;
+	let next = [];
+	function start(waiters) {
+		current = waiters;
+		read((res) => {
+			let served = current;
+			current = null;
+			for (let cb in served)
+				cb(res);
+			if (length(next) > 0) {
+				let waiting = next;
+				next = [];
+				start(waiting);
+			}
+		});
+	}
+	return function(cb) {
+		if (current == null)
+			start([ cb ]);
+		else
+			push(next, cb);
+	};
+}
+
 function watchdog_pinger(deps) {
 	let report = streak_reporter(deps, 'watchdog ping');
 	return () => report(deps.ubus.call('service', 'watchdog', WATCHDOG));
@@ -109,6 +138,11 @@ function create_spoke(deps, cfg, params) {
 	let report_discovery = streak_reporter(deps, 'discovery');
 	let report_cache = streak_reporter(deps, 'saving the discovery cache');
 	let ping_watchdog = watchdog_pinger(deps);
+	let report_set = streak_reporter(deps, `setting endpoints on ${cfg.mesh_iface}`);
+	let report_mtu = streak_reporter(deps, `reading the MTU of ${cfg.mesh_iface}`);
+	let report_probes = streak_reporter(deps, 'sending probes');
+	let read_after_answer = coalesced((cb) => read_peers(deps, cfg.mesh_iface, cb));
+	let probe_error = null;
 
 	let log_peer = (level, peer, msg) => deps.log(level, `${peer_name(peer)}: ${msg}`);
 	let candidate = (rec) => disc.peers[rec.peer.pubkey]?.direct;
@@ -230,23 +264,44 @@ function create_spoke(deps, cfg, params) {
 		}
 	};
 
-	let underlay_task = (rec, argv, results) => (done) => {
-		deps.exec(argv, probe.backstop(params.tunnel_timeout), (res) => {
-			results[rec.peer.pubkey] = probe.reachable(res);
-			done();
+	// Collects a batch's results; done runs once every probe has been answered or given
+	// up on and on_result has called its finish.
+	let probe_all = function(probes, on_result, done) {
+		let left = length(probes);
+		if (left == 0)
+			return done();
+		let finish = () => {
+			if (--left == 0)
+				done();
+		};
+		deps.icmp.send(probes, params.tunnel_timeout, (p, res) => {
+			if (!res.ok)
+				probe_error ??= res;
+			on_result(p, res.ok && res.data === true, finish);
 		});
+	};
+
+	// decide counts the underlay echo as evidence only in RELAY.
+	let underlay_probes = function() {
+		let probes = [];
+		for (let rec in records) {
+			let p = (rec.ctl.state == state.RELAY) ? probe.underlay(candidate(rec)) : null;
+			if (p != null)
+				push(probes, { ...p, rec: rec });
+		}
+		return probes;
 	};
 
 	let gather = function(cb) {
 		let read = null;
 		let underlay = {};
-		let tasks = [ (done) => read_peers(deps, cfg.mesh_iface, (res) => { read = res; done(); }) ];
-		for (let rec in records) {
-			let argv = probe.underlay_command(candidate(rec), params.tunnel_timeout);
-			if (argv != null)
-				push(tasks, underlay_task(rec, argv, underlay));
-		}
-		all(tasks, () => cb(read, underlay));
+		all([
+			(done) => read_peers(deps, cfg.mesh_iface, (res) => { read = res; done(); }),
+			(done) => probe_all(underlay_probes(), (p, answered, finish) => {
+				underlay[p.rec.peer.pubkey] = answered;
+				finish();
+			}, done),
+		], () => cb(read, underlay));
 	};
 
 	// tunnel_ok answers the previous cycle's probe only, so it is consumed even for a skipped peer.
@@ -308,41 +363,14 @@ function create_spoke(deps, cfg, params) {
 			log_peer('info', rec.peer, 'no longer ready');
 	};
 
-	// The probe leaves only on an endpoint that was actually set, so a failed
-	// `wg set` cannot let a probe over the old path commit a trial.
-	let set_then_probe = function(rec, addr, probe_addr, done) {
-		if (!rec.report_set)
-			rec.report_set = streak_reporter(deps, `${peer_name(rec.peer)}: setting endpoint`);
-		deps.exec(wg.set_endpoint_command(cfg.mesh_iface, rec.peer.pubkey, addr), SET_TIMEOUT, (res) => {
-			let err = command_error(res, errors.WG_COMMAND_FAILED);
-			rec.report_set(err ?? Result.ok());
-			if (err != null)
-				return done();
-			if (probe_addr == null)
-				return done();
-			let argv = probe.tunnel_command(probe_addr, params.tunnel_timeout);
-			deps.exec(argv, probe.backstop(params.tunnel_timeout), (pres) => {
-				rec.tunnel_ok = probe.reachable(pres);
-				if (!rec.tunnel_ok)
-					return done();
-				// The answer roamed the kernel onto the path it came back on; read it before
-				// the next packet from the peer can move it again.
-				read_peers(deps, cfg.mesh_iface, (res) => {
-					rec.answered_via = res.ok ? res.data[rec.peer.pubkey]?.endpoint : null;
-					done();
-				});
-			});
-		});
-	};
-
-	let apply_task = (rec, effects) => (done) => {
-		let addr = null;
-		let probe_addr = null;
+	// Records the log and metric effects; returns the endpoint to set and the address to probe.
+	let take_effects = function(rec, effects) {
+		let step = { rec: rec, endpoint: null, probe: null };
 		for (let e in effects) {
 			if (exists(e, 'set_endpoint'))
-				addr = e.set_endpoint;
+				step.endpoint = e.set_endpoint;
 			else if (exists(e, 'tunnel_probe'))
-				probe_addr = e.tunnel_probe;
+				step.probe = e.tunnel_probe;
 			else if (exists(e, 'log'))
 				record_log(rec, e.log);
 			else if (exists(e, 'metric')) {
@@ -350,7 +378,55 @@ function create_spoke(deps, cfg, params) {
 				rec.metric = e.metric;
 			}
 		}
-		set_then_probe(rec, addr, probe_addr, done);
+		return step;
+	};
+
+	let tunnel_probes = function(steps) {
+		let wanted = filter(steps, (s) => s.probe != null);
+		if (length(wanted) == 0)
+			return [];
+		let mtu = deps.link_mtu(cfg.mesh_iface);
+		report_mtu(mtu);
+		if (!mtu.ok)
+			return [];
+		let probes = [];
+		for (let s in wanted) {
+			let p = probe.tunnel(s.probe, mtu.data, cfg.mesh_iface);
+			if (p != null)
+				push(probes, { ...p, rec: s.rec });
+		}
+		return probes;
+	};
+
+	// The answer moved the kernel endpoint onto the path it came back on: read it
+	// before the peer's next packet can move it again (R4).
+	let take_answer = function(p, answered, finish) {
+		p.rec.tunnel_ok = answered;
+		if (!answered)
+			return finish();
+		read_after_answer((res) => {
+			p.rec.answered_via = res.ok ? res.data[p.rec.peer.pubkey]?.endpoint : null;
+			finish();
+		});
+	};
+
+	// One `wg set` for every peer, then the probes. A probe must leave only on an
+	// endpoint that was actually set, or one over the old path could commit a trial;
+	// a failed command may have set some endpoints and not others, so none is probed.
+	let apply = function(steps, done) {
+		let sets = [];
+		for (let s in steps)
+			if (s.endpoint != null)
+				push(sets, { pubkey: s.rec.peer.pubkey, endpoint: s.endpoint });
+		if (length(sets) == 0)
+			return done();
+		deps.exec(wg.set_endpoints_command(cfg.mesh_iface, sets), SET_TIMEOUT, (res) => {
+			let err = command_error(res, errors.WG_COMMAND_FAILED);
+			report_set(err ?? Result.ok());
+			if (err != null)
+				return done();
+			probe_all(tunnel_probes(steps), take_answer, done);
+		});
 	};
 
 	let fetch_result = function(res) {
@@ -423,12 +499,13 @@ function create_spoke(deps, cfg, params) {
 
 		cycle: function(done) {
 			recheck_relays();
+			probe_error = null;
 			gather((read, underlay) => {
 				report_read(read);
 				let kernel_peers = read.ok ? read.data : null;
 				let now = deps.clock.now();
 				let wants_refresh = false;
-				let jobs = [];
+				let steps = [];
 				for (let rec in records) {
 					let obs = build_obs(rec, kernel_peers, underlay[rec.peer.pubkey]);
 					if (obs == null)
@@ -436,9 +513,10 @@ function create_spoke(deps, cfg, params) {
 					let out = decide(rec.ctl, obs, params, now);
 					rec.ctl = out.ctl;
 					wants_refresh ||= length(filter(out.effects, (e) => e.refresh_discovery)) > 0;
-					push(jobs, apply_task(rec, out.effects));
+					push(steps, take_effects(rec, out.effects));
 				}
-				all(jobs, () => {
+				apply(steps, () => {
+					report_probes(probe_error ?? Result.ok());
 					refresh_discovery(now, wants_refresh);
 					ping_watchdog();
 					done();

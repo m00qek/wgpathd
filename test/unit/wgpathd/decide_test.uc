@@ -691,14 +691,14 @@ function make_obs(ctl, c) {
 		direct_cand: [ CAND, CAND2, null ][c[3]] };
 }
 
-// Runs a random sequence, calling check(out, obs, prev_ctl) after each step.
+// Runs a random sequence, calling check(out, obs, prev_ctl, now) after each step.
 function replay(seq, params, check) {
 	let ctl = state.init();
 	let now = T0;
 	for (let c in seq) {
 		let obs = make_obs(ctl, c);
 		let out = decide(ctl, obs, params, now);
-		check(out, obs, ctl);
+		check(out, obs, ctl, now);
 		ctl = out.ctl;
 		now += STEPS[c[4]];
 	}
@@ -773,6 +773,25 @@ describe('decide: invariants', () => {
 				assert.match(true, out.ctl.state != state.DIRECT);
 			if (prev.state == state.DIRECT && out.ctl.state == state.DIRECT)
 				assert.match(prev.down_streak + 1, out.ctl.down_streak);
+		});
+	});
+
+	// The shell sends the underlay probe only to a peer in RELAY. Outside RELAY the echo
+	// changes no state and no effect, except whether a peer falling back asks for a refresh.
+	prop('the underlay echo matters only in RELAY', sequence, (seq, ctx) => {
+		let json_of = (x) => sprintf('%J', x);
+		let but_refresh = (fx) => filter(fx, (e) => !exists(e, 'refresh_discovery'));
+		replay(seq, P, (out, obs, prev, now) => {
+			if (prev.state == state.RELAY)
+				return;
+			ctx.classify(`from ${prev.state}`);
+			for (let u in TRI) {
+				let alt = decide(prev, { ...obs, underlay_ok: u }, P, now);
+				assert.match(json_of(out.ctl), json_of(alt.ctl));
+				assert.match(json_of(but_refresh(out.effects)), json_of(but_refresh(alt.effects)));
+				if (alt.ctl.state != state.RELAY)
+					assert.match(json_of(out.effects), json_of(alt.effects));
+			}
 		});
 	});
 

@@ -19,9 +19,16 @@ function peer(endpoint, hs) {
 }
 
 describe('wg: commands', () => {
-	it('sets only the endpoint of one peer', () => {
-		assert.match([ 'wg', 'set', 'wg_mesh', 'peer', PEER_B, 'endpoint', '10.10.0.12:51820' ],
-			wg.set_endpoint_command('wg_mesh', PEER_B, '10.10.0.12:51820'));
+	it('sets only the endpoint of each peer, all in one command', () => {
+		assert.match([ 'wg', 'set', 'wg_mesh', 'peer', PEER_B, 'endpoint', '10.10.0.12:51820',
+			'peer', PEER_C, 'endpoint', '[2001:db8::c]:51820' ],
+			wg.set_endpoints_command('wg_mesh', [ { pubkey: PEER_B, endpoint: '10.10.0.12:51820' },
+				{ pubkey: PEER_C, endpoint: '[2001:db8::c]:51820' } ]));
+	});
+
+	it('keeps the order it was given', () => {
+		let argv = wg.set_endpoints_command('wg_mesh', [ { pubkey: PEER_D, endpoint: 'x' }, { pubkey: PEER_B, endpoint: 'y' } ]);
+		assert.match([ PEER_D, PEER_B ], [ argv[4], argv[8] ]);
 	});
 });
 
