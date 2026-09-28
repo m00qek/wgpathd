@@ -1,7 +1,7 @@
 #!/bin/sh
 # The e2e topology left running for a learner (docs/tutorials/first-failover.md):
 # the WireGuard substrate in place, wgpathd installed but disabled on every node.
-# usage: lab.sh up | down | shell NODE | fault kill-direct|restore
+# usage: lab.sh up | down | shell NODE | fault kill-direct|relay-delay MS|restore
 #
 # The e2e host guard (host-guard.sh) covers the lab's whole life: `up` leaves
 # its watchdog running detached, and only `down` stops it.
@@ -82,20 +82,23 @@ shell() { # node
 	esac
 }
 
-inject() { # fault name
+inject() { # fault name [ms]
 	require_up
 	case ${1:-} in
 	kill-direct) kill_direct && echo "lab: direct path between the spokes cut" ;;
+	relay-delay)
+		case ${2:-} in '' | *[!0-9]*) die "relay-delay needs MS, a whole number of milliseconds" ;; esac
+		relay_delay "$2" && echo "lab: the relay path delayed by ${2} ms each way" ;;
 	restore) clear_faults && echo "lab: faults cleared" ;;
-	*) die "NAME must be kill-direct or restore" ;;
+	*) die "NAME must be kill-direct, relay-delay or restore" ;;
 	esac
-	echo "fault ${1:-}" >"$OUT/current"
+	echo "fault ${1:-} ${2:-}" >"$OUT/current"
 }
 
 case ${1:-} in
 up | down) "$1" ;;
 shell) shell "${2:-}" ;;
-fault) inject "${2:-}" ;;
+fault) inject "${2:-}" "${3:-}" ;;
 watchdog) watchdog abort ;;
-*) die "usage: lab.sh up | down | shell NODE | fault kill-direct|restore" ;;
+*) die "usage: lab.sh up | down | shell NODE | fault kill-direct|relay-delay MS|restore" ;;
 esac

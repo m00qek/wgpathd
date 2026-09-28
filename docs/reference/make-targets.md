@@ -21,7 +21,7 @@ All targets run in Docker. Nothing is installed on the host.
 | `lab-up` | Run `package`, then start the e2e topology as compose project `wgpathd-lab` (containers `wgpathd-lab-hub`, `wgpathd-lab-spoke-a`, `wgpathd-lab-spoke-b`) with the WireGuard substrate in place and wgpathd installed but disabled (shipped `/etc/config/wgpathd`, `enabled '0'`) on every node. Returns once the hub has handshakes with both spokes on `wg_hub` and `wg_mesh`. The same host guards as `e2e` apply, and the watchdog keeps running in the background until `lab-down`. Guard logs in `bin/lab/`. |
 | `lab-down` | Stop the lab's watchdog, tear the lab down and print the host report (sysctls, Wi-Fi interface, kernel log). Safe to run when the lab is not up. |
 | `lab-shell` | Open a login shell on the lab node named by `NODE`. |
-| `lab-fault` | Inject or clear a fault in the running lab, named by `NAME`: `kill-direct` drops the `wg_mesh` datagrams between the spokes (the e2e `kill-direct` fault: the hub leg, the relay and ICMPv6 stay up); `restore` clears every fault. |
+| `lab-fault` | Inject or clear a fault in the running lab, named by `NAME`: `kill-direct` drops the `wg_mesh` datagrams between the spokes (the e2e `kill-direct` fault: the hub leg, the relay and ICMPv6 stay up); `relay-delay` delays everything the hub sends by `MS` milliseconds (netem on the hub's `eth0`), which slows only the relay path, since the direct path never crosses the hub; `restore` clears every fault. |
 | `docs` | Build the documentation site (same as `make -C docs build`). |
 | `docs-serve` | Serve the documentation with live reload (same as `make -C docs serve`). |
 
@@ -39,7 +39,8 @@ All targets run in Docker. Nothing is installed on the host.
 | `CI` | — | all | When set, runs containers without a TTY. |
 | `SCENARIO` | all | `e2e` | Run only these scenarios (space-separated names from `test/e2e/`). |
 | `NODE` | — | `lab-shell` | `hub`, `spoke-a` or `spoke-b`. |
-| `NAME` | — | `lab-fault` | `kill-direct` or `restore`. |
+| `NAME` | — | `lab-fault` | `kill-direct`, `relay-delay` or `restore`. |
+| `MS` | — | `lab-fault` | Milliseconds of delay for `NAME=relay-delay`. |
 | `E2E_STRICT` | — | `e2e`, `lab-up` | Set to `1` to refuse to start while containers of other projects run. By default they are listed as a warning and the run goes ahead. The lab and the suite always refuse to run at the same time. |
 | `E2E_WATCH_IFACE` | `wlan0` | `e2e`, `lab-up` | Host interface the e2e runner and the lab guard; the stack is torn down if it goes down. |
 

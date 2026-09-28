@@ -31,7 +31,7 @@ e2e:
 lab-up:    ; @devenv/scripts/lab.sh up
 lab-down:  ; @devenv/scripts/lab.sh down
 lab-shell: ; @devenv/scripts/lab.sh shell $(NODE)
-lab-fault: ; @devenv/scripts/lab.sh fault $(NAME)
+lab-fault: ; @devenv/scripts/lab.sh fault $(NAME) $(MS)
 
 SDK_IMAGE := wgpathd-sdk:$(OPENWRT_ARCH)-$(OPENWRT_VERSION)
 PKG_DIR   := /sdk/package/wgpathd

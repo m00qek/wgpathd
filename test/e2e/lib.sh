@@ -177,6 +177,7 @@ fault() { # node chain rule...
 
 clear_faults() {
 	for n in hub spoke-a spoke-b; do x "$n" 'nft delete table inet e2e 2>/dev/null; true'; done
+	x hub 'tc qdisc del dev eth0 root 2>/dev/null; true'
 }
 
 # Only the v6 wg_mesh datagrams between the spokes; the hub leg, the relay (v4
@@ -196,6 +197,13 @@ mtu_blackhole() { # size
 		fault "$n" output "ip6 daddr != $HUB6 udp dport $MESH_PORT meta length > $1 drop"
 		fault "$n" input "ip6 saddr != $HUB6 udp sport $MESH_PORT meta length > $1 drop"
 	done
+}
+
+# Everything the hub sends waits MS milliseconds. The hub carries the relay,
+# discovery and the wg_hub leg, never the direct path between the spokes, so
+# only relayed traffic slows down: by MS each way, 2 * MS on a round trip.
+relay_delay() { # ms
+	x hub "tc qdisc replace dev eth0 root netem delay ${1}ms"
 }
 
 # A site behind a stateful firewall without NAT: nothing unsolicited gets in
