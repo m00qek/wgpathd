@@ -61,6 +61,7 @@ The direct endpoint answers ping, but WireGuard traffic does not get through bot
 - The endpoint published by the hub has a port that does not reach the peer's `wg_mesh`, for example because of port translation.
 - The peer does not answer the tunnel probe: its firewall lacks the `wgpathd: tunnel probe` rule. Check `nft list ruleset | grep wgpathd:` on the peer.
 - One direction is broken. The trial needs a round trip, so one-way loss correctly fails it.
+- The other side is in RELAY and sends a lot of traffic through the relay. Its packets move this side's endpoint back onto the relay, and an answer that comes back that way does not count. On a healthy path a trial still gets through between those packets, and the other side then trials on the roam; if it is held by its own backoff, this side waits for that backoff to run out.
 
 Each failed trial also cuts that peer's traffic for up to `trial_window`, once per backoff interval, until the cause is fixed. See [What a trial costs](../explanation/state-machine.md#what-a-trial-costs).
 
@@ -72,7 +73,7 @@ wgpathd already damps this: each demotion doubles the backoff up to 15 minutes, 
 
 ## Endpoints change on every cycle
 
-`wg show wg_mesh endpoints` flips between the relay and a direct address while the status says RELAY. This is normal when the other side is DIRECT and this side is not yet: this side re-asserts the relay each cycle, and the other side's direct packets roam it back. It ends when this side promotes, or stays like this while its backoff runs. Both directions keep working.
+`wg show wg_mesh endpoints` flips between the relay and a direct address while the status says RELAY. This is normal when the other side is DIRECT and this side is not yet: this side re-asserts the relay each cycle, and the other side's direct packets roam it back. This side trials on the first such roam, so it ends within a cycle or two, or stays like this while its backoff runs. Both directions keep working. While it lasts, this side's own traffic reaches the other side through the relay and can roam that side back as well; when it does so right when a probe is answered, that probe counts as failed there, so heavy traffic from this side can demote the other side too.
 
 ## The log shows an outage
 

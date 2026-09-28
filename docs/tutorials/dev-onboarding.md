@@ -55,7 +55,7 @@ This time we see test names:
 
 ```
 [test/unit/wgpathd/decide_test.uc] test/unit/wgpathd/decide_test.uc (61 tests)
-  [PASS] anchor (#17): echo fails but authenticated roams promote with the roam as target
+  [PASS] anchor (#17): echo fails but an authenticated roam promotes with the roam as target
   [PASS] lying hub (#5): a bogus candidate fails its trial and backs off
   [PASS] trial false positive: echo ok but the tunnel never answers
   ...

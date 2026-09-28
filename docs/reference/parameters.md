@@ -7,8 +7,8 @@ Each parameter can be overridden by an option of the same name in the `main` sec
 | Parameter | Default | Unit | Used by | Meaning |
 | :--- | :--- | :--- | :--- | :--- |
 | `cycle` | `3` | s | spoke, hub | Pause between the end of one cycle and the start of the next. |
-| `n_up` | `5` | cycles | spoke | Consecutive cycles with direct evidence needed before a trial may start. |
-| `m_down` | `2` | cycles | spoke | Consecutive failed tunnel probes in DIRECT that demote a peer to RELAY. |
+| `n_up` | `5` | cycles | spoke | Consecutive cycles with direct evidence needed before a trial may start. An authenticated roam needs no streak. |
+| `m_down` | `2` | cycles | spoke | Consecutive failed tunnel probes in DIRECT that demote a peer to RELAY. A probe answered over the relay counts as failed. |
 | `tunnel_timeout` | `1` | s | spoke | How long each underlay probe and each tunnel probe waits for a reply. |
 | `trial_window` | `8` | s | spoke | How long a trial may wait for a tunnel probe answer before it fails. |
 | `backoff_min` | `30` | s | spoke | Backoff after the first failed trial or demotion. |
@@ -22,9 +22,9 @@ The hub uses only `cycle`, as the interval between snapshots of `read_iface`. It
 
 **`cycle`.** The next cycle is scheduled `cycle` seconds after the current one completes. A spoke cycle completes when the `wireguard status` read, all underlay probes, all `wg set` commands and all tunnel probes have returned or timed out. The effective period is therefore `cycle` plus the time those take.
 
-**`n_up`.** Evidence is counted only in RELAY. A cycle without evidence resets the count to zero. Every state change resets it. Counting continues during a backoff.
+**`n_up`.** Evidence is counted only in RELAY. A cycle without evidence resets the count to zero. Every state change resets it. Counting continues during a backoff. A cycle in RELAY that sees an authenticated roam (the kernel endpoint moved to a direct address wgpathd did not set) is enough on its own: the trial toward the roamed address starts on that cycle, or on the first cycle after the backoff that still sees one.
 
-**`m_down`.** In DIRECT, a tunnel probe that was not answered, timed out, or was not sent (for example because `wg set` failed) counts as failed. An answered probe resets the count.
+**`m_down`.** In DIRECT, a tunnel probe that was not answered, timed out, or was not sent (for example because `wg set` failed) counts as failed. So does an answer that came back over the relay: right after an answer, wgpathd reads the kernel endpoint, which the answer itself moved, and if that is the relay endpoint (or cannot be read) the answer does not count. An answer that came back direct resets the count. The same rule decides a trial: only an answer that came back direct commits it.
 
 **`tunnel_timeout`.** Both probes run busybox `ping -c1 -W<n>`, where `<n>` is `tunnel_timeout` rounded up to whole seconds, and at least `1`: `0.5` and `1` give `-W1`, `1.5` and `2` give `-W2`. `ping` gives up on its own after `<n>` seconds. wgpathd stops waiting for the command half a second later, `<n> + 0.5` seconds after it started, and counts that as no answer.
 

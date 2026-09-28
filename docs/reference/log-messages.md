@@ -108,16 +108,16 @@ What a reload applies is listed in [Service commands](service-commands.md#reload
 
 | Level | Message | Meaning |
 | :--- | :--- | :--- |
-| notice | `<peer>: transition <from> -> <to> reason=<reason>[ failed_probes=<n>][ backoff=<s>s] endpoint=<endpoint>` | A state transition. `endpoint` is the endpoint wgpathd sets for the new state. `demoted` adds `failed_probes` (the `m_down` probes lost in a row) and `backoff`; `trial_timeout` adds `backoff`. The reasons are listed below. |
+| notice | `<peer>: transition <from> -> <to> reason=<reason>[ failed_probes=<n>][ backoff=<s>s] endpoint=<endpoint>` | A state transition. `endpoint` is the endpoint wgpathd sets for the new state. `demoted` adds `failed_probes` (the `m_down` probes in a row that were lost or answered over the relay) and `backoff`; `trial_timeout` adds `backoff`. The reasons are listed below. |
 | notice | `<peer>: roamed endpoint=<endpoint>` | In DIRECT, the peer's kernel endpoint moved to a new direct address, which is now the target. |
-| notice | `<peer>: ready, steer would trial endpoint=<endpoint>` | Observe mode only: the peer has earned `n_up` cycles of direct evidence for the discovered endpoint. In steer mode it would start a trial now. |
+| notice | `<peer>: ready, steer would trial endpoint=<endpoint>` | Observe mode only: the peer has earned `n_up` cycles of direct evidence, or saw an authenticated roam this cycle. `endpoint` is the discovered endpoint. In steer mode it would start a trial now. |
 | info | `<peer>: no longer ready` | Observe mode only: the peer lost its direct evidence. |
 
 | Reason | Transition |
 | :--- | :--- |
 | `trial_start` | RELAY → TRIALING |
-| `trial_ok` | TRIALING → DIRECT |
-| `trial_timeout` | TRIALING → RELAY |
+| `trial_ok` | TRIALING → DIRECT, on a tunnel probe answered over the direct path |
+| `trial_timeout` | TRIALING → RELAY, no answer over the direct path within `trial_window` |
 | `demoted` | DIRECT → RELAY after `m_down` failed probes |
 | `observe_mode` | TRIALING or DIRECT → RELAY because the mode is not `steer` |
 

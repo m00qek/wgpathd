@@ -77,9 +77,9 @@ The reply depends on the role. Fields that have no value yet are `null`.
 | `state` | string | `RELAY`, `TRIALING` or `DIRECT`. |
 | `section` | string | The UCI section name of the peer in `/etc/config/network`. |
 | `up_streak` | integer | Consecutive cycles with direct evidence, counted in RELAY. |
-| `down_streak` | integer | Consecutive failed tunnel probes, counted in DIRECT. |
+| `down_streak` | integer | Consecutive failed tunnel probes, counted in DIRECT. A probe answered over the relay counts as failed. |
 | `backoff` | number | Current backoff interval in seconds; `0` means none. This is the interval, not the time remaining. |
-| `ready` | boolean | `true` when `up_streak` has reached `n_up`. In observe mode this means steer mode would start a trial. In steer mode it can stay `true` while a backoff is still running. |
+| `ready` | boolean | `true` when `up_streak` has reached `n_up`, or in RELAY on a cycle that saw an authenticated roam. In observe mode this means steer mode would start a trial. In steer mode it can stay `true` while a backoff is still running. |
 | `endpoint` | string or null | The endpoint wgpathd asserted on the last decided cycle: the relay endpoint in RELAY, the target otherwise. `null` before the first cycle. It is what wgpathd asked for, even if that `wg set` failed, and can differ from the kernel's current endpoint after a roam. |
 | `target` | string or null | The direct endpoint being trialed or held. `null` in RELAY. |
 | `switches` | integer | Number of state transitions since the daemon started, or since a reload added the peer or changed its annotations. Roam adoptions are not counted. |

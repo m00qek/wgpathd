@@ -9,7 +9,7 @@ wgpathd is built as a **functional core with an imperative shell**. One pure fun
 The core is `decide(ctl, obs, params, now)` in `decide.uc`. For one peer, it takes:
 
 - `ctl`, the peer's control state: its RELAY/TRIALING/DIRECT state, streak counters, backoff, trial deadline, target, and the endpoint wgpathd last set;
-- `obs`, what the shell observed this cycle: the kernel's current endpoint, the underlay probe result, last cycle's tunnel probe result, the discovery candidate, the relay endpoint and the tunnel address;
+- `obs`, what the shell observed this cycle: the kernel's current endpoint, the underlay probe result, last cycle's tunnel probe result and the endpoint the kernel held right after its answer, the discovery candidate, the relay endpoint and the tunnel address;
 - `params`, the timing parameters and the mode;
 - `now`, the time, passed in rather than read.
 
@@ -46,7 +46,7 @@ flowchart TD
     T([cycle timer fires]) --> R[recheck relay routes of peers still waiting]
     R --> G["gather in parallel:<br/>wireguard status<br/>+ one underlay ping per peer with a candidate"]
     G --> D[decide, per peer]
-    D --> A["apply in parallel, per peer:<br/>wg set endpoint, then tunnel ping if asked"]
+    D --> A["apply in parallel, per peer:<br/>wg set endpoint, then tunnel ping if asked,<br/>then wireguard status if it was answered"]
     A --> F{discovery fetch due?}
     F -- yes --> BG[start fetch in background] --> W
     F -- no --> W[ping procd watchdog]
@@ -56,6 +56,7 @@ flowchart TD
 Some details that matter operationally:
 
 - **A tunnel probe answer belongs to the next cycle.** The ping is sent right after `wg set` returns, and its result is stored for the next cycle's `obs`. If `wg set` fails, no probe is sent, so a probe over the old path can never commit a trial.
+- **An answer is read together with the path it came back on.** The answer, like every authenticated packet, moves the kernel endpoint to where it came from, so the shell reads `wireguard status` right after it and stores that endpoint with the result. `decide` does not count an answer that came back over the relay (see [the state machine](state-machine.md#relay-traffic-and-the-proof)).
 - **A cycle only waits for gathering and applying.** The timer for the next cycle is armed `cycle` seconds after the current one finishes. With probes and `wg set` taking up to their timeouts, the real period is a little longer than `cycle`.
 - **The watchdog ping is the last step.** procd restarts the daemon if it has not been pinged for 30 seconds. A stuck cycle stops pinging, so a hang becomes a restart, and a restart puts every peer back on the relay.
 - **An unreadable `wireguard status` skips deciding for that cycle.** Peers keep their state and no endpoint is set. Any pending tunnel probe result is discarded, so a DIRECT peer counts a failed probe on the next cycle.

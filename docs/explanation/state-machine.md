@@ -10,9 +10,9 @@ On a spoke, every managed mesh peer has its own small state machine. It has thre
 stateDiagram-v2
     [*] --> RELAY: start
     RELAY --> RELAY: re-assert relay endpoint,<br/>count evidence
-    RELAY --> TRIALING: n_up cycles of evidence<br/>and backoff expired<br/>(trial_start)
+    RELAY --> TRIALING: n_up cycles of evidence<br/>or a roam, and backoff expired<br/>(trial_start)
     TRIALING --> TRIALING: set target, probe again
-    TRIALING --> DIRECT: tunnel probe answered<br/>(trial_ok)
+    TRIALING --> DIRECT: tunnel probe answered<br/>over the direct path<br/>(trial_ok)
     TRIALING --> RELAY: trial_window passed<br/>(trial_timeout, backoff grows)
     DIRECT --> DIRECT: re-assert target, probe,<br/>adopt roams
     DIRECT --> RELAY: m_down failed probes<br/>(demoted, backoff grows)
@@ -33,13 +33,26 @@ A direct path needs two different kinds of support before wgpathd commits to it.
 - **Underlay echo.** wgpathd pings the peer's public IPv6 address (the candidate learned from [discovery](discovery.md)) outside the tunnel. A reply means the peer's host is reachable on IPv6.
 - **Authenticated roam.** WireGuard moves a peer's endpoint to the source address of the last valid packet from that peer. If the kernel shows an endpoint that is neither what wgpathd set nor the relay, the peer has just reached us directly, and it did so with a packet that passed its static key. Nobody can fake that without the key.
 
-A peer needs `n_up` consecutive cycles of evidence (5 by default, about 15 seconds) before a trial may start.
+A peer needs `n_up` consecutive cycles of evidence (5 by default, about 15 seconds) before a trial may start. A roam is the exception: one is enough, for reasons explained [below](#why-the-anchor-needs-roams).
 
-Evidence is not proof. A host can answer ICMP while its firewall drops UDP to the WireGuard port. So the next step is a **trial**: wgpathd sets the endpoint to the direct target and immediately sends a ping to the peer's tunnel address, through `wg_mesh`. Only an answer to that ping commits the peer to DIRECT. It proves the whole path works, in both directions, for real WireGuard traffic.
+Evidence is not proof. A host can answer ICMP while its firewall drops UDP to the WireGuard port. So the next step is a **trial**: wgpathd sets the endpoint to the direct target and immediately sends a ping to the peer's tunnel address, through `wg_mesh`. Only an answer to that ping, coming back over the direct path, commits the peer to DIRECT. It proves the whole path works, in both directions, for real WireGuard traffic.
 
 Why a round trip, and not "wait for a new handshake"? Because changing an endpoint does not start a handshake. The session keys stay the same, and the kernel only rekeys every two minutes or after sends go unanswered. A trial that waited for a handshake would fail on good paths and bad paths alike. So wgpathd never uses handshake age to decide anything; it is shown in the hub's discovery data for diagnosis only.
 
 In DIRECT, the same tunnel ping runs every cycle. It is the health check, and it also keeps the session and any stateful firewall on the path warm.
+
+## Relay traffic and the proof
+
+WireGuard roams on every authenticated packet, and that includes packets that come through the relay. Suppose spoke-b trials while spoke-a is still in RELAY and its site is sending traffic. wgpathd on spoke-b sets the direct endpoint, and a moment later a packet from spoke-a arrives through the hub and moves spoke-b's endpoint straight back to the relay. The trial ping then leaves through the relay, spoke-a answers it through the relay, and the answer says nothing about the direct path. Counting it would commit DIRECT on a path that may be dead, and on a dead path the daemon would then re-assert the dead endpoint every cycle and never back off.
+
+So an answer only counts if it came back direct. The answer is itself an authenticated packet: it moves the kernel endpoint to wherever it came from. wgpathd reads the endpoint right after the answer arrives, and if that is the relay endpoint, the answer does not count:
+
+- in TRIALING the trial carries on, setting the target and probing again each cycle, and times out with a backoff if no answer comes back direct before the deadline;
+- in DIRECT it counts as a failed probe toward `m_down`.
+
+The endpoint is read right after the answer, not at the start of the next cycle, on purpose. A peer in RELAY re-asserts its relay endpoint every cycle. If it has traffic to send, its next packet comes through the relay and moves our endpoint back there, well before our next cycle begins. A check made then would reject every answer while the other side is in RELAY, even on a healthy path, and two sides whose backoffs run out at different times could each wait for the other forever.
+
+A trial is still at the mercy of timing under heavy traffic from the other side: if a relayed packet lands between `wg set` and the ping, the ping itself goes through the relay. The trial then simply tries again on its next cycle.
 
 ## What a trial costs
 
@@ -56,7 +69,9 @@ Picture the common case. spoke-a is the **anchor**: it accepts inbound IPv6. spo
 - spoke-b pings spoke-a's public address. spoke-a answers. spoke-b has evidence, trials, and goes DIRECT.
 - spoke-a pings spoke-b's public address. spoke-b's firewall drops it. spoke-a never gets echo evidence.
 
-If echo were the only evidence, spoke-a would stay on the relay forever. It does not, because spoke-b's trial and health pings arrive at spoke-a directly. Each one roams spoke-a's kernel endpoint to spoke-b's direct address. spoke-a reads that roam as evidence, and after `n_up` cycles it trials toward the roamed address and goes DIRECT too.
+If echo were the only evidence, spoke-a would stay on the relay forever. It does not, because spoke-b's trial and health pings arrive at spoke-a directly. Each one roams spoke-a's kernel endpoint to spoke-b's direct address. spoke-a reads that roam as evidence and trials toward the roamed address at once, without waiting for `n_up` cycles, and goes DIRECT too.
+
+One roam is enough because it is authenticated proof that spoke-b is sending to spoke-a directly right now, and because waiting would defeat spoke-b. Until spoke-a trials, it re-asserts the relay every cycle, and its site's traffic then reaches spoke-b through the relay and pulls spoke-b's endpoint back onto it. Under steady traffic, spoke-b's pings reach spoke-a directly only now and then. A streak of `n_up` roams could take far longer than spoke-b's trial window. The trial still has to pass, and the backoff still applies.
 
 ```mermaid
 sequenceDiagram
@@ -69,24 +84,23 @@ sequenceDiagram
     B->>A: tunnel ping over the direct path
     Note over A: kernel roams spoke-b's endpoint<br/>to its direct address
     A-->>B: reply, sent to the roamed address
+    Note over A: roam seen: a trial toward<br/>the roamed address
     Note over B: DIRECT (trial_ok)
-    loop every cycle
-        B->>A: tunnel health ping
-        Note over A: roam seen: evidence
-    end
-    Note over A: n_up cycles of roam evidence,<br/>then a trial toward the roamed address: DIRECT
+    A->>B: tunnel ping over the direct path
+    B-->>A: reply
+    Note over A: DIRECT (trial_ok)
 ```
 
 This is also why wgpathd reads roams before it re-asserts. A daemon that blindly overwrote the endpoint every cycle would fight WireGuard's per-packet roaming instead of learning from it.
 
-In DIRECT, a roam to a new direct address is adopted as the new target, logged as a `roam` event. This is how a spoke follows a peer that changes address while direct is healthy, with no dip to the relay. A roam to the relay address is not adopted: it only means the other side is relaying for now.
+In DIRECT, a roam to a new direct address is adopted as the new target, logged as a `roam` event. This is how a spoke follows a peer that changes address while direct is healthy, with no dip to the relay. A roam to the relay address is not adopted: it only means the other side is relaying for now. If the probe's answer came back through the relay as well, it counts as a failed probe (see [Relay traffic and the proof](#relay-traffic-and-the-proof)).
 
 ## Fast down, slow up
 
 The rules are asymmetric on purpose.
 
-- **Falling back is fast.** In DIRECT, `m_down` failed tunnel probes in a row (2 by default) demote the peer to RELAY. Each probe's answer is read on the next cycle, and on a dead path every cycle also waits for its probes to time out, so with the defaults a dead path is left in roughly 8 to 15 seconds. A probe that did not complete in time counts as failed. The relay is the safe place to be when in doubt.
-- **Coming back is slow.** A return to direct needs `n_up` cycles of evidence **and** a successful trial, **and** the backoff must have expired.
+- **Falling back is fast.** In DIRECT, `m_down` failed tunnel probes in a row (2 by default) demote the peer to RELAY. Each probe's answer is read on the next cycle, and on a dead path every cycle also waits for its probes to time out, so with the defaults a dead path is left in roughly 8 to 15 seconds. A probe that did not complete in time counts as failed, and so does one answered through the relay. The relay is the safe place to be when in doubt.
+- **Coming back is slow.** A return to direct needs `n_up` cycles of evidence (or a roam from a peer that is already trialing or DIRECT) **and** a successful trial, **and** the backoff must have expired.
 
 The backoff is what stops a flapping path from bouncing. Each failed trial and each demotion bumps it: the first time to `backoff_min` (30 seconds), then doubling each time up to `backoff_max` (15 minutes). It resets only after DIRECT has held for `backoff_reset` (10 minutes). A path that works for a minute and then breaks walks its backoff up to the cap and ends up parked on the relay, which is the outcome you want from a bad path. Evidence keeps counting during the backoff, so a peer that is ready trials as soon as the backoff ends.
 
