@@ -59,7 +59,7 @@ done
 check "nothing on the PATH" test ! -e /usr/sbin/wgpathd
 check "fw4 include 0644"    has_mode 644 /usr/share/nftables.d/chain-pre/input/wgpathd.nft
 check "modules 0644"        has_mode 644 /usr/share/ucode/wgpathd/daemon.uc
-check "components shipped"  test -f /usr/share/ucode/wgpathd/components/exec.uc
+check "components shipped"  test -f /usr/share/ucode/wgpathd/components/exec.uc -a -f /usr/share/ucode/wgpathd/components/icmp.uc
 check "no uci-defaults" sh -c '! grep -q uci-defaults /lib/apk/packages/wgpathd.list'
 check "config is a conffile" grep -qx /etc/config/wgpathd /lib/apk/packages/wgpathd.conffiles
 
