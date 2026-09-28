@@ -1,4 +1,5 @@
 import { describe, it, assert, contains } from 'utest';
+import { readfile } from 'fs';
 import * as uloop from 'uloop';
 import * as socket from 'socket';
 import * as prober from 'wgpathd.components.icmp';
@@ -33,6 +34,40 @@ describe('components.icmp on raw sockets', () => {
 
 	it('fails a probe that cannot be bound to its device', () => {
 		assert.match([ [ '127.0.0.1', 'PROBE_SEND_FAILED' ] ], probe([ { host: '127.0.0.1', size: 16, device: 'wgpathd-none0' } ]));
+	});
+});
+
+const FLOOD = sourcepath(0, true) + '/../fixtures/icmp_flood.uc';
+const FLOOD_PID = '/tmp/wgpathd-icmp-flood.pid';
+
+function echo_requests_received() {
+	let snmp = split(readfile('/proc/net/snmp'), '\n');
+	let names = split(filter(snmp, (l) => index(l, 'Icmp: InMsgs') == 0)[0], ' ');
+	let values = split(filter(snmp, (l) => index(l, 'Icmp: ') == 0 && index(l, 'InMsgs') < 0)[0], ' ');
+	return +values[index(names, 'InEchos')];
+}
+
+// The raw socket bound to the loopback sees every echo request of the flood and every
+// reply the kernel sends to it, faster than a read loop that drains it could keep up.
+describe('components.icmp under a flood', () => {
+	it('keeps the loop running its timers while the socket never drains', () => {
+		uloop.init();
+		prober.create(socket, uloop, 0x5eed).send([ { host: '127.0.0.1', size: 16, device: 'lo' } ], 0.05, () => {});
+		let before = echo_requests_received();
+		system(`ucode ${FLOOD} 2 60000 & echo $! >${FLOOD_PID}`);
+		let ticks = 0;
+		function tick() {
+			ticks++;
+			uloop.timer(50, tick);
+		}
+		uloop.timer(250, () => {
+			uloop.timer(50, tick);
+			uloop.timer(1000, () => uloop.end());
+		});
+		uloop.run();
+		system(`kill $(cat ${FLOOD_PID}) 2>/dev/null`);
+		assert.match(true, echo_requests_received() - before > 1000, 'the loopback was flooded');
+		assert.match(true, ticks >= 15, `a 50 ms timer fired ${ticks} times in 1 s`);
 	});
 });
 

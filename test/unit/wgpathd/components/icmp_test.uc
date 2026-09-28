@@ -54,11 +54,15 @@ function setup() {
 	t.prober = prober.create(t.socket, t.uloop, ID);
 	t.send = (probes, timeout) => t.prober.send(probes, timeout ?? 1, (p, res) => push(t.results, [ p.host, res ]));
 	t.answers = () => map(t.results, (r) => [ r[0], r[1].ok ? r[1].data : r[1].error ]);
-	// Queues datagrams on a socket, then lets the loop see it readable once.
-	t.deliver = function(sock, ...datagrams) {
+	t.wakeup = (sock) => filter(t.uloop.handles, (h) => h.sock == sock)[0].cb();
+	t.queue = function(sock, ...datagrams) {
 		for (let d in datagrams)
 			push(sock.inbox, { data: d[0], address: { address: d[1] } });
-		filter(t.uloop.handles, (h) => h.sock == sock)[0].cb();
+	};
+	// Queues datagrams on a socket, then lets the loop see it readable once.
+	t.deliver = function(sock, ...datagrams) {
+		t.queue(sock, ...datagrams);
+		t.wakeup(sock);
 	};
 	return t;
 }
@@ -123,6 +127,15 @@ describe('components.icmp: sockets', () => {
 		assert.match([ [ 8, ID, 1, 1340 ], [ 8, ID, 2, 8 ], [ 8, ID, 3, 1340 ] ],
 			map(sent, (s) => [ ord(s.data, 0), field(s.data, 4), field(s.data, 6), length(s.data) ]));
 		assert.match({ family: 2, address: '10.0.0.2', port: 0 }, sent[0].addr);
+		assert.match([ 0, 0, 0 ], map(sent, (s) => icmp.checksum(s.data)), 'each carries a checksum that adds up');
+	});
+
+	it('sends the same payload bytes to every probe of a size', () => {
+		let t = setup();
+		t.send([ { host: '10.0.0.2', size: 1332, device: 'wg_mesh' }, { host: '10.0.0.3', size: 1332, device: 'wg_mesh' } ]);
+		let sent = t.socket.opened[0].sent;
+		assert.match(icmp.payload(1332), substr(sent[0].data, 8));
+		assert.match(substr(sent[0].data, 8), substr(sent[1].data, 8));
 	});
 });
 
@@ -155,12 +168,35 @@ describe('components.icmp: answers', () => {
 		assert.match([ [ '10.0.0.2', true ], [ '10.0.0.3', true ] ], t.answers());
 	});
 
-	it('matches a reply whose source is written another way', () => {
+	it('matches a probe whose host is written another way', () => {
 		let t = setup();
 		t.send([ { host: '2001:DB8:0::2', size: 16, device: null } ]);
 		let sock = t.socket.opened[0];
 		t.deliver(sock, [ reply(6, sock.sent[0].data), '2001:db8::2' ]);
 		assert.match([ [ '2001:DB8:0::2', true ] ], t.answers());
+	});
+
+	it('matches a reply whose source is written another way', () => {
+		let t = setup();
+		t.send([ { host: '2001:db8::2', size: 16, device: null } ]);
+		let sock = t.socket.opened[0];
+		t.deliver(sock, [ reply(6, sock.sent[0].data), '2001:DB8:0:0::2' ]);
+		assert.match([ [ '2001:db8::2', true ] ], t.answers());
+	});
+
+	it('reads at most 32 datagrams per wakeup, and the rest when the loop comes back', () => {
+		let t = setup();
+		t.send([ { host: '10.0.0.2', size: 16, device: 'wg_mesh' } ]);
+		let sock = t.socket.opened[0];
+		let req = sock.sent[0].data;
+		for (let i = 0; i < 32; i++)
+			t.queue(sock, [ IP4_HEADER + req, '10.0.0.9' ]);
+		t.queue(sock, [ reply(4, req), '10.0.0.2' ]);
+		t.wakeup(sock);
+		assert.match([], t.answers());
+		assert.match(1, length(sock.inbox), 'the reply is left for the next wakeup');
+		t.wakeup(sock);
+		assert.match([ [ '10.0.0.2', true ] ], t.answers());
 	});
 
 	it('ignores whatever does not answer the probe, and still takes the reply that does', () => {

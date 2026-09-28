@@ -17,15 +17,23 @@ function read_u16(s, at) {
 	return (ord(s, at) << 8) | ord(s, at + 1);
 }
 
-// RFC 1071: the ones' complement of the ones' complement sum of 16-bit words.
-export function checksum(bytes) {
-	let sum = 0;
-	let n = length(bytes);
-	for (let i = 0; i < n; i += 2)
-		sum += (ord(bytes, i) << 8) | ((i + 1 < n) ? ord(bytes, i + 1) : 0);
+function fold(sum) {
 	while (sum > 0xffff)
 		sum = (sum & 0xffff) + (sum >> 16);
-	return ~sum & 0xffff;
+	return sum;
+}
+
+// RFC 1071: the ones' complement sum of the 16-bit words from byte `from` on, before its complement.
+export function sum16(bytes, from) {
+	let sum = 0;
+	let n = length(bytes);
+	for (let i = from ?? 0; i < n; i += 2)
+		sum += (ord(bytes, i) << 8) | ((i + 1 < n) ? ord(bytes, i + 1) : 0);
+	return fold(sum);
+};
+
+export function checksum(bytes, from) {
+	return ~sum16(bytes, from) & 0xffff;
 };
 
 export function family(host) {
@@ -40,31 +48,45 @@ export function payload(size) {
 	return substr(s, 0, size);
 };
 
-// The ICMPv6 checksum covers a pseudo-header with the source address, which only the
-// kernel knows; on a raw ICMPv6 socket it always fills the checksum in (RFC 3542).
-export function echo_request(fam, id, seq, data) {
-	let head = chr(REQUEST[fam], 0);
-	let rest = u16(id) + u16(seq) + data;
-	let sum = (fam == 4) ? checksum(head + u16(0) + rest) : 0;
-	return head + u16(sum) + rest;
+// A payload and its sum, for the echo requests of that size to reuse: summing a
+// full-size payload takes milliseconds on a router, and a tunnel probe should leave
+// the moment `wg set` returns.
+export function echo_payload(size) {
+	let data = payload(size);
+	return { data: data, sum: sum16(data) };
 };
 
-// A raw IPv4 socket hands over the IP header as well. The kernel verifies an ICMPv6
-// checksum before a raw socket sees the message, but not an ICMPv4 one.
-function icmp_message(fam, packet) {
+// The ICMPv6 checksum covers a pseudo-header with the source address, which only the
+// kernel knows; on a raw ICMPv6 socket it always fills the checksum in (RFC 3542).
+// The payload starts at an even offset, so its sum adds to the header's word for word.
+export function echo_request(fam, id, seq, data, data_sum) {
+	let sum = 0;
+	if (fam == 4)
+		sum = ~fold((REQUEST[fam] << 8) + id + seq + (data_sum ?? sum16(data))) & 0xffff;
+	return chr(REQUEST[fam], 0) + u16(sum) + u16(id) + u16(seq) + data;
+};
+
+// A raw IPv4 socket hands over the IP header as well.
+function message_offset(fam, packet) {
 	if (fam == 6)
-		return packet;
+		return 0;
 	let header = (ord(packet, 0) & 0x0f) * 4;
 	if (length(packet) < IP_HEADER[4] || (ord(packet, 0) >> 4) != 4 || header < IP_HEADER[4] || ord(packet, 9) != PROTO_ICMP)
 		return null;
-	let msg = substr(packet, header);
-	return (checksum(msg) == 0) ? msg : null;
+	return header;
 }
 
-// Returns { id, seq, size } for an echo reply, null for anything else.
+// Returns { id, seq, size, offset } for what reads as an echo reply, null for anything
+// else. Only the header is read: a raw socket sees every ICMP packet, and the checksum,
+// a pass over every byte, is left to intact() for a reply that matches a probe.
 export function parse_reply(fam, packet) {
-	let msg = (type(packet) == 'string') ? icmp_message(fam, packet) : null;
-	if (msg == null || length(msg) < ECHO_HEADER || ord(msg, 0) != REPLY[fam] || ord(msg, 1) != 0)
+	let at = (type(packet) == 'string') ? message_offset(fam, packet) : null;
+	if (at == null || length(packet) - at < ECHO_HEADER || ord(packet, at) != REPLY[fam] || ord(packet, at + 1) != 0)
 		return null;
-	return { id: read_u16(msg, 4), seq: read_u16(msg, 6), size: length(msg) - ECHO_HEADER };
+	return { id: read_u16(packet, at + 4), seq: read_u16(packet, at + 6), size: length(packet) - at - ECHO_HEADER, offset: at };
+};
+
+// The kernel verifies an ICMPv6 checksum before a raw socket sees the message, but not an ICMPv4 one.
+export function intact(fam, packet, reply) {
+	return fam == 6 || checksum(packet, reply.offset) == 0;
 };

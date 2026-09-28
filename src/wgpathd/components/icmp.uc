@@ -10,6 +10,7 @@ import { canonical_ip } from 'wgpathd.endpoint';
 const PROTOCOL = { [4]: 1, [6]: 58 };
 const IP_PMTUDISC_DO = 2;
 const MAX_PACKET = 65535;
+const READS_PER_WAKEUP = 32;
 
 // `id` marks this daemon's echoes; every probe takes the next sequence number, so a
 // reply to a probe that already timed out, or to anyone else's ping, never matches.
@@ -18,17 +19,24 @@ const MAX_PACKET = 65535;
 export function create(socket, uloop, id) {
 	let sockets = {};
 	let pending = {};
+	let payloads = {};
 	let seq = 0;
 
+	// A raw IPv4 socket sees every ICMP packet on its device, and the unbound ICMPv6
+	// one every ICMPv6 packet on the host: a flood of them must not keep the loop from
+	// its timers. So a wakeup reads a bounded batch (the loop is level-triggered and
+	// comes back for the rest), and only a reply that matches a probe is checksummed.
 	let receive = function(fam, sock) {
-		let msg;
-		while ((msg = sock.recvmsg(MAX_PACKET)) != null) {
+		for (let n = 0; n < READS_PER_WAKEUP; n++) {
+			let msg = sock.recvmsg(MAX_PACKET);
+			if (msg == null)
+				return;
 			let reply = icmp.parse_reply(fam, msg.data);
 			if (reply == null || reply.id != id)
 				continue;
 			let key = `${canonical_ip(msg.address?.address)} ${reply.seq}`;
 			let p = pending[key];
-			if (p == null || p.size != reply.size)
+			if (p == null || p.size != reply.size || !icmp.intact(fam, msg.data, reply))
 				continue;
 			delete pending[key];
 			p.cb(p.probe, Result.ok(true));
@@ -79,7 +87,8 @@ export function create(socket, uloop, id) {
 		if (!opened.ok)
 			return opened;
 		seq = (seq + 1) & 0xffff;
-		let packet = icmp.echo_request(fam, id, seq, icmp.payload(probe.size));
+		let data = payloads[probe.size] ??= icmp.echo_payload(probe.size);
+		let packet = icmp.echo_request(fam, id, seq, data.data, data.sum);
 		let addr = { family: (fam == 6) ? socket.AF_INET6 : socket.AF_INET, address: host, port: 0 };
 		if (opened.data.send(packet, 0, addr) == null)
 			return Result.err(errors.PROBE_SEND_FAILED, `${host}: ${socket.error()}`);

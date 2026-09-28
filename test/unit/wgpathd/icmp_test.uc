@@ -29,6 +29,10 @@ describe('icmp: checksum', () => {
 		assert.match(0xf153, icmp.checksum(bytes('08 00 0000 4242 0007 616263')));
 	});
 
+	it('sums from an offset, as if the bytes before it were not there', () => {
+		assert.match(0x220d, icmp.checksum(bytes('ffff ff 0001 f203 f4f5 f6f7'), 3));
+	});
+
 	it('sums to zero over a message that carries its own checksum', () => {
 		assert.match(0, icmp.checksum(V4_REQUEST));
 		assert.match(0, icmp.checksum(V4_REPLY));
@@ -48,6 +52,17 @@ describe('icmp: echo_request', () => {
 		assert.match(V6_REQUEST, icmp.echo_request(6, 0x4242, 7, 'abc'));
 	});
 
+	prop('builds the same bytes from a payload whose sum was kept', gen.tuple(gen.int(0, 65535), gen.int(0, 65535), gen.int(0, 1400)), (t) => {
+		let p = icmp.echo_payload(t[2]);
+		assert.match(icmp.payload(t[2]), p.data);
+		for (let fam in [ 4, 6 ])
+			assert.match(icmp.echo_request(fam, t[0], t[1], p.data), icmp.echo_request(fam, t[0], t[1], p.data, p.sum));
+	});
+
+	it('builds the captured request from a kept sum', () => {
+		assert.match(V4_REQUEST, icmp.echo_request(4, 0x4242, 7, 'abc', icmp.sum16('abc')));
+	});
+
 	it('carries a payload of exactly the size asked for', () => {
 		for (let size in [ 0, 1, 16, 1332, 8952 ]) {
 			assert.match(size, length(icmp.payload(size)));
@@ -58,16 +73,16 @@ describe('icmp: echo_request', () => {
 
 describe('icmp: parse_reply', () => {
 	it('reads an IPv4 reply behind its IP header', () => {
-		assert.match({ id: 0x4242, seq: 7, size: 3 }, icmp.parse_reply(4, IP4 + V4_REPLY));
+		assert.match({ id: 0x4242, seq: 7, size: 3, offset: 20 }, icmp.parse_reply(4, IP4 + V4_REPLY));
 	});
 
 	it('reads an IPv6 reply, which comes without its IP header', () => {
-		assert.match({ id: 0x4242, seq: 7, size: 3 }, icmp.parse_reply(6, V6_REPLY));
+		assert.match({ id: 0x4242, seq: 7, size: 3, offset: 0 }, icmp.parse_reply(6, V6_REPLY));
 	});
 
 	it('skips IPv4 options', () => {
 		let with_options = bytes('46 00 0023 0000 4000 40 01 0000 7f000001 7f000001 01010100');
-		assert.match({ id: 0x4242, seq: 7, size: 3 }, icmp.parse_reply(4, with_options + V4_REPLY));
+		assert.match({ id: 0x4242, seq: 7, size: 3, offset: 24 }, icmp.parse_reply(4, with_options + V4_REPLY));
 	});
 
 	it('ignores anything but an echo reply', () => {
@@ -92,8 +107,10 @@ describe('icmp: parse_reply', () => {
 		assert.match(null, icmp.parse_reply(6, ''));
 	});
 
-	it('ignores an IPv4 reply whose checksum does not add up', () => {
-		assert.match(null, icmp.parse_reply(4, IP4 + bytes('00 00 f953 4242 0007 616264')));
+	it('reads the header alone, leaving the checksum to intact', () => {
+		let corrupted = IP4 + bytes('00 00 f953 4242 0007 616264');
+		assert.match({ id: 0x4242, seq: 7, size: 3, offset: 20 }, icmp.parse_reply(4, corrupted));
+		assert.match(null, icmp.parse_reply(4, IP4 + bytes('08 00 0000 4242 0007 616263')), 'a request, whatever its checksum');
 	});
 
 	it('ignores an IPv4 packet that is not ICMP or not IPv4', () => {
@@ -105,6 +122,19 @@ describe('icmp: parse_reply', () => {
 	it('ignores what is not a packet', () => {
 		assert.match(null, icmp.parse_reply(4, null));
 		assert.match(null, icmp.parse_reply(6, 42));
+	});
+});
+
+describe('icmp: intact', () => {
+	it('checks the ICMPv4 checksum of a reply behind its IP header', () => {
+		let good = IP4 + V4_REPLY;
+		let bad = IP4 + bytes('00 00 f953 4242 0007 616264');
+		assert.match([ true, false ], map([ good, bad ], (p) => icmp.intact(4, p, icmp.parse_reply(4, p))));
+	});
+
+	it('leaves the ICMPv6 checksum to the kernel, which has verified it', () => {
+		let bad = bytes('81 00 0000 4242 0007 616263');
+		assert.match(true, icmp.intact(6, bad, icmp.parse_reply(6, bad)));
 	});
 });
 

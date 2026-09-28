@@ -402,9 +402,10 @@ function create_spoke(deps, cfg, params) {
 	// One `wg set` for every peer, then the probes. A probe must leave only on an
 	// endpoint that was actually set, or one over the old path could commit a trial;
 	// a failed command may have set some endpoints and not others, so none is probed.
-	// The probes are ready before the command runs: a relayed packet from the peer
-	// roams the endpoint back, and the sooner a probe leaves, the less likely it is
-	// that one has landed first (R4).
+	// The probes are chosen before the command runs, and once it returns each costs
+	// only its header, the payload's sum being kept per size: a relayed packet from
+	// the peer roams the endpoint back, and the sooner a probe leaves, the less likely
+	// it is that one has landed first (R4).
 	let apply = function(steps, done) {
 		let sets = [];
 		for (let s in steps)
