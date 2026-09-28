@@ -74,6 +74,9 @@ is_state() { [ "$(state "$1")" = "$2" ]; }
 both() { is_state spoke-a "$1" && is_state spoke-b "$1"; }
 neither() { ! is_state spoke-a "$1" && ! is_state spoke-b "$1"; }
 
+# The daemon answers status for its peer.
+daemon_up() { [ -n "$(state "$1")" ]; }
+
 daemon_pid() {
 	x "$1" "ubus call service list '{\"name\":\"wgpathd\"}' | jsonfilter -e '@.wgpathd.instances.wgpathd.pid'"
 }
@@ -155,11 +158,16 @@ traffic_start() { # from interval
 		"exec $PING -q -i$2 -W1 -I $(site_addr "$1") $(site_addr "$(other_spoke "$1")") >/tmp/traffic.log 2>&1"
 }
 
-# Sets TRAFFIC_LOSS, the percentage of the traffic lost.
+# Sets TRAFFIC_LOSS, the percentage of the traffic lost; empty if the ping never ran.
 traffic_stop() { # from
 	x "$1" 'killall -INT iputils-ping; sleep 1'
 	TRAFFIC_LOSS=$(x "$1" "grep -o '[0-9.]*% packet loss' /tmp/traffic.log | cut -d% -f1")
-	note "traffic from $1: ${TRAFFIC_LOSS}% lost"
+	note "traffic from $1: ${TRAFFIC_LOSS:-no}% lost"
+}
+
+# The traffic ran and lost less than PERCENT of its packets.
+traffic_crossed() { # percent
+	[ -n "$TRAFFIC_LOSS" ] && awk -v l="$TRAFFIC_LOSS" -v m="$1" 'BEGIN { exit !(l < m) }'
 }
 
 # --- faults: an nftables table of the harness's own, beside fw4's --------------

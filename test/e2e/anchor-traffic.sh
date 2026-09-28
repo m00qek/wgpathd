@@ -4,11 +4,16 @@
 # come back direct (design R4). spoke-a trials on the first authenticated roam
 # (R2), so both still reach DIRECT, with each kernel really on the direct path.
 
+restarted() { pid_changed spoke-a "$pid_a" && pid_changed spoke-b "$pid_b"; }
+
 reconverge_under() { # from packets/s
 	traffic_start "$1" "$(awk -v r="$2" 'BEGIN { print 1 / r }')"
+	pid_a=$(daemon_pid spoke-a)
+	pid_b=$(daemon_pid spoke-b)
 	started=$(now)
 	restart_daemon spoke-a
 	restart_daemon spoke-b
+	require "both daemons restarted, so both start over in RELAY" wait_for 10 restarted
 	require "both DIRECT under $2 packets/s from $1" wait_for 60 direct_path
 	timing "direct_under_${2}pps_from_${1#spoke-}" "$(since "$started")"
 	check "stays DIRECT" holds 10 direct_path
