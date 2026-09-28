@@ -91,6 +91,18 @@ function trio_states(d) {
 	return map([ SPOKE_B, SPOKE_A, SPOKE_C ], (k) => [ d.status().peers[k].state, d.status().peers[k].down_streak ]);
 }
 
+// spoke-b alone, DIRECT on a path that answers; `cfg` is its configuration.
+function direct_one(overrides) {
+	let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+	w.reachable['2001:db8::12'] = true;
+	w.reachable[SPOKE_B_TUNNEL] = true;
+	let cfg = spoke_cfg({ overrides: { n_up: 1, ...(overrides ?? {}) } });
+	let d = start(w, cfg);
+	cycles(w, d, 2);
+	assert.match(contains({ state: 'DIRECT', down_streak: 0 }), d.status().peers[SPOKE_B]);
+	return { w: w, d: d, cfg: cfg };
+}
+
 // Three peers, all DIRECT on paths that answer.
 function direct_trio(overrides) {
 	let w = h.world(kernel_of(SPOKE_B, SPOKE_A, SPOKE_C),
@@ -292,13 +304,8 @@ describe('daemon: spoke cycle, gathering obs', () => {
 	});
 
 	it('uses a tunnel answer in the next cycle only', () => {
-		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
-		w.reachable['2001:db8::12'] = true;
-		w.reachable[SPOKE_B_TUNNEL] = true;
-		let d = start(w, spoke_cfg({ overrides: { n_up: 1 } }));
-		cycles(w, d, 2);
-		assert.match('DIRECT', d.status().peers[SPOKE_B].state);
-
+		let t = direct_one();
+		let w = t.w, d = t.d;
 		w.set_code = 1;
 		cycle(w, d);
 		assert.match(0, d.status().peers[SPOKE_B].down_streak, 'the last answer counts once');
@@ -461,23 +468,16 @@ describe('daemon: spoke cycle, applying effects', () => {
 	});
 
 	it('demotes a direct path that drops full-size packets, though small ones cross', () => {
-		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
-		w.reachable['2001:db8::12'] = true;
-		w.reachable[SPOKE_B_TUNNEL] = true;
-		let d = start(w, spoke_cfg({ overrides: { n_up: 1 } }));
-		cycles(w, d, 2);
-		assert.match('DIRECT', d.status().peers[SPOKE_B].state);
+		let t = direct_one();
+		let w = t.w, d = t.d;
 		w.max_size = 1200;
 		cycles(w, d, 3);
 		assert.match(contains({ state: 'RELAY', last_change: contains({ reason: 'demoted' }) }), d.status().peers[SPOKE_B]);
 	});
 
 	it('probes nothing through the mesh while its MTU cannot be read, and logs it once per outage', () => {
-		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
-		w.reachable['2001:db8::12'] = true;
-		w.reachable[SPOKE_B_TUNNEL] = true;
-		let d = start(w, spoke_cfg({ overrides: { n_up: 1, m_down: 4 } }));
-		cycles(w, d, 2);
+		let t = direct_one({ m_down: 4 });
+		let w = t.w, d = t.d;
 		w.mtu = null;
 		let seen = length(w.icmp.sent);
 		cycles(w, d, 3);
@@ -493,11 +493,8 @@ describe('daemon: spoke cycle, applying effects', () => {
 	});
 
 	it('counts a probe that could not be sent as unanswered, and logs it once per outage', () => {
-		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
-		w.reachable['2001:db8::12'] = true;
-		w.reachable[SPOKE_B_TUNNEL] = true;
-		let d = start(w, spoke_cfg({ overrides: { n_up: 1, m_down: 3 } }));
-		cycles(w, d, 2);
+		let t = direct_one({ m_down: 3 });
+		let w = t.w, d = t.d;
 		w.send_error[SPOKE_B_TUNNEL] = 'Message too large';
 		cycles(w, d, 3);
 		assert.match(contains({ state: 'DIRECT', down_streak: 2 }), d.status().peers[SPOKE_B]);
@@ -507,6 +504,16 @@ describe('daemon: spoke cycle, applying effects', () => {
 			[ 'warning', `sending probes failed: PROBE_SEND_FAILED (${SPOKE_B_TUNNEL}: Message too large)` ],
 			[ 'notice', 'sending probes recovered' ],
 		], w.logs.matching(/sending probes/));
+	});
+
+	it('reports the first probe of a cycle that could not be sent', () => {
+		let t = direct_trio({ m_down: 3 });
+		let w = t.w, d = t.d;
+		w.send_error[SPOKE_B_TUNNEL] = 'No such device';
+		w.send_error[SPOKE_C_TUNNEL] = 'Message too large';
+		cycle(w, d);
+		assert.match([ [ 'warning', `sending probes failed: PROBE_SEND_FAILED (${SPOKE_B_TUNNEL}: No such device)` ] ],
+			w.logs.matching(/sending probes/));
 	});
 
 	it('takes a cycle that sends no probe as no news about sending them', () => {
@@ -548,6 +555,35 @@ describe('daemon: spoke cycle, applying effects', () => {
 		assert.match([ [ 'DIRECT', 0 ], [ 'DIRECT', 0 ], [ 'DIRECT', 0 ] ], trio_states(d));
 	});
 
+	it('reads the endpoints after an answer only', () => {
+		let t = direct_one({ m_down: 3 });
+		let w = t.w, d = t.d;
+		w.reachable[SPOKE_B_TUNNEL] = false;
+		let reads = w.ubus.status_reads();
+		cycle(w, d);
+		assert.match(reads + 1, w.ubus.status_reads(), 'the gather read alone');
+		w.reachable[SPOKE_B_TUNNEL] = true;
+		cycle(w, d);
+		assert.match(reads + 3, w.ubus.status_reads(), 'the gather read and the one after the answer');
+	});
+
+	it('takes an answer whose endpoint could not be read afterwards as no proof', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		w.reachable[SPOKE_B_TUNNEL] = true;
+		w.answer_read_ok = false;
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1, trial_window: 20, m_down: 3 } }));
+		cycles(w, d, 3);
+		assert.match(contains({ state: 'TRIALING', target: SPOKE_B_DIRECT }), d.status().peers[SPOKE_B], 'answered, never read');
+		assert.match([], w.logs.matching(/reading wg_mesh/), 'the gather reads all worked');
+		w.answer_read_ok = true;
+		cycles(w, d, 2);
+		assert.match('DIRECT', d.status().peers[SPOKE_B].state);
+		w.answer_read_ok = false;
+		cycles(w, d, 3);
+		assert.match(contains({ state: 'DIRECT', down_streak: 2 }), d.status().peers[SPOKE_B], 'the first cycle used the last read answer');
+	});
+
 	it('judges each answer by a read made after it arrived', () => {
 		let t = direct_trio();
 		let w = t.w, d = t.d;
@@ -557,11 +593,13 @@ describe('daemon: spoke cycle, applying effects', () => {
 			if (p.host == SPOKE_A_TUNNEL)
 				w.kernel[SPOKE_A].endpoint = SPOKE_A_RELAY;
 		};
-		d.cycle(() => {});
+		let finished = false;
+		d.cycle(() => { finished = true; });
 		w.ubus.flush();
 		w.icmp.flush();
 		w.ubus.flush();
 		w.ubus.flush();
+		assert.match(true, finished);
 
 		w.icmp.deferred = false;
 		w.ubus.deferred = false;
@@ -599,14 +637,9 @@ describe('daemon: spoke cycle, applying effects', () => {
 	});
 
 	it('forces a steered peer back to the relay when the mode turns to observe, with its own reason', () => {
-		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
-		w.reachable['2001:db8::12'] = true;
-		w.reachable[SPOKE_B_TUNNEL] = true;
-		let cfg = spoke_cfg({ overrides: { n_up: 1 } });
-		let d = start(w, cfg);
-		cycles(w, d, 2);
-		assert.match('DIRECT', d.status().peers[SPOKE_B].state);
-		cfg = { ...cfg, mode: 'observe' };
+		let t = direct_one();
+		let w = t.w, d = t.d;
+		let cfg = { ...t.cfg, mode: 'observe' };
 		d.reload(cfg, params.build(cfg));
 		cycle(w, d);
 		assert.match(contains({ state: 'RELAY', last_change: contains({ reason: 'observe_mode' }) }), d.status().peers[SPOKE_B]);

@@ -198,8 +198,10 @@ export function status_reply(iface, kernel) {
 // `unrouted` fail the lookup; the mesh interface has MTU `mtu` (null: the lookup
 // fails). A probe is answered when its host is in `reachable` and it fits the path:
 // `max_size` caps the payload that gets through, `send_error[host]` fails the send;
-// `on_probe(probe)`, if set, runs as each probe is answered. Discovery returns
-// `payload` (null: the fetch fails).
+// `on_probe(probe)`, if set, runs as each probe is answered. `status_ok` false fails
+// every `wireguard status` read; `answer_read_ok` false fails only the reads made
+// after a tunnel probe was answered, until the cycle ends with its watchdog ping.
+// Discovery returns `payload` (null: the fetch fails).
 export function world(kernel, opts) {
 	opts ??= {};
 	let w = {
@@ -214,6 +216,8 @@ export function world(kernel, opts) {
 		payload: null,
 		http_status: 200,
 		status_ok: true,
+		answer_read_ok: true,
+		answered: false,
 		set_code: 0,
 		on_probe: null,
 		watchdog: Result.ok(null),
@@ -235,14 +239,19 @@ export function world(kernel, opts) {
 			return false;
 		if (w.on_probe)
 			w.on_probe(p);
+		w.answered ||= p.device != null;
 		return true;
 	};
 
 	let ubus_answer = function(obj, method) {
 		if (obj == 'wireguard' && method == 'status')
-			return w.status_ok ? Result.ok(status_reply(w.iface, w.kernel)) : Result.err('UBUS_CALL_FAILED', 'wireguard status: status 4');
-		if (obj == 'service' && method == 'watchdog')
+			return (w.status_ok && (w.answer_read_ok || !w.answered))
+				? Result.ok(status_reply(w.iface, w.kernel))
+				: Result.err('UBUS_CALL_FAILED', 'wireguard status: status 4');
+		if (obj == 'service' && method == 'watchdog') {
+			w.answered = false;
 			return w.watchdog;
+		}
 		die(`unexpected ubus call: ${obj} ${method}`);
 	};
 
