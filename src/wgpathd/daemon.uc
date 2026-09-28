@@ -413,6 +413,9 @@ function create_spoke(deps, cfg, params) {
 	// One `wg set` for every peer, then the probes. A probe must leave only on an
 	// endpoint that was actually set, or one over the old path could commit a trial;
 	// a failed command may have set some endpoints and not others, so none is probed.
+	// The probes are ready before the command runs: a relayed packet from the peer
+	// roams the endpoint back, and the sooner a probe leaves, the less likely it is
+	// that one has landed first (R4).
 	let apply = function(steps, done) {
 		let sets = [];
 		for (let s in steps)
@@ -420,12 +423,13 @@ function create_spoke(deps, cfg, params) {
 				push(sets, { pubkey: s.rec.peer.pubkey, endpoint: s.endpoint });
 		if (length(sets) == 0)
 			return done();
+		let probes = tunnel_probes(steps);
 		deps.exec(wg.set_endpoints_command(cfg.mesh_iface, sets), SET_TIMEOUT, (res) => {
 			let err = command_error(res, errors.WG_COMMAND_FAILED);
 			report_set(err ?? Result.ok());
 			if (err != null)
 				return done();
-			probe_all(tunnel_probes(steps), take_answer, done);
+			probe_all(probes, take_answer, done);
 		});
 	};
 
