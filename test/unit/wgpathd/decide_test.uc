@@ -1,7 +1,7 @@
 import { describe, it, prop, gen, assert, contains } from 'utest';
 import * as state from 'wgpathd.state';
 import * as effects from 'wgpathd.effects';
-import { decide } from 'wgpathd.decide';
+import { decide, trial_target } from 'wgpathd.decide';
 
 const P = { mode: 'steer', cycle: 3, n_up: 3, m_down: 2, tunnel_timeout: 1, trial_window: 8,
 	backoff_min: 30, backoff_max: 900, backoff_reset: 600 };
@@ -652,6 +652,24 @@ describe('decide: observe mode', () => {
 		let s = sim({ ...P, mode: 'bogus' });
 		let out = s.cycles(10, { underlay_ok: true });
 		assert.match(state.RELAY, out.ctl.state);
+	});
+});
+
+describe('decide: trial_target', () => {
+	it('is the roam when one was seen, else the candidate', () => {
+		let s = sim(OBSERVE);
+		s.cycle({});
+		assert.match(CAND, trial_target(s.ctl, { ...BASE, cur_endpoint: RELAY_EP }));
+		assert.match(ROAM, trial_target(s.ctl, { ...BASE, cur_endpoint: ROAM }));
+	});
+
+	it('is the target a trial started on the same obs takes', () => {
+		for (let cur in [ RELAY_EP, ROAM ]) {
+			let s = sim();
+			s.cycles(P.n_up - 1, { underlay_ok: true });
+			let obs = { ...BASE, underlay_ok: true, cur_endpoint: cur };
+			assert.match(decide(s.ctl, obs, P, s.now).ctl.target, trial_target(s.ctl, obs));
+		}
 	});
 });
 

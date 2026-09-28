@@ -623,17 +623,36 @@ describe('daemon: spoke cycle, applying effects', () => {
 		assert.match(contains({ state: 'RELAY', ready: true }), d.status().peers[SPOKE_B]);
 	});
 
-	it('logs in observe mode when a peer becomes ready for a trial, and when it no longer is', () => {
+	it('logs in observe mode when a peer becomes ready for a trial, and when it has gone n_up cycles without evidence', () => {
 		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
 		w.reachable['2001:db8::12'] = true;
-		let d = start(w, spoke_cfg({ mode: 'observe' }));
+		let cfg = spoke_cfg({ mode: 'observe' });
+		let d = start(w, cfg);
 		cycles(w, d, 8);
 		w.reachable['2001:db8::12'] = false;
-		cycles(w, d, 2);
+		cycles(w, d, params.build(cfg).n_up);
+		assert.match(false, d.status().peers[SPOKE_B].ready);
+		assert.match([ [ 'notice', `${B}: ready, steer would trial endpoint=${SPOKE_B_DIRECT}` ] ], w.logs.matching(/ready/));
+		cycle(w, d);
 		assert.match([
 			[ 'notice', `${B}: ready, steer would trial endpoint=${SPOKE_B_DIRECT}` ],
 			[ 'info', `${B}: no longer ready` ],
 		], w.logs.matching(/ready/));
+	});
+
+	it('logs a roam as the endpoint observe mode is ready to trial, once while roams keep coming', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		let d = start(w, spoke_cfg({ mode: 'observe', overrides: { n_up: 2 } }));
+		cycle(w, d);
+		for (let i = 0; i < 6; i++) {
+			if (i % 2 == 0)
+				w.kernel[SPOKE_B].endpoint = SPOKE_B_ROAMED;
+			cycle(w, d);
+			assert.match(i % 2 == 0, d.status().peers[SPOKE_B].ready);
+		}
+		assert.match([ [ 'notice', `${B}: ready, steer would trial endpoint=${SPOKE_B_ROAMED}` ] ], w.logs.matching(/ready/));
+		cycles(w, d, 2);
+		assert.match([ [ 'info', `${B}: no longer ready` ] ], w.logs.matching(/no longer/));
 	});
 
 	it('forces a steered peer back to the relay when the mode turns to observe, with its own reason', () => {

@@ -12,7 +12,7 @@ import * as parameters from 'wgpathd.params';
 import * as publisher from 'wgpathd.publisher';
 import * as state from 'wgpathd.state';
 import * as relay from 'wgpathd.relay';
-import { decide } from 'wgpathd.decide';
+import { decide, trial_target } from 'wgpathd.decide';
 
 export const CACHE_PATH = '/var/run/wgpathd/cache.json';
 
@@ -99,6 +99,8 @@ function peer_record(peer) {
 		answered_via: null,
 		absent: false,
 		switches: 0,
+		ready_logged: false,
+		quiet: 0,
 		metric: { state: ctl.state, up_streak: ctl.up_streak, down_streak: ctl.down_streak,
 			backoff: ctl.backoff, ready: false },
 	};
@@ -343,17 +345,28 @@ function create_spoke(deps, cfg, params) {
 	};
 
 	// In steer mode a ready peer starts a trial at once, and its transition line says so.
-	let note_readiness = function(rec, ready) {
-		if (params.mode == 'steer' || ready == rec.metric.ready)
+	// A roam makes a peer ready for its cycle alone, and roams come as the peer's probes
+	// do, not every cycle: so "no longer ready" waits until the peer has gone longer
+	// without any evidence than an echo streak takes to make it ready again.
+	let note_readiness = function(rec, metric, target) {
+		if (params.mode == 'steer') {
+			rec.ready_logged = false;
 			return;
-		if (ready)
-			log_peer('notice', rec.peer, `ready, steer would trial endpoint=${candidate(rec)}`);
-		else
+		}
+		rec.quiet = (metric.up_streak == 0) ? rec.quiet + 1 : 0;
+		if (metric.ready && !rec.ready_logged) {
+			rec.ready_logged = true;
+			log_peer('notice', rec.peer, `ready, steer would trial endpoint=${target}`);
+		}
+		else if (!metric.ready && rec.ready_logged && rec.quiet > params.n_up) {
+			rec.ready_logged = false;
 			log_peer('info', rec.peer, 'no longer ready');
+		}
 	};
 
 	// Records the log and metric effects; returns the endpoint to set and the address to probe.
-	let take_effects = function(rec, effects) {
+	// `target` is the endpoint a trial would take, for the readiness line.
+	let take_effects = function(rec, effects, target) {
 		let step = { rec: rec, endpoint: null, probe: null };
 		for (let e in effects) {
 			if (exists(e, 'set_endpoint'))
@@ -363,7 +376,7 @@ function create_spoke(deps, cfg, params) {
 			else if (exists(e, 'log'))
 				record_log(rec, e.log);
 			else if (exists(e, 'metric')) {
-				note_readiness(rec, e.metric.ready);
+				note_readiness(rec, e.metric, target);
 				rec.metric = e.metric;
 			}
 		}
@@ -504,10 +517,11 @@ function create_spoke(deps, cfg, params) {
 					let obs = build_obs(rec, kernel_peers, underlay[rec.peer.pubkey]);
 					if (obs == null)
 						continue;
+					let target = trial_target(rec.ctl, obs);
 					let out = decide(rec.ctl, obs, params, now);
 					rec.ctl = out.ctl;
 					wants_refresh ||= length(filter(out.effects, (e) => e.refresh_discovery)) > 0;
-					push(steps, take_effects(rec, out.effects));
+					push(steps, take_effects(rec, out.effects, target));
 				}
 				apply(steps, () => {
 					if (probe_outcome != null)

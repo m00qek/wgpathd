@@ -95,6 +95,11 @@ function emit(prev, next, obs, ev, reason, params) {
 	return out;
 }
 
+// The endpoint a trial started on this obs would take: the roam if one was seen, else the candidate.
+export function trial_target(ctl, obs) {
+	return derive_evidence(ctl, obs).target;
+};
+
 export function decide(ctl, obs, params, now) {
 	let ev = derive_evidence(ctl, obs);
 	let res = step(ctl, obs, ev, params, now);
