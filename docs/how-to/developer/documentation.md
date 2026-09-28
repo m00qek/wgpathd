@@ -57,3 +57,4 @@ Reference pages describe the code as it is. When you change an option, parameter
 
 - Use Mermaid in a fenced block with the `mermaid` language. Add a diagram only where a picture explains more than a paragraph.
 - Use generic names (hub, spoke-a, spoke-b) and documentation addresses: `2001:db8::/32` for IPv6, `192.0.2.0/24`, `198.51.100.0/24` and `203.0.113.0/24` for public IPv4. Never use real site names, keys or public addresses.
+- Output captured from the e2e lab is the exception: paste it as it is. Its private addresses and keys are disposable and match what the reader sees when they run the lab.
