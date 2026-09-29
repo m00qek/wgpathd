@@ -32,7 +32,7 @@ These make a spoke's discovery fetch fail. The spoke keeps its previous map.
 | `DISCOVERY_FETCH_FAILED` | `invalid url <url>` (shown as described in [Log messages](log-messages.md)), `cannot connect`, `uclient error <n>`, `timeout`, `response too large`, `HTTP <status>` | The HTTP fetch did not produce a 200 response of at most 65536 bytes within 5 seconds. |
 | `DISCOVERY_INVALID_JSON` | — | The body is not a JSON object. |
 | `DISCOVERY_INVALID_PEERS` | `too many peers`, `invalid public key`, or the key of the bad entry | The object has more than 64 entries, a key that is not a public key, or an invalid entry. |
-| `CACHE_SAVE_FAILED` | the cache path | A valid payload could not be written to the discovery cache. The payload is used all the same. |
+| `CACHE_SAVE_FAILED` | `<cache path>: <cause>`, where the cause is a system error, `<dir> is not a directory`, `<dir> is not owned by root`, `<dir> is writable by others` or `<path>.tmp is a symbolic link` | A valid payload could not be written to the discovery cache. The payload is used all the same. |
 
 ## Commands
 

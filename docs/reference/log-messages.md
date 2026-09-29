@@ -146,7 +146,7 @@ peer spoke_b (SpokeBme): transition DIRECT -> RELAY reason=demoted failed_probes
 | notice | `sending probes recovered` | spoke | The first cycle whose probes could all be sent, after a failure. |
 | warning | `discovery failed: <CODE> (<detail>)` | spoke | A discovery fetch failed. See [Discovery HTTP API](discovery-api.md#spoke-side-validation). |
 | notice | `discovery recovered` | spoke | The first successful fetch after a failure. |
-| warning | `saving the discovery cache failed: CACHE_SAVE_FAILED (/var/run/wgpathd/cache.json)` | spoke | A valid payload was received but the cache file could not be written. The payload is still used. |
+| warning | `saving the discovery cache failed: CACHE_SAVE_FAILED (/var/run/wgpathd/cache.json: <cause>)` | spoke | A valid payload was received but the cache file could not be written; the causes are listed in [Error codes](error-codes.md#discovery). The payload is still used. |
 | notice | `saving the discovery cache recovered` | spoke | The first successful cache write after a failure. |
 | warning | `watchdog ping failed: <CODE> (<detail>)` | both | The `ubus call service watchdog` at the end of a cycle failed. |
 | notice | `watchdog ping recovered` | both | The first successful watchdog ping after a failure. |

@@ -76,14 +76,58 @@ export function parse(stdout) {
 	return Result.ok(peers);
 };
 
+function directory(path) {
+	return replace(path, /\/[^\/]*$/, '');
+}
+
+// Anyone else who can write to the cache's directory could plant a cache, or a link
+// that makes the daemon write where it points, as root.
+function unsafe_directory(fs, dir) {
+	let st = fs.lstat(dir);
+	if (st?.type != 'directory')
+		return `${dir} is not a directory`;
+	if (st.uid != 0)
+		return `${dir} is not owned by root`;
+	if (st.mode & 0o022)
+		return `${dir} is writable by others`;
+	return null;
+}
+
 // The cache holds a parsed payload and is re-validated on load; any problem is an empty cache.
 export function load_cache(fs, path) {
+	if (unsafe_directory(fs, directory(path)) != null || fs.lstat(path)?.type != 'file')
+		return {};
 	let res = parse(fs.readfile(path));
 	return res.ok ? res.data : {};
 };
 
+// Written to a new file, which open's `x` never lets be a link, then renamed over the
+// cache; the modes are set outright, whatever the umask.
 export function save_cache(fs, path, peers) {
+	let fail = (why) => Result.err(errors.CACHE_SAVE_FAILED, `${path}: ${why}`);
+	let dir = directory(path);
 	let tmp = path + '.tmp';
-	fs.mkdir(replace(path, /\/[^\/]*$/, ''));
-	return fs.writefile(tmp, sprintf('%J', peers)) != null && fs.rename(tmp, path) == true;
+	fs.mkdir(dir, 0o700);
+	let unsafe = unsafe_directory(fs, dir);
+	if (unsafe != null)
+		return fail(unsafe);
+	if (!fs.chmod(dir, 0o700))
+		return fail(`chmod ${dir}: ${fs.error()}`);
+	let stale = fs.lstat(tmp);
+	if (stale?.type == 'link')
+		return fail(`${tmp} is a symbolic link`);
+	if (stale != null)
+		fs.unlink(tmp);
+
+	let file = fs.open(tmp, 'wx', 0o600);
+	if (file == null)
+		return fail(`${tmp}: ${fs.error()}`);
+	let written = file.write(sprintf('%J', peers)) != null;
+	file.close();
+	if (!written || !fs.chmod(tmp, 0o600) || !fs.rename(tmp, path)) {
+		let e = fs.error() ?? 'not written';
+		fs.unlink(tmp);
+		return fail(e);
+	}
+	return Result.ok();
 };

@@ -1,5 +1,5 @@
 import { describe, it, prop, gen, assert, contains } from 'utest';
-import { with_context } from 'context';
+import * as h from 'lib.helpers';
 import * as discovery from 'wgpathd.discovery';
 
 const KEY_A = 'O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=';
@@ -122,39 +122,77 @@ describe('discovery: parse rejects the whole payload', () => {
 
 describe('discovery: cache', () => {
 	const PEERS = { [KEY_A]: { direct: '[2001:db8::a]:51820', handshake_age: 7 }, [KEY_B]: { direct: '[2001:db8::b]:1' } };
+	const DIR = '/var/run/wgpathd';
 
 	it('saves and loads back the same peers', () => {
-		with_context({ fs: { data: { [CACHE]: null } } }, (deps) => {
-			assert.match(true, discovery.save_cache(deps.fs, CACHE, PEERS));
-			assert.match(PEERS, discovery.load_cache(deps.fs, CACHE));
-		});
+		let fs = h.fs({});
+		assert.match(contains({ ok: true }), discovery.save_cache(fs, CACHE, PEERS));
+		assert.match(PEERS, discovery.load_cache(fs, CACHE));
 	});
 
-	it('writes through a temporary file and a rename', () => {
-		with_context({ fs: { data: { [CACHE]: null } } }, (deps) => {
-			discovery.save_cache(deps.fs, CACHE, PEERS);
-			assert.match(null, deps.fs.readfile(CACHE + '.tmp'));
-			assert.match(PEERS, json(deps.fs.readfile(CACHE)));
-		});
+	it('writes through a new temporary file and a rename, with modes 0700 and 0600', () => {
+		let fs = h.fs({ [CACHE + '.tmp']: 'stale' });
+		discovery.save_cache(fs, CACHE, PEERS);
+		assert.match(null, fs.readfile(CACHE + '.tmp'));
+		assert.match(PEERS, json(fs.readfile(CACHE)));
+		assert.match([ 0o700, 0o600 ], [ fs.lstat(DIR).mode, fs.lstat(CACHE).mode ]);
+	});
+
+	it('takes back a directory an older version left readable by others', () => {
+		let fs = h.fs({});
+		fs.dirs[DIR] = { uid: 0, mode: 0o755 };
+		assert.match(contains({ ok: true }), discovery.save_cache(fs, CACHE, PEERS));
+		assert.match(0o700, fs.lstat(DIR).mode);
+	});
+
+	it('refuses a directory another user owns or may write to, or that is not one', () => {
+		let cases = [
+			[ { uid: 1000, mode: 0o700 }, `${DIR} is not owned by root` ],
+			[ { uid: 0, mode: 0o777 }, `${DIR} is writable by others` ],
+			[ { uid: 0, mode: 0o770 }, `${DIR} is writable by others` ],
+		];
+		for (let c in cases) {
+			let fs = h.fs({ [CACHE]: sprintf('%J', PEERS) });
+			fs.dirs[DIR] = c[0];
+			assert.match(contains({ ok: false, error: 'CACHE_SAVE_FAILED', details: `${CACHE}: ${c[1]}` }),
+				discovery.save_cache(fs, CACHE, {}), c[1]);
+			assert.match({}, discovery.load_cache(fs, CACHE), c[1]);
+		}
+		let fs = h.fs({});
+		fs.links[DIR] = '/tmp';
+		assert.match(contains({ ok: false, details: `${CACHE}: ${DIR} is not a directory` }), discovery.save_cache(fs, CACHE, PEERS));
+	});
+
+	it('refuses to write through a link at the temporary name, and leaves it be', () => {
+		let fs = h.fs({});
+		fs.links[CACHE + '.tmp'] = '/etc/shadow';
+		assert.match(contains({ ok: false, error: 'CACHE_SAVE_FAILED', details: `${CACHE}: ${CACHE}.tmp is a symbolic link` }),
+			discovery.save_cache(fs, CACHE, PEERS));
+		assert.match([ '/etc/shadow', null ], [ fs.links[CACHE + '.tmp'], fs.readfile(CACHE) ]);
 	});
 
 	it('reports a failed write', () => {
-		with_context({ fs: { data: { [CACHE]: null }, behavior: { writefile: () => null } } }, (deps) => {
-			assert.match(false, discovery.save_cache(deps.fs, CACHE, PEERS));
-		});
+		let fs = h.fs({});
+		fs.open = () => null;
+		assert.match(contains({ ok: false, error: 'CACHE_SAVE_FAILED', details: `${CACHE}: ${CACHE}.tmp: Operation not permitted` }),
+			discovery.save_cache(fs, CACHE, PEERS));
 	});
 
 	it('loads a missing cache as empty', () => {
-		with_context({ fs: { data: { [CACHE]: null } } }, (deps) => {
-			assert.match({}, discovery.load_cache(deps.fs, CACHE));
-		});
+		assert.match({}, discovery.load_cache(h.fs({}), CACHE));
 	});
 
 	it('loads a corrupt or invalid cache as empty', () => {
 		for (let body in [ '', '{', '[]', sprintf('%J', { [KEY_A]: { direct: '10.0.0.1:1' } }) ])
-			with_context({ fs: { data: { [CACHE]: body } } }, (deps) => {
-				assert.match({}, discovery.load_cache(deps.fs, CACHE));
-			});
+			assert.match({}, discovery.load_cache(h.fs({ [CACHE]: body }), CACHE), body);
+	});
+
+	it('does not read a cache through a link', () => {
+		let fs = h.fs({ '/tmp/planted.json': sprintf('%J', PEERS) });
+		fs.dirs[DIR] = { uid: 0, mode: 0o700 };
+		fs.links[CACHE] = '/tmp/planted.json';
+		fs.readfile = (path) => (path == CACHE) ? fs.files['/tmp/planted.json'] : null;
+		assert.match({}, discovery.load_cache(fs, CACHE));
 	});
 });
 

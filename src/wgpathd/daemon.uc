@@ -479,8 +479,7 @@ function create_spoke(deps, cfg, params) {
 			return;
 		disc.peers = res.data;
 		disc.last_ok = deps.clock.wall();
-		let saved = discovery.save_cache(deps.fs, CACHE_PATH, res.data);
-		report_cache(saved ? Result.ok() : Result.err(errors.CACHE_SAVE_FAILED, CACHE_PATH));
+		report_cache(discovery.save_cache(deps.fs, CACHE_PATH, res.data));
 	};
 
 	let fetch_due = function(now, wants_refresh) {

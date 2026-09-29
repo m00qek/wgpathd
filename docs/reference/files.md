@@ -24,7 +24,7 @@ Nothing is installed on the `PATH`. The scripts in `/usr/libexec/wgpathd/` are u
 
 | Path | Description |
 | :--- | :--- |
-| `/var/run/wgpathd/cache.json` | Spoke only. The last valid discovery payload, as JSON. Written through `cache.json.tmp` and a rename after each successful fetch; read and re-validated at startup. On tmpfs, so it survives a restart of the daemon but not a reboot. An unreadable or invalid file is treated as empty. |
+| `/var/run/wgpathd/cache.json` | Spoke only. The last valid discovery payload, as JSON. Written through `cache.json.tmp` and a rename after each successful fetch; read and re-validated at startup. On tmpfs, so it survives a restart of the daemon but not a reboot. An unreadable or invalid file is treated as empty. The directory is set to mode `0700` and the file to `0600`, whatever the umask. wgpathd neither writes nor reads the cache when `/var/run/wgpathd` is not a directory owned by root, or others may write to it, and does not write when `cache.json.tmp` is a symbolic link; the temporary file is always created anew. |
 
 wgpathd writes no other files. It never writes `/etc/config`.
 

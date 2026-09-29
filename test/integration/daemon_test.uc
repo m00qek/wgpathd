@@ -752,17 +752,17 @@ describe('daemon: discovery', () => {
 	it('logs a failing cache save once per outage, and the recovery', () => {
 		let w = h.world(kernel_of(SPOKE_B));
 		w.payload = payload({ [SPOKE_B]: SPOKE_B_DIRECT });
-		let writefile = w.fs.writefile;
-		w.fs.writefile = () => null;
+		let open = w.fs.open;
+		w.fs.open = () => null;
 		let d = start(w);
 		cycle(w, d, 60);
 		cycle(w, d, 60);
 		assert.match(true, d.status().discovery.fresh, 'the payload is used all the same');
-		w.fs.writefile = writefile;
+		w.fs.open = open;
 		cycle(w, d, 60);
 		cycle(w, d, 60);
 		assert.match([
-			[ 'warning', `saving the discovery cache failed: CACHE_SAVE_FAILED (${daemon.CACHE_PATH})` ],
+			[ 'warning', `saving the discovery cache failed: CACHE_SAVE_FAILED (${daemon.CACHE_PATH}: ${daemon.CACHE_PATH}.tmp: Operation not permitted)` ],
 			[ 'notice', 'saving the discovery cache recovered' ],
 		], w.logs.matching(/saving/));
 	});

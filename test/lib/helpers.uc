@@ -111,19 +111,59 @@ export function http(answer, deferred) {
 	return fake;
 };
 
+// Files by path, in directories that root owns with mode 0700 unless `dirs` says
+// otherwise ({ <path>: { uid, mode } }); `links` holds the symbolic links.
 export function fs(files) {
-	let fake = { files: { ...files } };
+	let fake = { files: { ...files }, dirs: {}, links: {}, modes: {} };
+	let holds_files = (dir) => length(filter(keys(fake.files), (f) => index(f, dir + '/') == 0)) > 0;
 	fake.readfile = (path) => fake.files[path];
-	fake.writefile = function(path, data) {
-		fake.files[path] = data;
-		return length(data);
+	fake.lstat = function(path) {
+		if (fake.links[path] != null)
+			return { type: 'link', uid: 0, mode: 0o777 };
+		if (fake.files[path] != null)
+			return { type: 'file', uid: 0, mode: fake.modes[path] ?? 0o600 };
+		if (fake.dirs[path] != null || holds_files(path))
+			return { type: 'directory', uid: 0, mode: 0o700, ...(fake.dirs[path] ?? {}) };
+		return null;
+	};
+	fake.mkdir = function(path, mode) {
+		if (fake.lstat(path) != null)
+			return null;
+		fake.dirs[path] = { uid: 0, mode: mode };
+		return true;
+	};
+	fake.chmod = function(path, mode) {
+		if (fake.dirs[path] != null)
+			fake.dirs[path].mode = mode;
+		else
+			fake.modes[path] = mode;
+		return true;
+	};
+	fake.open = function(path, flags, mode) {
+		if (index(flags, 'x') >= 0 && fake.lstat(path) != null)
+			return null;
+		fake.files[path] = '';
+		fake.modes[path] = mode;
+		return {
+			write: function(data) {
+				fake.files[path] += data;
+				return length(data);
+			},
+			close: () => true,
+		};
+	};
+	fake.unlink = function(path) {
+		delete fake.files[path];
+		delete fake.links[path];
+		return true;
 	};
 	fake.rename = function(from, to) {
 		fake.files[to] = fake.files[from];
+		fake.modes[to] = fake.modes[from];
 		delete fake.files[from];
 		return true;
 	};
-	fake.mkdir = () => true;
+	fake.error = () => 'Operation not permitted';
 	return fake;
 };
 
