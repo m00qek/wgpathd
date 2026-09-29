@@ -72,7 +72,7 @@ describe('check: config only', () => {
 		let res = run({ ...SPOKE, mode: 'stear' }, null, { config_only: true });
 		assert.match(true, res.ok);
 		assert.match([ 'ok', 'warn' ], map(res.findings, (f) => f.level));
-		assert.match("config: unknown mode 'stear' runs as observe", res.findings[1].text);
+		assert.match("config: unknown mode 'stear' runs as observe", res.findings[1].message);
 	});
 
 	it('touches neither ubus nor routes', () => {
@@ -104,7 +104,7 @@ describe('check: full, spoke', () => {
 		assert.match([
 			[ 'fail', 'peer spoke_b: relay routes into wg_mesh' ],
 			[ 'fail', 'peer spoke_a: not steered (invalid wgpathd_relay)' ],
-		], map(filter(res.findings, (f) => f.level == 'fail'), (f) => [ f.level, f.text ]));
+		], map(filter(res.findings, (f) => f.level == 'fail'), (f) => [ f.level, f.message ]));
 	});
 
 	it('warns about a pending route lookup and a peer missing from the kernel', () => {
@@ -113,40 +113,40 @@ describe('check: full, spoke', () => {
 		assert.match(true, res.ok);
 		assert.match([ 'warn', 'peer spoke_b: relay route lookup failed: ROUTE_LOOKUP_FAILED ' +
 			'(10.10.0.12: Network unreachable) (retried every cycle)' ],
-			[ res.findings[3].level, res.findings[3].text ]);
+			[ res.findings[3].level, res.findings[3].message ]);
 
 		res = run(SPOKE, null, { status: Result.ok({ ...h.status_reply('wg_mesh', {}), ...h.status_reply('wg_hub', {}) }) });
 		assert.match([ 'warn', 'peer spoke_b: not in wg_mesh yet, skipped until it appears' ],
-			[ res.findings[4].level, res.findings[4].text ]);
+			[ res.findings[4].level, res.findings[4].message ]);
 	});
 
 	it('fails when the mesh interface is not in the kernel, but only warns for the hub interface', () => {
 		let res = run(SPOKE, null, { status: Result.ok(h.status_reply('wg_hub', {})) });
 		assert.match(false, res.ok);
-		assert.match([ 'fail', 'wg_mesh: no interface wg_mesh' ], [ res.findings[1].level, res.findings[1].text ]);
+		assert.match([ 'fail', 'wg_mesh: no interface wg_mesh' ], [ res.findings[1].level, res.findings[1].message ]);
 
 		res = run(SPOKE, null, { status: Result.ok(h.status_reply('wg_mesh', kernel_of([ SPOKE_B ]))) });
 		assert.match(true, res.ok);
-		assert.match([ 'warn', 'wg_hub: no interface wg_hub' ], [ res.findings[2].level, res.findings[2].text ]);
+		assert.match([ 'warn', 'wg_hub: no interface wg_hub' ], [ res.findings[2].level, res.findings[2].message ]);
 	});
 
 	it('fails when ubus answers but wireguard status does not', () => {
 		let res = run(SPOKE, null, { status: Result.err('UBUS_CALL_FAILED', 'Not found') });
 		assert.match(false, res.ok);
-		assert.match('wg_mesh: UBUS_CALL_FAILED (Not found)', res.findings[1].text);
+		assert.match('wg_mesh: UBUS_CALL_FAILED (Not found)', res.findings[1].message);
 	});
 
 	it('skips the interfaces when ubus is unreachable, and still checks the peers', () => {
 		let res = run(SPOKE, null, { status: Result.err('UBUS_CONNECT_FAILED') });
 		assert.match(true, res.ok);
 		assert.match([ 'ok', 'skip', 'ok', 'skip' ], map(res.findings, (f) => f.level));
-		assert.match('ubus unavailable: interfaces not checked', res.findings[1].text);
+		assert.match('ubus unavailable: interfaces not checked', res.findings[1].message);
 	});
 
 	it('warns that a disabled service will not start', () => {
 		let res = run({ ...SPOKE, enabled: '0' });
 		assert.match(true, res.ok);
-		assert.match("service disabled (option enabled '0'): it will not start", res.findings[1].text);
+		assert.match("service disabled (option enabled '0'): it will not start", res.findings[1].message);
 	});
 });
 
