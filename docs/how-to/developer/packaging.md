@@ -13,7 +13,7 @@ make package
 The first run builds a `wgpathd-sdk` image from `ghcr.io/openwrt/sdk` and updates the feed metadata, which takes a while. The package lands in `bin/`:
 
 ```
-bin/wgpathd-0.1.0-r1.apk
+bin/wgpathd-0.1.0-r2.apk
 ```
 
 For the full SDK build output, add `VERBOSE=1`.

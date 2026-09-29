@@ -1,6 +1,6 @@
 # Files and Dependencies
 
-The package is `wgpathd`, version `0.1.0`, release `1`, architecture `all`, license MIT. It is built as `wgpathd-0.1.0-r1.apk`.
+The package is `wgpathd`, version `0.1.0`, release `2`, architecture `all`, license MIT. It is built as `wgpathd-0.1.0-r2.apk`.
 
 ---
 
