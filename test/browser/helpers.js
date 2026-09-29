@@ -7,7 +7,7 @@ const PASSWORD = 'admin';
 const SCREENSHOTS = path.join(__dirname, '..', 'results', 'screenshots');
 
 // The state names and reasons of the ubus reply, which the pages must put in words.
-const INTERNAL_NAMES = /\b(RELAY|TRIALING|DIRECT|trial_start|trial_ok|trial_timeout|demoted|observe_mode|roam_adopted)\b/;
+const INTERNAL_NAMES = /\b(RELAY|TRIALING|DIRECT|trial_start|trial_ok|trial_timeout|demoted|observe_mode|roam_adopted|routes into)\b/;
 
 let session = null;
 

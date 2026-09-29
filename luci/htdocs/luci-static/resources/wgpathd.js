@@ -29,6 +29,13 @@ const UNMANAGED = {
 	'invalid wgpathd_tunnel': _('The tunnel address is not valid')
 };
 
+// Why this router does not try the address the hub publishes for a peer.
+const REFUSED = {
+	'own address':    _('It is an address of this router'),
+	'relay address':  _('It is the relay endpoint of this peer'),
+	'tunnel address': _('It is the tunnel address of this peer')
+};
+
 const NODE_STYLE = 'display:inline-block;padding:0 .6em;border:1px solid;border-radius:1em;line-height:1.6;' +
 	'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:10em';
 
@@ -215,6 +222,17 @@ return baseclass.extend({
 		return [ reason ];
 	},
 
+	refusalText(reason) {
+		if (lookup(REFUSED, reason))
+			return [ lookup(REFUSED, reason) ];
+
+		const m = /^routes into (.*)$/.exec(reason);
+		if (m)
+			return fill(_('It is routed into %s, so a direct path would loop into a tunnel'), m[1]);
+
+		return [ reason ];
+	},
+
 	// Why a peer in RELAY is there, from its last change.
 	fallbackText(peer, params) {
 		const change = peer.last_change;
@@ -252,6 +270,9 @@ return baseclass.extend({
 
 		if (peer.candidate == null)
 			return [ _('Once the hub publishes a direct address for this peer') ];
+
+		if (peer.candidate_refused != null)
+			return [ _('Once the hub publishes a direct address this router can use') ];
 
 		return [ N_(params.n_up, 'After %d answered check over the direct address; %d so far',
 			'After %d answered checks in a row over the direct address; %d so far').format(params.n_up, peer.up_streak) ];

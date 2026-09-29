@@ -145,6 +145,18 @@ test.describe('Status → Mesh paths, peers on the hub path', () => {
       'Next direct tryAfter 5 answered checks in a row over the direct address; 2 so far');
   });
 
+  test('says why it does not try the address the hub publishes', async ({ page }) => {
+    await h.peerRow(page, 'shed').getByRole('button').click();
+    await expect(h.detailsRow(page, 'shed').locator('td > div > div')).toHaveText([
+      'Direct address last triedNone yet',
+      'Direct address the hub publishes[fd00:2::15]:51820',
+      'Why it is not triedIt is routed into wg_mesh, so a direct path would loop into a tunnel',
+      'Why it uses the hubIt has used the hub since the service started',
+      'Next direct tryOnce the hub publishes a direct address this router can use',
+      'Answers that came through the hub0',
+    ]);
+  });
+
   test('words a failed test in the recent changes', async ({ page }) => {
     await expect(h.section(page, 'Recent changes').locator('tr:not(.table-titles) td:last-child')).toHaveText([
       'Via hub, the direct test got no answer within 8 s',

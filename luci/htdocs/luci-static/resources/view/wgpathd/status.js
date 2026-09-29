@@ -223,6 +223,9 @@ return view.extend({
 			return details([
 				[ _('Direct address last tried'), [ peer.last_target ?? em(_('None yet')) ] ],
 				[ _('Direct address the hub publishes'), [ peer.candidate ?? em(_('None')) ] ],
+				...((peer.candidate_refused != null)
+					? [ [ _('Why it is not tried'), wgpathd.refusalText(peer.candidate_refused) ] ]
+					: []),
 				[ _('Why it uses the hub'), wgpathd.fallbackText(peer, params) ],
 				(status.mode === 'steer')
 					? [ _('Next direct try'), wgpathd.nextTrialText(peer, now, params) ]

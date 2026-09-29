@@ -35,6 +35,7 @@ Peers that wgpathd does not steer are greyed out, with the reason next to them. 
 Click **Show details** on the peer's row. For a peer via the hub you see:
 
 - the direct address it tried last, and the one the hub publishes now;
+- if this router does not try the published address, why not: it is one of this router's own addresses, the peer's relay endpoint or tunnel address, or it is routed into `wg_mesh` or `wg_hub`. See [Discovery HTTP API](../reference/discovery-api.md#spoke-side-validation);
 - why it uses the hub, for example that a number of checks in a row got no answer over the direct path;
 - when it tries the direct path next. After each failed try it waits longer, up to the `backoff_max` of [Timing parameters](../reference/parameters.md).
 

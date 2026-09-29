@@ -31,6 +31,7 @@
 			"endpoint": "[2001:db8:40::20]:51820",
 			"target": "[2001:db8:40::20]:51820",
 			"candidate": "[2001:db8:40::20]:51820",
+			"candidate_refused": null,
 			"last_target": "[2001:db8:40::20]:51820",
 			"since": 1790448460,
 			"trial_deadline": null,
