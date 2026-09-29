@@ -51,7 +51,7 @@ function move(uci, sections, s, log) {
 		let kept = uci.get('wgpathd', name, opt);
 		if (kept == null && !uci.set('wgpathd', name, opt, value))
 			return failed(uci, `cannot set ${opt} in /etc/config/wgpathd`);
-		if (kept != null && kept != value)
+		if (kept != null && sprintf('%J', kept) != sprintf('%J', value))
 			log('warning', `migrate: network section ${s['.name']}: kept ${opt} '${kept}' of /etc/config/wgpathd, dropped ${legacy} '${value}'`);
 	}
 	return Result.ok();

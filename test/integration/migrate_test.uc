@@ -136,6 +136,13 @@ describe('migrate: run again, or over settings already moved', () => {
 		assert.match(false, 'wgpathd_relay' in network_options(s.dir).spoke_b);
 	});
 
+	it('says nothing of a value both files hold alike, a list included', () => {
+		let network = legacy_network({ spoke_b: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_B, wgpathd_tunnel: [ '10.20.0.12' ] } });
+		let s = setup(network, [ { public_key: SPOKE_B, tunnel: [ '10.20.0.12' ] }, MIGRATED[1] ]);
+		let r = run(s);
+		assert.match([ true, [] ], [ r.res.ok, r.logs.matching(/kept/) ]);
+	});
+
 	it('moves a peer with one option alone, and a peer whose settings were half moved', () => {
 		let network = legacy_network({ spoke_b: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_B, wgpathd_tunnel: '10.20.0.12' } });
 		let s = setup(network, [ { public_key: SPOKE_C, tunnel: '10.20.0.13' } ]);
