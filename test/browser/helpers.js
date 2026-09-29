@@ -37,14 +37,14 @@ async function useFixture(request, name) {
   expect(res.ok, `fixture ${name}`).toBe(true);
 }
 
-// Writes /etc/config/network and /etc/config/wgpathd from test/fixtures/luci/config/<name>/;
+// Writes /etc/config/network, /etc/config/wgpathd and /etc/config/firewall from test/fixtures/luci/config/<name>/;
 // `default` puts back those the container started with.
 async function useConfig(request, name) {
   const res = await ubus(request, 'wgpathd.fixture', 'config', { name });
   expect(res.ok, `config ${name}`).toBe(true);
 }
 
-// The file as it is on disk: network or wgpathd.
+// The file as it is on disk: network, wgpathd or firewall.
 async function readConfig(request, name) {
   return (await ubus(request, 'wgpathd.fixture', 'read', { config: name })).data;
 }

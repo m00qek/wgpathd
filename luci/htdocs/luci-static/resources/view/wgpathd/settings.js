@@ -12,9 +12,9 @@
 // has one field per parameter the daemon reports. Save & Apply first checks the form's
 // values with `wgpathd.config check`, and applies nothing if a finding fails.
 //
-// Peer names and descriptions, interface names and the check's messages come from the
-// router: they reach E() only inside arrays, and never a form title or description,
-// which LuCI renders as markup.
+// Peer names and descriptions, interface names and the check's messages and firewall
+// rules come from the router: they reach E() only inside arrays, and never a form title
+// or description, which LuCI renders as markup.
 
 const callCheck = rpc.declare({
 	object: 'wgpathd.config',
@@ -66,10 +66,53 @@ function peerCount(n, one, many) {
 	return N_(n, one, many).format(n);
 }
 
+// The words of the first phrase whose pattern matches, as pieces for E(); the text as
+// it is when none does.
+function inWords(phrases, text) {
+	for (const [ re, words ] of phrases) {
+		const m = re.exec(text);
+		if (m)
+			return words(m);
+	}
+
+	return [ text ];
+}
+
+function flowText(flow) {
+	return inWords([
+		[ /^ICMP echo-request \(tunnel probe\)$/, () => [ _('the tunnel probe (ICMP echo request)') ] ],
+		[ /^ICMPv6 echo-request \(tunnel probe\)$/, () => [ _('the tunnel probe (ICMPv6 echo request)') ] ],
+		[ /^ICMPv6 echo-request \(underlay probe\)$/, () => [ _('the underlay probe (ICMPv6 echo request)') ] ],
+		[ /^UDP port (\d+) \(relayed WireGuard\)$/, (m) => wgpathd.fill(_('relayed WireGuard packets (UDP port %s)'), m[1]) ],
+		[ /^UDP \(relayed WireGuard\)$/, () => [ _('relayed WireGuard packets (UDP)') ] ],
+		[ /^TCP port (\d+) \(peer list\)$/, (m) => wgpathd.fill(_('peer list requests (TCP port %s)'), m[1]) ]
+	], flow);
+}
+
+function sourceText(source) {
+	return inWords([
+		[ /^(\S+) \(zone (\S+)\)$/, (m) => wgpathd.fill(_('%s (zone %s)'), m[1], m[2]) ],
+		[ /^(\S+) \(no zone\)$/, (m) => wgpathd.fill(_('%s (in no zone)'), m[1]) ],
+		[ /^zone (\S+)$/, (m) => wgpathd.fill(_('the %s zone'), m[1]) ]
+	], source);
+}
+
+function unconfirmedText(reason) {
+	return inWords([
+		[ /^a rule or zone option this check does not follow applies$/, () =>
+			[ _('a rule or zone option that the check does not follow applies to it') ] ],
+		[ /^the firewall has custom nftables rules$/, () => [ _('the firewall has custom nftables rules, which the check does not read') ] ],
+		[ /^a zone may take it by device or subnet$/, () => [ _('a zone may take it by device or subnet') ] ],
+		[ /^zone (\S+) is not for IPv(\d)$/, (m) => wgpathd.fill(_('zone %s is not for IPv%s'), m[1], m[2]) ],
+		[ /^(\S+) has no listen_port$/, (m) => wgpathd.fill(_('%s has no listen port, so WireGuard picks one at random'), m[1]) ],
+		[ /^no such zone$/, () => [ _('there is no such zone') ] ]
+	], reason);
+}
+
 // A check message in plain words, as pieces for E(); `titleOf` names an option by its
 // field. A message this page does not know is shown as it is.
 function findingText(message, titleOf) {
-	const phrases = [
+	return inWords([
 		[ /^config: spoke, mode (\S+), (\d+) steered peers?, (\d+) not steered$/, (m) =>
 			wgpathd.fill(_('Spoke in %s mode: %s, %s'), modeWord(m[1]),
 				peerCount(+m[2], '%d peer steered', '%d peers steered'),
@@ -87,7 +130,7 @@ function findingText(message, titleOf) {
 		[ /^service disabled \(option enabled .*\): it will not start$/, () =>
 			[ _('The service is not enabled: it will not start') ] ],
 		[ /^config: serve_addr (\S+) is no address of a WireGuard interface in \/etc\/config\/network$/, (m) =>
-			wgpathd.fill(_('%s is not an address of a WireGuard interface, and the firewall lets spokes reach the list only on those'), m[1]) ],
+			wgpathd.fill(_('%s is not an address of a WireGuard interface: spokes should reach the peer list through the hub tunnel only'), m[1]) ],
 		[ /^config: network section (\S+): .* left over from an earlier version, ignored; .*$/, (m) =>
 			wgpathd.fill(_('Peer %s still has settings in the network configuration from an earlier version, which are ignored: run service wgpathd migrate on the router, or remove them'), m[1]) ],
 		[ /^config: option role must be /, () =>
@@ -113,16 +156,41 @@ function findingText(message, titleOf) {
 		[ /^peer settings for (\S+): no such peer in (\S+), ignored$/, (m) =>
 			wgpathd.fill(_('The settings for the key %s match no peer of %s and are ignored'), m[1], m[2]) ],
 		[ /^peer settings without a public_key: ignored$/, () =>
-			[ _('Peer settings without a public key are ignored') ] ]
+			[ _('Peer settings without a public key are ignored') ] ],
+		[ /^firewall: (.+) from (.+): accepted$/, (m) =>
+			wgpathd.fill(_('The firewall accepts %s from %s'), flowText(m[1]), sourceText(m[2])) ],
+		[ /^firewall: (.+) from (\S+) \(no zone\): no rule accepts it; put \S+ in a firewall zone$/, (m) =>
+			wgpathd.fill(_('%s is in no firewall zone, so no rule accepts %s from it: add it to a zone'), m[2], flowText(m[1])) ],
+		[ /^firewall: (.+) from zone wan: no rule accepts it: restore OpenWrt's default rule Allow-ICMPv6-Input$/, (m) =>
+			wgpathd.fill(_("No firewall rule accepts %s from the wan zone: restore OpenWrt's default rule Allow-ICMPv6-Input"), flowText(m[1])) ],
+		[ /^firewall: (.+) from (.+): no rule accepts it$/, (m) =>
+			wgpathd.fill(_('No firewall rule accepts %s from %s'), flowText(m[1]), sourceText(m[2])) ],
+		[ /^firewall: (.+) from (.+): a rule rejects it before any accepts it$/, (m) =>
+			wgpathd.fill(_('A firewall rule rejects %s from %s before any rule accepts it: add the rule below ahead of it'),
+				flowText(m[1]), sourceText(m[2])) ],
+		[ /^firewall: (.+) from (.+): could not confirm, (.*)$/, (m) =>
+			wgpathd.fill(_('Could not confirm that the firewall accepts %s from %s: %s'), flowText(m[1]), sourceText(m[2]),
+				unconfirmedText(m[3])) ],
+		[ /^firewall: no \/etc\/config\/firewall, not checked$/, () =>
+			[ _('There is no firewall configuration: the firewall rules were not checked') ] ]
+	], message);
+}
+
+// The rule a firewall finding asks for, as the check gives it: uci commands and a section
+// of /etc/config/firewall, each shown as text.
+function fixBlock(fix) {
+	if (!L.isObject(fix) || typeof(fix.uci) !== 'string' || typeof(fix.config) !== 'string')
+		return [];
+
+	return [
+		E('p', {}, [
+			_('Add it under'), ' ', E('a', { 'href': L.url('admin/network/firewall/rules') }, [ _('Network → Firewall → Traffic Rules') ]),
+			', ', _('or on the router with:')
+		]),
+		E('pre', {}, [ fix.uci ]),
+		E('p', {}, [ _('It is this section of /etc/config/firewall:') ]),
+		E('pre', {}, [ fix.config ])
 	];
-
-	for (const [ re, words ] of phrases) {
-		const m = re.exec(message);
-		if (m)
-			return words(m);
-	}
-
-	return [ message ];
 }
 
 function asText(pieces) {
@@ -596,7 +664,7 @@ return view.extend({
 				E('td', { 'class': 'td', 'width': '10%' }, [
 					E('span', { 'class': level ? level.label : 'label' }, [ level ? level.text : String(f.level) ])
 				]),
-				E('td', { 'class': 'td' }, findingText(String(f.message), (name) => this.titleOf(name)))
+				E('td', { 'class': 'td' }, findingText(String(f.message), (name) => this.titleOf(name)).concat(fixBlock(f.fix)))
 			]);
 		});
 

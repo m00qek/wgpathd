@@ -195,9 +195,28 @@ test.describe('Network → Mesh paths, a spoke', () => {
       /^Warn\s*beach: the route to its relay endpoint could not be looked up, tried again every check: /,
       /^Fail\s*lab: not steered\. The relay endpoint is not valid$/,
       /^Skip\s*hub: not steered\. No relay endpoint or tunnel address set$/,
+      /^OK\s*The firewall accepts the tunnel probe \(ICMP echo request\) from wg_mesh \(zone vpn\)$/,
+      /^OK\s*The firewall accepts relayed WireGuard packets \(UDP port 51820\) from wg_hub \(zone vpn\)$/,
+      /^OK\s*The firewall accepts the underlay probe \(ICMPv6 echo request\) from the wan zone$/,
     ]);
     expect(await h.text(checkPanel(page))).not.toMatch(/\b(config|peer) \S+:|wgpathd_|not configured/);
     await shot(page, 'settings-check');
+  });
+
+  test('shows a missing firewall rule, and the rule to add as text', async ({ page, request }) => {
+    await h.ubus(request, 'uci', 'delete', { config: 'firewall', section: 'wgpathd_relay' });
+    await h.ubus(request, 'uci', 'commit', { config: 'firewall' });
+    const answer = await h.ubus(request, 'wgpathd.config', 'check');
+    const fix = answer.findings.find((f) => f.option === 'hub_iface').fix;
+    await page.getByRole('button', { name: 'Check configuration' }).click();
+
+    const row = checkPanel(page).locator('tr').filter({ hasText: 'relayed WireGuard packets' });
+    await expect(row.locator('.label')).toHaveText('Warn');
+    await expect(row).toContainText('No firewall rule accepts relayed WireGuard packets (UDP port 51820) from wg_hub (zone vpn)');
+    await expect(row.locator('a')).toHaveAttribute('href', '/cgi-bin/luci/admin/network/firewall/rules');
+    expect(fix.config).toContain("\toption dest_port '51820'\n");
+    expect(await row.locator('pre').allTextContents()).toEqual([ fix.uci, fix.config ]);
+    await shot(page, 'settings-firewall');
   });
 
   test('applies nothing when the check fails, and says why', async ({ page, request }) => {
@@ -307,6 +326,7 @@ test.describe('Network → Mesh paths, with the app\'s ACL alone', () => {
     await expect(field(page, 'cycle')).toHaveAttribute('placeholder', '3');
     await page.getByRole('button', { name: 'Check configuration' }).click();
     await expect(checkPanel(page).locator('tr').first()).toHaveText(/^OK\s*Spoke in observe mode: 3 peers steered/);
+    await expect(checkPanel(page).locator('tr', { hasText: 'The firewall accepts relayed WireGuard packets' })).toHaveCount(1);
     await saveAndApply(page);
     await applied(page);
     expect(peerSections(await h.readConfig(request, 'wgpathd'))[KEYS.lab]).toEqual({ relay: '10.10.0.14:51820', tunnel: '10.20.0.14' });
@@ -321,6 +341,8 @@ test.describe('Network → Mesh paths, with the app\'s ACL alone', () => {
 
     const login = await h.call(request, '00000000000000000000000000000000', 'session', 'login', h.APP_USER);
     await expect(h.call(request, login.ubus_rpc_session, 'uci', 'get', { config: 'network' })).rejects.toThrow(/"result":\[6\]/);
+    // The check reads the firewall inside rpcd, as root: the app needs no grant of it.
+    await expect(h.call(request, login.ubus_rpc_session, 'uci', 'get', { config: 'firewall' })).rejects.toThrow(/"result":\[6\]/);
     const peers = await h.call(request, login.ubus_rpc_session, 'wgpathd.config', 'peers', {});
     expect(JSON.stringify(peers)).not.toMatch(/private_key|preshared_key|cHJpdmF0|cHJlc2hhcmVk|endpoint|allowed_ips/);
   });

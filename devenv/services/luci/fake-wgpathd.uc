@@ -8,9 +8,9 @@
 // withdraws `wgpathd`, as when the daemon is not running.
 //
 // `wgpathd.fixture` also lays out the configuration the real rpcd plugin and LuCI read:
-// `config {name}` writes /etc/config/network and /etc/config/wgpathd from
-// $FIXTURES/config/<name>/, each file it has, or as they were at start for `default`
-// and for a file it lacks; `read {config}` returns one of the two as it is on disk.
+// `config {name}` writes /etc/config/network, /etc/config/wgpathd and /etc/config/firewall
+// from $FIXTURES/config/<name>/, each file it has, or as they were at start for `default`
+// and for a file it lacks; `read {config}` returns one of the three as it is on disk.
 
 import * as ubus from 'ubus';
 import * as uloop from 'uloop';
@@ -18,7 +18,7 @@ import { readfile, writefile } from 'fs';
 import { STATUS_ARGS } from 'wgpathd.daemon';
 
 const DIR = getenv('FIXTURES') ?? '/fixtures';
-const CONFIGS = [ 'network', 'wgpathd' ];
+const CONFIGS = [ 'network', 'wgpathd', 'firewall' ];
 
 uloop.init();
 const conn = ubus.connect();
