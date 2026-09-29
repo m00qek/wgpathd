@@ -103,6 +103,7 @@ If the configuration is invalid by the time the daemon reads it, the daemon logs
 | `daemon.uc` | The shell: startup, reload, cycles, status, hub snapshot |
 | `relay.uc` | The relay loop guard, shared by the daemon and the check |
 | `check.uc`, `status_view.uc` | `service wgpathd check` and the text of `service wgpathd status` |
+| `rpc.uc`, `candidate.uc` | The `wgpathd.config` ubus object that rpcd serves, and unsaved values laid over the saved configuration |
 | `publisher.uc` | Hub snapshot and the HTTP request/response mapping and listener |
 | `discovery.uc` | Spoke payload validation and the cache |
 | `config.uc`, `params.uc` | Configuration loading and timing defaults |

@@ -17,6 +17,12 @@ These stop startup, fail the config check that `service wgpathd start` and `relo
 | `CONFIG_INVALID_OPTION` | parameter name | A timing parameter is not a positive decimal number. |
 | `INTERFACE_MISSING` | interface name | From configuration: an interface option names no `network` section of type `interface`. At startup: the interface is not in the `wireguard status` reply; the detail is `<iface>: <cause>`. |
 
+## Check
+
+| Code | Detail | Trigger |
+| :--- | :--- | :--- |
+| `CHECK_INVALID_CANDIDATE` | what is wrong with the candidate | A `candidate` passed to `ubus call wgpathd.config check` does not follow its rules. It is returned as `{ "error": "CHECK_INVALID_CANDIDATE", "message": "<detail>" }` and nothing is checked; see [ubus config check](ubus-config-check.md#malformed-candidate). |
+
 ## Discovery
 
 These make a spoke's discovery fetch fail. The spoke keeps its previous map.

@@ -12,6 +12,7 @@ Reference documentation is technical description of the machinery. It is informa
 ## Interfaces
 - [Service Commands](service-commands.md) - `service wgpathd start`, `reload`, `status` and `check`: behavior, output and exit status.
 - [ubus Status](ubus-status.md) - The `wgpathd` ubus object, field by field, for spoke and hub.
+- [ubus Config Check](ubus-config-check.md) - The `wgpathd.config` ubus object: the configuration check over ubus, for saved or unsaved values.
 - [Discovery HTTP API](discovery-api.md) - `GET /peers`: payload, status codes, connection limits and spoke-side validation.
 
 ## Diagnostics

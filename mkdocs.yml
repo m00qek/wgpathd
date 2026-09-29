@@ -81,6 +81,7 @@ nav:
       - Timing Parameters: reference/parameters.md
       - Service Commands: reference/service-commands.md
       - ubus Status: reference/ubus-status.md
+      - ubus Config Check: reference/ubus-config-check.md
       - Discovery HTTP API: reference/discovery-api.md
       - Log Messages: reference/log-messages.md
       - Error Codes: reference/error-codes.md

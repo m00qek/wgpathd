@@ -23,7 +23,7 @@ sleep 5
 apk del wgpathd
 ```
 
-Removing the package stops and disables the service, and reloads the firewall, which drops the `wgpathd:` rules.
+Removing the package stops and disables the service, reloads the firewall, which drops the `wgpathd:` rules, and reloads rpcd, which drops the `wgpathd.config` ubus object.
 
 ## 3. Clean up leftovers
 

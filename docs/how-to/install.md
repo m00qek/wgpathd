@@ -60,6 +60,14 @@ nft list ruleset | grep 'wgpathd:'
 
 You should see four rules whose comments start with `wgpathd:`. They assume UDP `51820` for `wg_mesh` and TCP `7780` for discovery; see [Firewall rules](../reference/firewall.md) if yours differ.
 
+It also reloads rpcd, which then serves the configuration check over ubus, daemon or not:
+
+```bash
+ubus call wgpathd.config check
+```
+
+Until you configure a role, the answer has `"ok": false` and a finding `config: option role must be 'spoke' or 'hub' (is unset)`. See [ubus config check](../reference/ubus-config-check.md).
+
 ## Next
 
 - On the hub: [How to configure the hub](configure-hub.md).

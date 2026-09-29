@@ -144,6 +144,8 @@ FAIL  peer spoke_c: not steered (invalid wgpathd_relay)
 
 The peer reasons are the ones in [Substrate annotations](substrate.md#managed-and-unmanaged-peers).
 
+The same findings, apart from the interface lines, are available over ubus, also for values not saved yet: see [ubus config check](ubus-config-check.md).
+
 ### `--config`
 
 `/usr/libexec/wgpathd/check.uc --config` runs only the configuration findings: the `config:` lines, without the `enabled` warning, ubus or routes. It is what `start` and `reload` run. Any other argument prints `usage: check.uc [--config]` on standard error and exits with `2`.

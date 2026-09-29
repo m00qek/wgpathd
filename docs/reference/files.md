@@ -16,6 +16,7 @@ The package is `wgpathd`, version `0.1.0`, release `2`, architecture `all`, lice
 | `/etc/config/wgpathd` | 0600 | UCI configuration; a conffile, kept on upgrade. See [UCI configuration](uci-config.md). |
 | `/etc/init.d/wgpathd` | 0755 | procd init script. See [below](#etcinitdwgpathd). |
 | `/usr/share/nftables.d/chain-pre/input/wgpathd.nft` | 0644 | fw4 include. See [Firewall rules](firewall.md). |
+| `/usr/share/rpcd/ucode/wgpathd.uc` | 0644 | rpcd plugin serving the `wgpathd.config` ubus object. See [ubus config check](ubus-config-check.md). |
 
 Nothing is installed on the `PATH`. The scripts in `/usr/libexec/wgpathd/` are ucode scripts, meant to be run through the init script; see [Service commands](service-commands.md).
 
@@ -49,10 +50,12 @@ The script adds the `check` command and replaces `reload` and `status`. What eac
 
 | Script | Effect |
 | :--- | :--- |
-| post-install (install and upgrade) | OpenWrt's default first: on a first install, enable the service; on both, run `start`, which does nothing while `enabled` is `0` or the daemon is already running. Then `/etc/init.d/firewall reload`, and on an upgrade, restart the daemon if it is running so the new code takes over. |
-| post-remove | `/etc/init.d/firewall reload`. |
+| post-install (install and upgrade) | OpenWrt's default first: on a first install, enable the service; on both, run `start`, which does nothing while `enabled` is `0` or the daemon is already running. Then `/etc/init.d/firewall reload` and `/etc/init.d/rpcd reload`, and on an upgrade, restart the daemon if it is running so the new code takes over. |
+| post-remove | `/etc/init.d/firewall reload` and `/etc/init.d/rpcd reload`. |
 
-The firewall reload is skipped when the package is installed into a firmware image rather than on a running router.
+The rpcd reload makes rpcd load the `wgpathd.config` plugin, or drop it after removal, and pick up new module code after an upgrade. rpcd re-executes itself and keeps its sessions, so LuCI users stay logged in.
+
+Both reloads are skipped when the package is installed into a firmware image rather than on a running router.
 
 ## Dependencies
 
@@ -68,6 +71,7 @@ The firewall reload is skipped when the package is installed into a firmware ima
 | `ucode-mod-rtnl` | Relay route lookup, the MTU of `mesh_iface` |
 | `ucode-mod-uclient` | Spoke discovery fetch |
 | `rpcd-mod-wireguard` | The `wireguard status` ubus method |
+| `rpcd-mod-ucode` | Runs the `wgpathd.config` plugin inside rpcd |
 | `wireguard-tools` | `wg set` |
 | `kmod-wireguard` | WireGuard in the kernel |
 
