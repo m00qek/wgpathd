@@ -6,8 +6,8 @@ const path = require('path');
 const PASSWORD = 'admin';
 const SCREENSHOTS = path.join(__dirname, '..', 'results', 'screenshots');
 
-// The state names and reasons of the ubus reply, which the pages must put in words.
-const INTERNAL_NAMES = /\b(RELAY|TRIALING|DIRECT|trial_start|trial_ok|trial_timeout|demoted|observe_mode|roam_adopted|routes into)\b/;
+// The state names, reasons and field names of the ubus reply, which the pages must put in words.
+const INTERNAL_NAMES = /\b(RELAY|TRIALING|DIRECT|trial_start|trial_ok|trial_timeout|demoted|observe_mode|roam_adopted|routes into|given_up|failed_trials|failed_target|give_up_after|give_up_pause)\b/;
 
 let session = null;
 

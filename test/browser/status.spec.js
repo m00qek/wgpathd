@@ -165,6 +165,33 @@ test.describe('Status → Mesh paths, peers on the hub path', () => {
   });
 });
 
+test.describe('Status → Mesh paths, a direct address given up', () => {
+  test.beforeEach(async ({ page, request }) => {
+    await h.useFixture(request, 'given-up');
+    await h.openStatus(page);
+  });
+
+  test('flags the peer, and says in its details when and why it tries again', async ({ page }) => {
+    await expect(h.peerRow(page, 'beach').locator('.label')).toHaveText([ 'Via hub', 'Direct given up' ]);
+    await h.peerRow(page, 'beach').getByRole('button').click();
+    await expect(h.detailsRow(page, 'beach').locator('td > div > div')).toHaveText([
+      'Direct address last tried[2001:db8:90::5]:51820',
+      'Direct address the hub publishes[2001:db8:90::5]:51820',
+      'Why it uses the hubThe direct test got no answer within 8 s',
+      'Next direct tryDirect address given up after 3 failed tests in a row. Tries again in 5 h 40 min, or as soon as the hub publishes another address or the peer reaches this router directly',
+      'Answers that came through the hub0',
+    ]);
+    await h.screenshot(page, 'status-given-up');
+  });
+
+  test('once the pause is over, the peer waits for the evidence as usual', async ({ page }) => {
+    await expect(h.peerRow(page, 'lab').locator('.label')).toHaveText([ 'Via hub' ]);
+    await h.peerRow(page, 'lab').getByRole('button').click();
+    await expect(h.detailsRow(page, 'lab').locator('td > div > div').nth(3)).toHaveText(
+      'Next direct tryAfter 5 answered checks in a row over the direct address; 0 so far');
+  });
+});
+
 test.describe('Status → Mesh paths, other service states', () => {
   test('observe mode says so and shows which peers would test direct', async ({ page, request }) => {
     await h.useFixture(request, 'observe');
@@ -184,6 +211,10 @@ test.describe('Status → Mesh paths, other service states', () => {
       'Would test directYes, steer mode would test the direct path now');
     await expect(h.detailsRow(page, 'beach').locator('td > div > div').nth(3)).toHaveText(
       'Would test directNot yet: 2 of 5 checks answered over the direct address');
+    await expect(h.peerRow(page, 'lab').locator('.label')).toHaveText([ 'Via hub', 'Direct given up' ]);
+    await h.peerRow(page, 'lab').getByRole('button').click();
+    await expect(h.detailsRow(page, 'lab').locator('td > div > div').nth(3)).toHaveText(
+      'Would test directNo. Direct address given up after 3 failed tests in a row. Steer mode would test it again in 5 h 40 min, or as soon as the hub publishes another address or the peer reaches this router directly');
     await expect(h.section(page, 'Recent changes').locator('tr:not(.table-titles) td:last-child')).toHaveText(
       [ 'Via hub, the service was switched to observe mode' ]);
     await h.screenshot(page, 'status-observe');
@@ -257,7 +288,7 @@ test.describe('Status → Mesh paths, hub', () => {
 });
 
 test.describe('Status → Mesh paths, words only', () => {
-  for (const fixture of [ 'spoke', 'relay', 'observe', 'stale', 'no-peers', 'hub' ]) {
+  for (const fixture of [ 'spoke', 'relay', 'given-up', 'observe', 'stale', 'no-peers', 'hub' ]) {
     test(`shows no internal state or reason name (${fixture})`, async ({ page, request }) => {
       await h.useFixture(request, fixture);
       await h.openStatus(page);

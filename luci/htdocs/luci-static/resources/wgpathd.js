@@ -253,8 +253,26 @@ return baseclass.extend({
 		}
 	},
 
+	// Seconds until the echo alone may test a given-up direct address again; null when
+	// no address is given up, or its pause is over.
+	givenUpWait(peer, now) {
+		const until = peer.given_up?.until;
+		return (until != null && until > now) ? until - now : null;
+	},
+
+	givenUpText(peer) {
+		return N_(peer.failed_trials, 'Direct address given up after %d failed test.',
+			'Direct address given up after %d failed tests in a row.').format(peer.failed_trials);
+	},
+
 	// When a peer in RELAY tries the direct path next; steer mode only.
 	nextTrialText(peer, now, params) {
+		const wait = this.givenUpWait(peer, now);
+		if (wait != null)
+			return [ this.givenUpText(peer), ' ' ].concat(fill(
+				_('Tries again in %s, or as soon as the hub publishes another address or the peer reaches this router directly'),
+				duration(wait)));
+
 		if (peer.next_trial != null) {
 			const wait = peer.next_trial - now;
 
@@ -279,7 +297,13 @@ return baseclass.extend({
 	},
 
 	// Whether steer mode would test the direct path now; observe mode only.
-	readinessText(peer, params) {
+	readinessText(peer, now, params) {
+		const wait = this.givenUpWait(peer, now);
+		if (wait != null)
+			return [ _('No.'), ' ', this.givenUpText(peer), ' ' ].concat(fill(
+				_('Steer mode would test it again in %s, or as soon as the hub publishes another address or the peer reaches this router directly'),
+				duration(wait)));
+
 		if (peer.ready)
 			return [ _('Yes, steer mode would test the direct path now') ];
 
@@ -318,12 +342,16 @@ return baseclass.extend({
 			return (peer.trial_deadline != null)
 				? fill(_('test ends in %s'), duration(peer.trial_deadline - now))
 				: [];
-		case 'RELAY':
+		case 'RELAY': {
 			if (status.mode !== 'steer')
 				return peer.ready ? [ _('would test direct') ] : [];
+			const wait = this.givenUpWait(peer, now);
+			if (wait != null)
+				return fill(_('direct given up, tries again in %s'), duration(wait));
 			return (peer.next_trial != null)
 				? fill(_('next direct try in %s'), duration(peer.next_trial - now))
 				: [];
+		}
 		default:
 			return [];
 		}

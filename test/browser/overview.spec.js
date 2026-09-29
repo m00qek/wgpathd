@@ -27,6 +27,14 @@ test.describe('Status → Overview, Mesh paths section', () => {
     await expect(meshPaths(page).locator('tr', { hasText: 'home' })).toContainText('Via hub would test direct');
   });
 
+  test('says when a peer whose direct address was given up tries again', async ({ page, request }) => {
+    await h.useFixture(request, 'given-up');
+    await h.openOverview(page);
+    const mesh = meshPaths(page);
+    await expect(mesh.locator('tr', { hasText: 'beach' })).toContainText('Via hub direct given up, tries again in 5 h 40 min');
+    expect(await h.text(mesh)).not.toMatch(h.INTERNAL_NAMES);
+  });
+
   for (const fixture of [ 'none', 'no-peers', 'hub' ]) {
     test(`stays hidden without steered peers (${fixture})`, async ({ page, request }) => {
       await h.useFixture(request, fixture);

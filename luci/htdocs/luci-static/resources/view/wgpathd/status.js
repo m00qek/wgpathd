@@ -171,9 +171,10 @@ return view.extend({
 				'aria-expanded': String(open),
 				'click': (ev) => this.toggle(peer.pubkey, ev.currentTarget, detailRow)
 			}, [ open ? _('Hide details') : _('Show details') ]);
-			const extra = (status.mode !== 'steer' && peer.ready)
-				? [ ' ', E('span', { 'class': 'label' }, [ _('Would test direct') ]) ]
-				: [];
+			const note = (status.mode !== 'steer' && peer.ready) ? _('Would test direct')
+				: (wgpathd.givenUpWait(peer, status.now) != null) ? _('Direct given up')
+				: null;
+			const extra = note ? [ ' ', E('span', { 'class': 'label' }, [ note ]) ] : [];
 
 			rows.push(E('tr', { 'class': 'tr ' + style }, [
 				cell(headers[0], [ E('strong', {}, [ peer.section ]) ]),
@@ -229,7 +230,7 @@ return view.extend({
 				[ _('Why it uses the hub'), wgpathd.fallbackText(peer, params) ],
 				(status.mode === 'steer')
 					? [ _('Next direct try'), wgpathd.nextTrialText(peer, now, params) ]
-					: [ _('Would test direct'), wgpathd.readinessText(peer, params) ],
+					: [ _('Would test direct'), wgpathd.readinessText(peer, now, params) ],
 				hubAnswers
 			]);
 
