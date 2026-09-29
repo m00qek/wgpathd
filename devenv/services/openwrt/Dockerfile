@@ -12,7 +12,7 @@ RUN mkdir -p /var/lock /etc/apk/keys /etc/apk/repositories.d && \
     wget -qO /etc/apk/keys/packages.ucode.dev.pem "$feed/feed.pub.pem" && \
     echo "$feed" > /etc/apk/repositories.d/ucode-dev.list && \
     apk update && \
-    apk add --no-cache $PKG_DEPENDS ucode-utest inotifywait && \
+    apk add --no-cache $PKG_DEPENDS ucode-utest inotifywait quickjs && \
     apk list -I 2>/dev/null | grep -q "^ucode-utest-$UTEST_VERSION-" || \
       { echo "expected ucode-utest $UTEST_VERSION" >&2; exit 1; }
 

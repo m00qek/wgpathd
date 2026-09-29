@@ -1,0 +1,15 @@
+{
+	"luci-app-wgpathd": {
+		"description": "Grant access to wgpathd status and configuration",
+		"read": {
+			"ubus": {
+				"wgpathd": [ "status" ],
+				"wgpathd.config": [ "check" ]
+			},
+			"uci": [ "wgpathd", "network" ]
+		},
+		"write": {
+			"uci": [ "wgpathd", "network" ]
+		}
+	}
+}

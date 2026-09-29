@@ -1,0 +1,27 @@
+{
+	"admin/status/wgpathd": {
+		"title": "Mesh paths",
+		"order": 60,
+		"action": {
+			"type": "view",
+			"path": "wgpathd/status"
+		},
+		"depends": {
+			"acl": [ "luci-app-wgpathd" ],
+			"uci": { "wgpathd": true }
+		}
+	},
+
+	"admin/network/wgpathd": {
+		"title": "Mesh paths",
+		"order": 60,
+		"action": {
+			"type": "view",
+			"path": "wgpathd/settings"
+		},
+		"depends": {
+			"acl": [ "luci-app-wgpathd" ],
+			"uci": { "wgpathd": true }
+		}
+	}
+}

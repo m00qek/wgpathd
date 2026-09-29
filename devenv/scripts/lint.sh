@@ -25,6 +25,15 @@ for f in files/etc/init.d/wgpathd devenv/scripts/*.sh devenv/services/*/*.sh tes
 	sh -n "$f" || { echo "  in $f" >&2; status=1; }
 done
 
+for f in $(find luci -name '*.json'); do
+	ucode -e 'json(require("fs").readfile(ARGV[0]))' "$f" || { echo "  in $f" >&2; status=1; }
+done
+
+# LuCI compiles a view as a function body (top-level `return`), so it is parsed the same way.
+for f in $(find luci -name '*.js'); do
+	qjs --std -e 'new Function(std.loadFile(scriptArgs[0]))' "$f" || { echo "  in $f" >&2; status=1; }
+done
+
 devenv/scripts/docs-links.sh || status=1
 
 exit $status
