@@ -235,21 +235,22 @@ function port_number(s) {
 	return (type(s) == 'string' && match(s, /^[0-9]{1,5}$/) && +s <= 65535) ? +s : null;
 }
 
-// The flows a role needs accepted, one per address family. ifaces: { <name>: { addresses,
-// listen_port } } for the WireGuard interfaces of /etc/config/network. Probes come to
-// this router's addresses on the mesh interface, and relayed packets to its address on
-// the hub interface, at the listen port of the mesh interface.
+// The flows a role needs accepted. ifaces: { <name>: { addresses, listen_port } } for the
+// WireGuard interfaces of /etc/config/network. Probes come to this router's addresses on
+// the mesh interface, one flow per address family; relayed packets to its address on the
+// hub interface, at the listen port of the mesh interface, where a rule for UDP needs no
+// family.
 export function needs(cfg, ifaces) {
-	let per_family = (kind, option, iface, proto, port) => map(families(ifaces[iface]), (family) =>
-		({ kind: kind, option: option, family: family, proto: proto, port: port, iface: iface }));
 	if (cfg.role == 'hub') {
 		let holder = filter(sort(keys(ifaces)), (name) => cfg.serve_addr in ifaces[name].addresses)[0];
 		return (holder == null) ? [] : [ { kind: 'discovery', option: 'serve_port', family: address_family(cfg.serve_addr),
 			proto: 'tcp', port: +cfg.serve_port, iface: holder } ];
 	}
 	return [
-		...per_family('tunnel', 'mesh_iface', cfg.mesh_iface, 'icmp', null),
-		...per_family('relay', 'hub_iface', cfg.hub_iface, 'udp', port_number(ifaces[cfg.mesh_iface]?.listen_port)),
+		...map(families(ifaces[cfg.mesh_iface]), (family) =>
+			({ kind: 'tunnel', option: 'mesh_iface', family: family, proto: 'icmp', port: null, iface: cfg.mesh_iface })),
+		{ kind: 'relay', option: 'hub_iface', family: families(ifaces[cfg.hub_iface])[0], proto: 'udp',
+			port: port_number(ifaces[cfg.mesh_iface]?.listen_port), iface: cfg.hub_iface },
 		{ kind: 'underlay', family: 6, proto: 'icmp', zone: 'wan' },
 	];
 };

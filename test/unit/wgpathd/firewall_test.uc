@@ -48,6 +48,11 @@ describe('firewall: what each role needs', () => {
 		assert.match([ TUNNEL ], slice(fw.needs(spoke, { wg_hub: ifaces.wg_hub }), 0, 1));
 	});
 
+	it('asks for relayed packets once, in the first family of the hub interface', () => {
+		let dual = { ...ifaces, wg_hub: { addresses: [ 'fd00:1::11', '10.10.0.11' ] } };
+		assert.match([ RELAY ], filter(fw.needs(spoke, dual), (f) => f.kind == 'relay'));
+	});
+
 	it('leaves the relay port unknown when the mesh interface has no listen_port', () => {
 		let random = { ...ifaces, wg_mesh: { addresses: [ '10.20.0.11' ] } };
 		assert.match({ ...RELAY, port: null }, fw.needs(spoke, random)[1]);
