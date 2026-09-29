@@ -12,9 +12,10 @@ die() { echo "${PROJECT#wgpathd-}: $*" >&2; exit 1; }
 
 iface_up() { ip -o link show "$WATCH_IFACE" 2>/dev/null | grep -q 'state UP'; }
 
+# Read from /proc: sysctl(8) is often not on an unprivileged user's PATH.
 host_sysctls() {
-	for key in net.ipv6.conf.all.forwarding "net.ipv6.conf.$WATCH_IFACE.accept_ra"; do
-		echo "$key = $(sysctl -n "$key" 2>&1)"
+	for key in net/ipv6/conf/all/forwarding "net/ipv6/conf/$WATCH_IFACE/accept_ra"; do
+		echo "$key = $(cat "/proc/sys/$key" 2>&1)"
 	done
 }
 
