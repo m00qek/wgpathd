@@ -104,6 +104,30 @@ describe('candidate: what config.load makes of it', () => {
 	});
 });
 
+describe('candidate: section names', () => {
+	// A cursor as the real one reads names: `@type[n]` is the n-th section of that type.
+	function extended_cursor(looked_up) {
+		let uci = cursor();
+		return { ...uci, get: function(pkg, name, opt) {
+			push(looked_up, name);
+			let m = match(name, /^@([a-z_]+)\[0\]$/);
+			return (m && opt == null) ? m[1] : uci.get(pkg, name, opt);
+		} };
+	}
+
+	it('never hands uci a name in its extended syntax', () => {
+		let looked_up = [];
+		let res = candidate.overlay(extended_cursor(looked_up), { peers: { '@wireguard_wg_mesh[0]': { wgpathd_relay: '10.0.0.1:1' } } });
+		assert.match([ false, [] ], [ res.ok, looked_up ]);
+	});
+
+	it('lays a candidate over a peer in an anonymous section, by its id', () => {
+		let data = { wgpathd: { main: MAIN }, network: { ...NETWORK, cfg09cdcd: { ...NETWORK.spoke_b } } };
+		let v = view({ peers: { cfg09cdcd: { wgpathd_tunnel: '10.20.0.99' } } }, data);
+		assert.match('10.20.0.99', sections(v, 'network', 'wireguard_wg_mesh').cfg09cdcd.wgpathd_tunnel);
+	});
+});
+
 describe('candidate: refused', () => {
 	let cases = [
 		[ 'x', 'candidate must be an object' ],
@@ -118,6 +142,10 @@ describe('candidate: refused', () => {
 		[ { peers: { wg_mesh: { wgpathd_relay: '10.0.0.1:1' } } }, "no wireguard peer section 'wg_mesh' in /etc/config/network" ],
 		[ { peers: { spoke_b: { public_key: 'x' } } }, "peers.spoke_b: unknown option 'public_key'" ],
 		[ { peers: { spoke_b: 'x' } }, 'peers.spoke_b must be an object' ],
+		[ { peers: { '@wireguard_wg_mesh[0]': { wgpathd_relay: '10.0.0.1:1' } } },
+			"no wireguard peer section '@wireguard_wg_mesh[0]' in /etc/config/network" ],
+		[ { peers: { '@wireguard_wg_mesh[-1]': {} } }, "no wireguard peer section '@wireguard_wg_mesh[-1]' in /etc/config/network" ],
+		[ { peers: { 'spoke_b.public_key': {} } }, "no wireguard peer section 'spoke_b.public_key' in /etc/config/network" ],
 	];
 	for (let c in cases)
 		it(`refuses ${c[1]}`, () => {

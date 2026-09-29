@@ -63,7 +63,7 @@ Typical startup failures:
 invalid configuration: CONFIG_INVALID_ROLE (unset)
 invalid configuration: CONFIG_MISSING_OPTION (discovery)
 invalid configuration: INTERFACE_MISSING (wg_mesh)
-invalid configuration: CONFIG_INVALID_OPTION (n_up)
+invalid configuration: CONFIG_INVALID_OPTION (n_up must be a positive number)
 startup failed: INTERFACE_MISSING (wg_mesh: WG_PARSE_FAILED (no interface wg_mesh))
 startup failed: PUBLISHER_LISTEN_FAILED (10.10.0.1:7780: bind(): Address not available)
 ```

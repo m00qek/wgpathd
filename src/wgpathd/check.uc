@@ -20,21 +20,23 @@ function explain(res) {
 	case errors.CONFIG_MISSING_OPTION:
 		return `missing option ${res.details}`;
 	case errors.CONFIG_INVALID_OPTION:
-		return `option ${res.details} must be a positive number`;
+		return `option ${res.details}`;
 	case errors.INTERFACE_MISSING:
 		return `no interface ${res.details} in /etc/config/network`;
 	}
 	return Result.describe(res);
 }
 
-// The option a loader error is about, when it names one.
+// The option a loader error is about, when it names one. An invalid option's
+// detail is its name, then what it must be.
 function failed_option(res) {
 	switch (res.error) {
 	case errors.CONFIG_INVALID_ROLE:
 		return 'role';
 	case errors.CONFIG_MISSING_OPTION:
-	case errors.CONFIG_INVALID_OPTION:
 		return res.details;
+	case errors.CONFIG_INVALID_OPTION:
+		return split(res.details, ' ')[0];
 	}
 	return null;
 }

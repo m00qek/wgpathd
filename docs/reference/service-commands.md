@@ -128,6 +128,7 @@ FAIL  peer spoke_c: not steered (invalid wgpathd_relay)
 | `FAIL` | `config: option role must be 'spoke' or 'hub' (is <value>)` | `role` is missing or wrong. `<value>` is `unset` when missing. |
 | `FAIL` | `config: missing option <name>` | A required option is missing or empty. |
 | `FAIL` | `config: no interface <name> in /etc/config/network` | An interface option names no `interface` section. |
+| `FAIL` | `config: option <name> must be an interface name of letters, digits and _` | `mesh_iface`, `hub_iface` or `read_iface` is not a plain section name. |
 | `FAIL` | `config: option <name> must be a positive number` | A timing parameter is invalid. |
 | `warn` | `config: unknown mode '<mode>' runs as observe` | `mode` is neither `steer` nor `observe`. |
 | `warn` | `service disabled (option enabled '<value>'): it will not start` | `enabled` is off. |

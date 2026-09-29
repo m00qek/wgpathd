@@ -27,7 +27,8 @@ describe('check: findings for the config alone', () => {
 		let cases = [
 			[ Result.err('CONFIG_INVALID_ROLE', 'unset'), { option: 'role' }, "option role must be 'spoke' or 'hub' (is unset)" ],
 			[ Result.err('CONFIG_MISSING_OPTION', 'discovery'), { option: 'discovery' }, 'missing option discovery' ],
-			[ Result.err('CONFIG_INVALID_OPTION', 'cycle'), { option: 'cycle' }, 'option cycle must be a positive number' ],
+			[ Result.err('CONFIG_INVALID_OPTION', 'cycle must be a positive number'), { option: 'cycle' },
+				'option cycle must be a positive number' ],
 			[ Result.err('INTERFACE_MISSING', 'wg_nope'), {}, 'no interface wg_nope in /etc/config/network' ],
 		];
 		for (let c in cases)

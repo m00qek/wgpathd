@@ -81,6 +81,14 @@ describe('rpc: wgpathd.config check, committed config', () => {
 		] }, call(p));
 	});
 
+	it('fails a committed interface option in the extended syntax of uci, on its option', () => {
+		let p = plugin_deps({ ...MAIN, mesh_iface: '@interface[0]' });
+		assert.match({ ok: false, findings: [
+			{ level: 'fail', subject: 'config', option: 'mesh_iface',
+				message: 'config: option mesh_iface must be an interface name of letters, digits and _' },
+		] }, call(p));
+	});
+
 	it('reads the configuration afresh on every call', () => {
 		let p = plugin_deps();
 		call(p);
@@ -122,6 +130,16 @@ describe('rpc: wgpathd.config check, candidate', () => {
 		assert.match({ error: 'CHECK_INVALID_CANDIDATE', message: "no wireguard peer section 'spoke_z' in /etc/config/network" },
 			call(p, { candidate: { peers: { spoke_z: { wgpathd_relay: '' } } } }));
 		assert.match([], p.lookups);
+	});
+
+	it('refuses a peer named in the extended syntax of uci, instead of ignoring it', () => {
+		let p = plugin_deps();
+		assert.match({ error: 'CHECK_INVALID_CANDIDATE', message: "no wireguard peer section '@wireguard_wg_mesh[0]' in /etc/config/network" },
+			call(p, { candidate: { peers: { '@wireguard_wg_mesh[0]': { wgpathd_relay: '10.0.0.1:1' } } } }));
+		assert.match({ ok: false, findings: [
+			{ level: 'fail', subject: 'config', option: 'hub_iface',
+				message: 'config: option hub_iface must be an interface name of letters, digits and _' },
+		] }, call(p, { candidate: { main: { hub_iface: '@interface[0]' } } }));
 	});
 });
 

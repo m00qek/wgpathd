@@ -9,6 +9,7 @@
 
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
+import { is_name } from 'wgpathd.config';
 
 const PARTS = [ 'main', 'peers' ];
 const PEER_OPTIONS = [ 'wgpathd_relay', 'wgpathd_tunnel' ];
@@ -37,7 +38,7 @@ function parse_options(values, where, allowed) {
 		return invalid(`${where} must be an object`);
 	let out = {};
 	for (let name, v in values) {
-		let known = allowed ? (name in allowed) : match(name, /^[A-Za-z0-9_]+$/) != null;
+		let known = allowed ? (name in allowed) : is_name(name);
 		if (!known)
 			return invalid(`${where}: unknown option '${name}'`);
 		let value = option_value(v);
@@ -49,7 +50,7 @@ function parse_options(values, where, allowed) {
 }
 
 function is_peer_section(uci, name) {
-	let stype = uci.get('network', name);
+	let stype = is_name(name) ? uci.get('network', name) : null;
 	return type(stype) == 'string' && index(stype, 'wireguard_') == 0;
 }
 

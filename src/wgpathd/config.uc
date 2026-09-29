@@ -18,9 +18,26 @@ const INTERFACES = {
 	hub:   [ 'read_iface' ],
 };
 
+function invalid(option, reason) {
+	return Result.err(errors.CONFIG_INVALID_OPTION, `${option} ${reason}`);
+}
+
+// UCI reads a name like `@interface[0]` as a lookup by position, so only a plain
+// name may reach a cursor.
+export function is_name(s) {
+	return type(s) == 'string' && match(s, /^[A-Za-z0-9_]+$/) != null;
+};
+
 function missing_option(main, role) {
 	for (let opt in REQUIRED[role])
 		if (type(main[opt]) != 'string' || main[opt] == '')
+			return opt;
+	return null;
+}
+
+function unnamed_interface(main, role) {
+	for (let opt in INTERFACES[role])
+		if (!is_name(main[opt]))
 			return opt;
 	return null;
 }
@@ -42,7 +59,7 @@ function parse_overrides(main) {
 		if (main[name] == null)
 			continue;
 		if (!positive_number(main[name]))
-			return Result.err(errors.CONFIG_INVALID_OPTION, name);
+			return invalid(name, 'must be a positive number');
 		overrides[name] = +main[name];
 	}
 	return Result.ok(overrides);
@@ -92,6 +109,10 @@ export function load(deps) {
 	let opt = missing_option(main, role);
 	if (opt != null)
 		return Result.err(errors.CONFIG_MISSING_OPTION, opt);
+
+	opt = unnamed_interface(main, role);
+	if (opt != null)
+		return invalid(opt, 'must be an interface name of letters, digits and _');
 
 	let iface = missing_interface(deps.uci, main, role);
 	if (iface != null)

@@ -37,8 +37,8 @@ config wgpathd 'main'
 
 | Option | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `mesh_iface` | Yes | — | The WireGuard interface whose peer endpoints are steered. Must be a `network` section of type `interface`, and must appear in the `ubus call wireguard status` reply at startup. Its peers are read from `wireguard_<mesh_iface>` sections. |
-| `hub_iface` | Yes | — | The hub tunnel interface. Must be a `network` section of type `interface`. Checked at startup only; wgpathd does not otherwise use it. |
+| `mesh_iface` | Yes | — | The WireGuard interface whose peer endpoints are steered. Must be a name of letters, digits and `_`, and a `network` section of type `interface`, and must appear in the `ubus call wireguard status` reply at startup. Its peers are read from `wireguard_<mesh_iface>` sections. |
+| `hub_iface` | Yes | — | The hub tunnel interface. Must be a name of letters, digits and `_`, and a `network` section of type `interface`. Checked at startup only; wgpathd does not otherwise use it. |
 | `discovery` | Yes | — | URL of the hub's discovery endpoint, for example `http://10.10.0.1:7780/peers`. See [Discovery HTTP API](discovery-api.md). |
 | `mode` | No | `observe` | `steer` lets wgpathd move peers to direct paths. `observe` keeps every managed peer on its relay endpoint. Any other value runs as `observe` and logs a warning at startup and on reload. |
 
@@ -54,7 +54,7 @@ config wgpathd 'main'
 
 | Option | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `read_iface` | Yes | — | The WireGuard interface whose peer endpoints are published. Must be a `network` section of type `interface`, and must appear in the `ubus call wireguard status` reply at startup. |
+| `read_iface` | Yes | — | The WireGuard interface whose peer endpoints are published. Must be a name of letters, digits and `_`, and a `network` section of type `interface`, and must appear in the `ubus call wireguard status` reply at startup. |
 | `serve_addr` | Yes | — | Local address the discovery listener binds to. |
 | `serve_port` | Yes | — | TCP port of the discovery listener. The shipped firewall rule accepts port `7780`; see [Firewall rules](firewall.md). |
 
@@ -64,7 +64,7 @@ The hub ignores `mode`.
 
 Both roles accept the timing parameters as options in the `main` section, for example `option cycle '2'`. Each is optional and overrides one default. The full list, defaults and meanings are in [Timing parameters](parameters.md).
 
-A parameter value must be a positive decimal number: digits, optionally followed by a dot and more digits, and greater than zero. `3`, `0.5` and `900` are valid; `0`, `-1`, `1e3` and `3s` are not. An invalid value stops startup with `CONFIG_INVALID_OPTION`, with the parameter name as the detail. There are no cross-checks between parameters.
+A parameter value must be a positive decimal number: digits, optionally followed by a dot and more digits, and greater than zero. `3`, `0.5` and `900` are valid; `0`, `-1`, `1e3` and `3s` are not. An invalid value stops startup with `CONFIG_INVALID_OPTION`; the detail is `<name> must be a positive number`. There are no cross-checks between parameters.
 
 ## Validation order
 
@@ -72,8 +72,9 @@ The configuration is checked in this order, by the daemon at startup and on relo
 
 1. `role` is `spoke` or `hub` — else `CONFIG_INVALID_ROLE`.
 2. Every required option for the role is a non-empty string — else `CONFIG_MISSING_OPTION` naming the first missing option, in the order listed above.
-3. Every interface option names a `network` section of type `interface` — else `INTERFACE_MISSING` naming the value.
-4. Every timing parameter present is valid — else `CONFIG_INVALID_OPTION`.
+3. Every interface option is a name of letters, digits and `_` — else `CONFIG_INVALID_OPTION`. UCI's other ways to address a section, such as `@interface[0]`, are refused: the value is looked up only as a name.
+4. Every interface option names a `network` section of type `interface` — else `INTERFACE_MISSING` naming the value.
+5. Every timing parameter present is valid — else `CONFIG_INVALID_OPTION`.
 
 On a spoke, the mesh peers are then loaded. A peer with a problem does not stop startup; it is reported as unmanaged. See [Substrate annotations](substrate.md).
 

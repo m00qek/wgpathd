@@ -9,6 +9,8 @@ ubus call wgpathd.config check '{"candidate": {"main": {"mode": "steer"}}}'
 
 rpcd serves the object through the plugin `/usr/share/rpcd/ucode/wgpathd.uc`, so it answers whether or not the daemon runs, is enabled or has a valid configuration. rpcd loads the plugin when it starts or reloads; the package reloads rpcd when it is installed, upgraded or removed. Who may call it is up to rpcd's ACLs: the package ships none.
 
+Grant it as you would grant reading the configuration. A caller learns from the replies what the router holds: whether a section exists in `/etc/config/network` and is a WireGuard peer, how many peers an interface has and which are annotated, and, through the relay route check, by which interface the router would reach any address the caller puts in a candidate's `wgpathd_relay`.
+
 ---
 
 ## What it checks
@@ -64,6 +66,7 @@ Values are merged over the saved configuration, option by option:
 - A number is taken as its decimal text: `45` is `'45'`, `0.5` is `'0.5'`.
 - Any option not given keeps its saved value, including every option of a section the candidate does not name.
 - `main` may be given when `/etc/config/wgpathd` has no `main` section; its options then make up the whole section.
+- A peer is named by its section name, of letters, digits and `_`; an anonymous section by the id UCI gave it, such as `cfg09cdcd`. UCI's other ways to address a section, such as `@wireguard_wg_mesh[0]`, are refused.
 - A peer section must already exist in `/etc/config/network` with a type of the form `wireguard_<interface>`. The candidate cannot add, remove or rename a peer, and it cannot change `public_key`.
 - The merged values are checked as if they were saved: which peers are read depends on the merged `mesh_iface`, so a candidate that changes `mesh_iface` checks the peers of the new interface.
 
@@ -115,7 +118,7 @@ Nothing is written, staged or committed: a later call without `candidate` checks
 | `level` | string | `ok`, `skip`, `warn` or `fail`. `service wgpathd check` prints `fail` as `FAIL`. |
 | `subject` | string | `config` for the configuration and the `enabled` option, `peer` for a peer. (`service wgpathd check` also uses the interface name and `ubus`, for the lines left out here.) |
 | `section` | string | Only for `peer`: the peer's section name in `/etc/config/network`. |
-| `option` | string | Present when the finding is about one option: the loader failures that name one (`role`, a missing option, an invalid timing parameter), `mode` for an unknown mode, `enabled`, and for a peer the annotation that is missing or malformed (`wgpathd_relay`, `wgpathd_tunnel`, `public_key`) or `wgpathd_relay` for a relay routed into the mesh. Left out otherwise, for example for `no interface <name> in /etc/config/network`. |
+| `option` | string | Present when the finding is about one option: the loader failures that name one (`role`, a missing option, an option with an invalid value), `mode` for an unknown mode, `enabled`, and for a peer the annotation that is missing or malformed (`wgpathd_relay`, `wgpathd_tunnel`, `public_key`) or `wgpathd_relay` for a relay routed into the mesh. Left out otherwise, for example for `no interface <name> in /etc/config/network`. |
 | `message` | string | The line `service wgpathd check` prints after the level, word for word. |
 
 `section` and `option` name UCI sections and options, so a client can attach a finding to the field it is about; `message` is for showing.
@@ -138,4 +141,4 @@ A `candidate` that does not follow the rules above is not checked. The reply is:
 | `main: unknown option '<name>'` | An option name with characters other than letters, digits and `_`. |
 | `peers.<section>: unknown option '<name>'` | A peer option other than `wgpathd_relay` and `wgpathd_tunnel`. |
 | `main.<name> must be a string or a number`, `peers.<section>.<name> must be a string or a number` | A value is a boolean, an array or an object. |
-| `no wireguard peer section '<section>' in /etc/config/network` | The section does not exist, or is not a WireGuard peer. |
+| `no wireguard peer section '<section>' in /etc/config/network` | The section does not exist, is not a WireGuard peer, or is not named by a plain section name. |

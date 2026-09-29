@@ -61,6 +61,7 @@ describe('check: config only', () => {
 			[ { ...SPOKE, discovery: null }, 'missing option discovery' ],
 			[ { ...SPOKE, cycle: 'fast' }, 'option cycle must be a positive number' ],
 			[ { ...SPOKE, hub_iface: 'wg_nope' }, 'no interface wg_nope in /etc/config/network' ],
+			[ { ...SPOKE, mesh_iface: '@interface[0]' }, 'option mesh_iface must be an interface name of letters, digits and _' ],
 		];
 		for (let c in cases) {
 			let res = run(c[0], null, { config_only: true });

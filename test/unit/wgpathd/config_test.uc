@@ -100,6 +100,48 @@ describe('config: spoke', () => {
 	});
 });
 
+// UCI's extended syntax: `@interface[0]` is the first section of type interface.
+describe('config: interface names', () => {
+	const NOT_NAMES = [ '@interface[0]', '@interface[-1]', 'wg_mesh.proto', '../network', 'wg mesh', 'wg-mesh', "wg'mesh", 'wg_mesh\n' ];
+
+	function load_recording(main) {
+		let looked_up = [];
+		let uci = {
+			get_all: () => main,
+			get: function(pkg, section) {
+				push(looked_up, section);
+				return 'interface';
+			},
+			foreach: () => null,
+		};
+		return { res: config.load({ uci: uci }), looked_up: looked_up };
+	}
+
+	it('refuses an interface option that is not a plain name, before it reaches uci', () => {
+		for (let opt in [ 'mesh_iface', 'hub_iface' ])
+			for (let value in NOT_NAMES) {
+				let l = load_recording({ ...SPOKE, [opt]: value });
+				assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION',
+					details: `${opt} must be an interface name of letters, digits and _` }), l.res, value);
+				assert.match([], l.looked_up, value);
+			}
+		for (let value in NOT_NAMES)
+			assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION',
+				details: 'read_iface must be an interface name of letters, digits and _' }),
+				load_recording({ ...HUB_ROLE, read_iface: value }).res, value);
+	});
+
+	it('takes the names UCI gives, those of anonymous sections included', () => {
+		for (let name in [ 'wg_mesh', 'WG0', 'cfg09cdcd', '0' ])
+			assert.match(contains({ ok: true }), load_recording({ ...SPOKE, mesh_iface: name }).res, name);
+	});
+
+	it('keeps steering the peers of anonymous sections, by their id', () => {
+		let res = load(SPOKE, { ...IFACES, cfg09cdcd: SPOKE_B_PEER });
+		assert.match([ 'cfg09cdcd' ], map(res.data.peers.managed, (p) => p.section));
+	});
+});
+
 describe('config: hub', () => {
 	it('loads the role file without peers or mode', () => {
 		assert.match({ role: 'hub', read_iface: 'wg_mesh', serve_addr: '10.10.0.1', serve_port: '7780',
@@ -132,7 +174,7 @@ describe('config: parameter overrides', () => {
 
 	it('rejects a value that is not a positive number, naming the option', () => {
 		for (let bad in [ '0', '0.0', '-1', 'abc', '', '1e3', ' 3', '3s', [ '3' ] ])
-			assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION', details: 'n_up' }),
+			assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION', details: 'n_up must be a positive number' }),
 				load({ ...SPOKE, n_up: bad }), bad);
 	});
 });

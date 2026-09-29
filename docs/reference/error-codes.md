@@ -14,7 +14,7 @@ These stop startup, fail the config check that `service wgpathd start` and `relo
 | :--- | :--- | :--- |
 | `CONFIG_INVALID_ROLE` | the configured role, or `unset` | `role` is not `spoke` or `hub`. |
 | `CONFIG_MISSING_OPTION` | option name | A required option for the role is missing or empty. |
-| `CONFIG_INVALID_OPTION` | parameter name | A timing parameter is not a positive decimal number. |
+| `CONFIG_INVALID_OPTION` | the option's name, then what it must be: `<name> must be …` | An option has a value it cannot take: an interface option that is not a name of letters, digits and `_`, or a timing parameter that is not a positive decimal number. |
 | `INTERFACE_MISSING` | interface name | From configuration: an interface option names no `network` section of type `interface`. At startup: the interface is not in the `wireguard status` reply; the detail is `<iface>: <cause>`. |
 
 ## Check
