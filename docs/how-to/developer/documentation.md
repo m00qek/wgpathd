@@ -20,7 +20,9 @@ make -C docs build
 
 `make docs` from the repository root does the same. The site goes to `bin/site/`, and `make -C docs clean` removes it.
 
-The build runs `mkdocs build --strict`, so a broken link or any other warning fails it. CI runs the same strict build on pushes and pull requests to `main` that touch the docs.
+The build runs `mkdocs build --strict`, so a broken link or any other warning fails it. CI runs the same strict build on pushes and pull requests to `main` that touch the docs, and a second one with the versioned config, `mkdocs.mike.yml` (`make -C docs build-mike` locally).
+
+Merging to `main` publishes nothing: the docs go online with the next release. See [How to publish the documentation](publish-docs.md), also for fixing the docs of the released version.
 
 ## Where a page goes
 
@@ -33,7 +35,7 @@ Pick the folder by what the reader is doing, following [Diátaxis](https://diata
 | `reference/` | looking up a fact | Every status field |
 | `explanation/` | trying to understand why | The state machine |
 
-Keep one type per page and link to the others instead of mixing them. Add every new page to `nav` in `mkdocs.yml` and to the `index.md` of its folder.
+Keep one type per page and link to the others instead of mixing them. Add every new page to `nav` in `mkdocs.yml` and to the `index.md` of its folder. Link between pages with relative paths, never with the site's URL, so each published version links to itself.
 
 the design record and the build history are project records. Link to them for deep rationale; do not edit them to match the user docs.
 
@@ -52,6 +54,7 @@ Reference pages describe the code as it is. When you change an option, parameter
 | `files/etc/init.d/wgpathd`, `check.uc`, `status_view.uc`, daemon reload | [Service commands](../../reference/service-commands.md) |
 | `files/`, `openwrt/wgpathd/Makefile` | [Files and dependencies](../../reference/files.md), [Firewall rules](../../reference/firewall.md) |
 | root `Makefile` | [Make targets](../../reference/make-targets.md) |
+| `docs/Makefile`, `devenv/scripts/docs-*.sh`, `.github/workflows/docs.yml` | [Make targets](../../reference/make-targets.md), [Publishing the documentation](publish-docs.md) |
 
 ## Diagrams and examples
 

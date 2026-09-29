@@ -23,3 +23,4 @@ Roughly in the order you will need them:
 - [Running Tests](developer/testing.md) - How to run all tests, one suite, one file or a filtered subset.
 - [Building the Package](developer/packaging.md) - How to build and check the `.apk`.
 - [Writing Documentation](developer/documentation.md) - How to preview, build and place documentation pages.
+- [Publishing the Documentation](developer/publish-docs.md) - How versioned docs get published, and how to release, fix and link them.

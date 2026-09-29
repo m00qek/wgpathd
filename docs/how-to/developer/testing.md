@@ -56,7 +56,15 @@ This runs all tests, then again each time a file under `src/`, `test/` or `files
 make lint
 ```
 
-This compiles every ucode file, including the scripts in `files/usr/libexec/wgpathd/`, and runs `sh -n` on the init script and the devenv scripts. CI runs `make lint` and `make test` on every push.
+This compiles every ucode file, including the scripts in `files/usr/libexec/wgpathd/`, runs `sh -n` on the init script and the devenv scripts, and checks pinned documentation links (see [Link to the documentation](publish-docs.md#link-to-the-documentation)). CI runs `make lint` and `make test` on every push.
+
+## Test the docs tooling
+
+```bash
+make docs-test
+```
+
+This runs `test/docs/` in the docs tools image, without network: the version, guard, publish and link-check scripts in `devenv/scripts/docs-*.sh`, with `docs-publish.sh` deploying three releases through mike to a throwaway local repository, and the redirect in `devenv/gh-pages/404.html` under Node. The first run builds the `wgpathd-docs` image. CI runs it on pull requests and pushes to `main` that touch the docs or their tooling.
 
 ## Test against another OpenWrt release
 
