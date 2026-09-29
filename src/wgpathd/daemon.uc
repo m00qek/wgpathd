@@ -606,8 +606,12 @@ export function create(deps, cfg, params) {
 	return (cfg.role == 'hub') ? create_hub(deps, cfg) : create_spoke(deps, cfg, params);
 };
 
+// uhttpd adds the caller's ubus_rpc_session to every call it forwards, as for LuCI,
+// and the ucode ubus binding refuses a call with an argument its policy does not name.
+export const STATUS_ARGS = { ubus_rpc_session: '' };
+
 function serve(deps, cfg, daemon) {
-	let res = deps.ubus.publish('wgpathd', { status: { args: {}, call: () => daemon.status() } });
+	let res = deps.ubus.publish('wgpathd', { status: { args: STATUS_ARGS, call: () => daemon.status() } });
 	if (!res.ok || cfg.role != 'hub')
 		return res;
 	return publisher.listen(deps, cfg.serve_addr, +cfg.serve_port, () => daemon.status().peers);

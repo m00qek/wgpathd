@@ -1,6 +1,6 @@
 # ubus Status
 
-While it runs, wgpathd registers the ubus object `wgpathd` with one method, `status`. It takes no arguments and changes nothing.
+While it runs, wgpathd registers the ubus object `wgpathd` with one method, `status`. It takes no arguments and changes nothing; it accepts and ignores the `ubus_rpc_session` argument that uhttpd adds to calls from LuCI.
 
 ```bash
 ubus call wgpathd status

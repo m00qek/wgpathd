@@ -1097,6 +1097,12 @@ describe('daemon: run', () => {
 		assert.match([ 0, 500, 500 ], map(r.loop.timers, (t) => t.ms));
 	});
 
+	it('accepts the ubus_rpc_session argument uhttpd adds to calls from LuCI', () => {
+		let w = h.world(kernel_of(SPOKE_B));
+		run(w, MAIN);
+		assert.match({ ubus_rpc_session: '' }, w.ubus.published.wgpathd.status.args);
+	});
+
 	it('logs the start with the role, mode and peer counts, and the stop', () => {
 		let w = h.world(kernel_of(SPOKE_B));
 		run(w, MAIN, { ...network(SPOKE_B_PEER), hub: { '.type': 'wireguard_wg_mesh', public_key: HUB } });
