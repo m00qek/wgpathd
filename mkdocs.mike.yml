@@ -1,0 +1,17 @@
+# Versioned publishing with mike (see docs/how-to/developer/publish-docs.md).
+# mkdocs.yml stays mike-free, so plain mkdocs build and serve keep working.
+INHERIT: mkdocs.yml
+
+theme:
+  custom_dir: docs/overrides
+
+plugins:
+  - search
+  - mike:
+      canonical_version: latest
+      # Real pages under latest/ rather than symlinks or redirect stubs.
+      alias_type: copy
+
+extra:
+  version:
+    provider: mike

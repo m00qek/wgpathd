@@ -5,6 +5,7 @@ site_dir: bin/site
 exclude_docs: |
   README.md
   Makefile
+  overrides/
 
 theme:
   name: material
