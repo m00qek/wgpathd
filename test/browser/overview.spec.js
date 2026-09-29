@@ -15,7 +15,7 @@ test.describe('Status → Overview, Mesh paths section', () => {
       /^home\s*.*Direct for 2 h 14 min$/,
       /^lab\s*.*Testing direct test ends in 5 s$/,
     ]);
-    expect(await h.strip(mesh.locator('tr', { hasText: 'beach' }))).toEqual([ 'office', 'dashed', 'hub', 'dashed', 'beach' ]);
+    expect(await h.strip(page, 'beach')).toEqual([ 'office', 'dashed', 'hub', 'dashed', 'beach' ]);
     await expect(mesh.getByRole('link', { name: 'Details' })).toHaveAttribute('href', '/cgi-bin/luci/admin/status/wgpathd');
     expect(await h.text(mesh)).not.toMatch(h.INTERNAL_NAMES);
     await h.screenshot(mesh, 'overview');

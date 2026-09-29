@@ -23,17 +23,17 @@ test.describe('Status → Mesh paths, spoke in steer mode', () => {
     const home = h.peerRow(page, 'home');
     await expect(home.locator('td')).toHaveText(
       [ 'home', /^Direct/, '[2001:db8:40::20]:51820', '2 h 14 min', '1', 'Show details' ]);
-    expect(await h.strip(home)).toEqual([ 'office', 'solid', 'home' ]);
+    expect(await h.strip(page, 'home')).toEqual([ 'office', 'solid', 'home' ]);
 
     const beach = h.peerRow(page, 'beach');
     await expect(beach.locator('td')).toHaveText(
       [ 'beach', /^Via hub/, '10.10.0.13:51820', '4 min', '6', 'Show details' ]);
-    expect(await h.strip(beach)).toEqual([ 'office', 'dashed', 'hub', 'dashed', 'beach' ]);
+    expect(await h.strip(page, 'beach')).toEqual([ 'office', 'dashed', 'hub', 'dashed', 'beach' ]);
 
     const lab = h.peerRow(page, 'lab');
     await expect(lab.locator('td')).toHaveText(
       [ 'lab', /^Testing direct/, '[2001:db8:77::1]:51820', '3 s', '2', 'Show details' ]);
-    expect(await h.strip(lab)).toEqual([ 'office', 'dotted', 'lab' ]);
+    expect(await h.strip(page, 'lab')).toEqual([ 'office', 'dotted', 'lab' ]);
   });
 
   test('labels the states with the theme\'s label classes', async ({ page }) => {

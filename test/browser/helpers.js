@@ -80,10 +80,16 @@ function detailsRow(page, name) {
   return peerRow(page, name).locator('xpath=following-sibling::tr[1]');
 }
 
-// The strip's pieces: nodes' texts and segments' border styles, in order.
-async function strip(row) {
-  return row.locator('.wgpathd-path > span').evaluateAll((spans) => spans.map((s) =>
-    s.textContent !== '' ? s.textContent : getComputedStyle(s).borderTopStyle));
+// The pieces of the strip that ends at `peer`: nodes' texts and segments' border
+// styles, in order. It is found and read in one evaluation under #view, which the page
+// keeps while its poll replaces everything inside: a strip found in one step and read
+// in the next may be detached by then, and a detached node has no computed style.
+async function strip(page, peer) {
+  return page.locator('#view').evaluate((view, peer) => {
+    const path = Array.from(view.querySelectorAll('.wgpathd-path')).find((p) => p.lastElementChild?.textContent === peer);
+    return path ? Array.from(path.children).map((s) =>
+      s.textContent !== '' ? s.textContent : getComputedStyle(s).borderTopStyle) : null;
+  }, peer);
 }
 
 // Opens every details row; each button's text changes as it is clicked.
