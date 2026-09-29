@@ -51,9 +51,12 @@ export function ubus_channel(conn) {
 	};
 };
 
+// `local` is true for an address of the router itself.
 export function route_get(host) {
 	let route = rtnl.request(rtnl.const.RTM_GETROUTE, 0, { dst: host });
-	return route ? Result.ok(route) : Result.err(errors.ROUTE_LOOKUP_FAILED, `${host}: ${rtnl.error()}`);
+	if (!route)
+		return Result.err(errors.ROUTE_LOOKUP_FAILED, `${host}: ${rtnl.error()}`);
+	return Result.ok({ ...route, local: route.type == rtnl.const.RTN_LOCAL });
 };
 
 export function link_mtu(dev) {

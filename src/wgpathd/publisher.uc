@@ -5,6 +5,7 @@
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
 import * as endpoint from 'wgpathd.endpoint';
+import * as address from 'wgpathd.address';
 
 export const MAX_CONNECTIONS = 16;
 export const MAX_PER_SOURCE  = 2;
@@ -19,10 +20,11 @@ function entry(peer, wall) {
 	return { direct: peer.endpoint, handshake_age: max(0, wall - peer.last_hs_ts) };
 }
 
+// Only an endpoint a spoke could take as a direct path: an IPv6 address in no special range.
 export function snapshot(peers, wall) {
 	let out = {};
 	for (let key, peer in peers)
-		if (endpoint.is_v6(peer.endpoint))
+		if (address.can_be_direct(endpoint.host(peer.endpoint)))
 			out[key] = entry(peer, wall);
 	return out;
 };

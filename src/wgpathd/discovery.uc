@@ -5,6 +5,7 @@
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
 import * as endpoint from 'wgpathd.endpoint';
+import * as address from 'wgpathd.address';
 import { is_pubkey } from 'wgpathd.wg';
 
 export const MAX_BYTES = 65536;
@@ -56,7 +57,9 @@ function parse_entry(value) {
 	return (type(age) == 'int' && age >= 0) ? { direct: direct, handshake_age: age } : null;
 }
 
-// One bad entry rejects the whole payload, so a buggy or lying hub is DoS-only.
+// One malformed entry rejects the whole payload, so a buggy or lying hub is DoS-only.
+// A well-formed entry whose address can be no direct path, such as loopback or
+// link-local, is left out alone: it is one peer's address, not a broken payload.
 export function parse(stdout) {
 	let payload = decode(stdout);
 	if (type(payload) != 'object')
@@ -71,7 +74,8 @@ export function parse(stdout) {
 		let entry = parse_entry(value);
 		if (entry == null)
 			return Result.err(errors.DISCOVERY_INVALID_PEERS, key);
-		peers[key] = entry;
+		if (address.can_be_direct(endpoint.host(entry.direct)))
+			peers[key] = entry;
 	}
 	return Result.ok(peers);
 };

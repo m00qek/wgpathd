@@ -27,6 +27,14 @@ describe('publisher: snapshot', () => {
 		assert.match(SNAPSHOT, publisher.snapshot(peers, WALL));
 	});
 
+	it('publishes no endpoint a spoke could not take as a direct path', () => {
+		let peers = {};
+		for (let a in [ '::1', 'fe80::1', '::ffff:1.2.3.4', '64:ff9b::102:304', 'ff02::1' ])
+			peers[sprintf('%043d=', length(peers))] = { endpoint: `[${a}]:51820`, last_hs_ts: null };
+		peers[PEER_C] = { endpoint: '[fd00:20::13]:51820', last_hs_ts: null };
+		assert.match({ [PEER_C]: { direct: '[fd00:20::13]:51820' } }, publisher.snapshot(peers, WALL));
+	});
+
 	it('omits the age of a peer that never completed a handshake', () => {
 		let peers = { [PEER_C]: { endpoint: '[2001:db8::1]:51820', last_hs_ts: null } };
 		assert.match({ [PEER_C]: { direct: '[2001:db8::1]:51820' } }, publisher.snapshot(peers, WALL));

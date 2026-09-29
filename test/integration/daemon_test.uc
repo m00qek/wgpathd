@@ -372,6 +372,91 @@ describe('daemon: spoke cycle, gathering obs', () => {
 	});
 });
 
+// A candidate the hub published that this router must not take (finding F6 of the
+// 2026-09-29 audit): probing or trialing it would loop into the tunnels or stay on the router.
+describe('daemon: refused candidates', () => {
+	const OWN = '2001:db8::1';
+
+	function refused_world(direct) {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: direct }) });
+		w.payload = payload({ [SPOKE_B]: direct });
+		w.local[OWN] = true;
+		w.routes['fd00:20::12'] = 'wg_mesh';
+		w.routes['fd00:30::12'] = 'wg_hub';
+		for (let host in [ OWN, 'fd00:20::12', 'fd00:30::12', 'fd00:2::12', '2001:db8:ffff::12' ])
+			w.reachable[host] = true;
+		w.reachable[SPOKE_B_TUNNEL] = true;
+		w.reachable['fd00:2::12'] = true;
+		return w;
+	}
+
+	let cases = [
+		[ `[${OWN}]:51820`, SPOKE_B_PEER, 'own address' ],
+		[ '[fd00:20::12]:51820', SPOKE_B_PEER, 'routes into wg_mesh' ],
+		[ '[fd00:30::12]:51820', SPOKE_B_PEER, 'routes into wg_hub' ],
+		[ '[fd00:2::12]:51820', { ...SPOKE_B_PEER, tunnel: 'fd00:2::12' }, 'tunnel address' ],
+		[ '[2001:db8:ffff::12]:1', { ...SPOKE_B_PEER, relay: '[2001:db8:ffff::12]:51820' }, 'relay address' ],
+	];
+
+	it('never probes, trials or sets one, and says why in the status', () => {
+		for (let c in cases) {
+			let w = refused_world(c[0]);
+			let d = start(w, spoke_cfg({ overrides: { n_up: 1 }, peers: { managed: [ c[1] ], unmanaged: [] } }));
+			cycles(w, d, 6);
+			let host = substr(split(c[0], ']')[0], 1);
+			assert.match([], filter(w.icmp.hosts(), (x) => x == host), c[2]);
+			assert.match([ 'RELAY', c[1].relay ], [ d.status().peers[SPOKE_B].state, w.kernel[SPOKE_B].endpoint ], c[2]);
+			assert.match({ candidate: c[0], candidate_refused: c[2] }, {
+				candidate: d.status().peers[SPOKE_B].candidate, candidate_refused: d.status().peers[SPOKE_B].candidate_refused }, c[2]);
+		}
+	});
+
+	it('logs a refusal once while it lasts, and its end', () => {
+		let w = refused_world('[fd00:20::12]:51820');
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1 } }));
+		cycles(w, d, 4);
+		delete w.routes['fd00:20::12'];
+		cycles(w, d, 2);
+		assert.match([
+			[ 'warning', `${B}: candidate refused endpoint=[fd00:20::12]:51820 reason=routes into wg_mesh` ],
+			[ 'notice', `${B}: candidate no longer refused` ],
+		], w.logs.matching(/candidate/));
+		assert.match([ 'DIRECT', null ], [ d.status().peers[SPOKE_B].state, d.status().peers[SPOKE_B].candidate_refused ]);
+	});
+
+	it('logs a new refusal when the reason changes', () => {
+		let w = refused_world('[fd00:20::12]:51820');
+		let d = start(w);
+		cycle(w, d);
+		w.routes['fd00:20::12'] = 'wg_hub';
+		cycles(w, d, 2);
+		assert.match([ 'reason=routes into wg_mesh', 'reason=routes into wg_hub' ],
+			map(w.logs.matching(/candidate refused/), (e) => match(e[1], /reason=.*$/)[0]));
+	});
+
+	it('leaves an authenticated roam to a refused address to decide', () => {
+		let w = refused_world('[fd00:20::12]:51820');
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1 } }));
+		cycle(w, d);
+		w.kernel[SPOKE_B].endpoint = SPOKE_B_ROAMED;
+		w.reachable['2001:db8::99'] = true;
+		cycles(w, d, 3);
+		assert.match('DIRECT', d.status().peers[SPOKE_B].state);
+		assert.match(SPOKE_B_ROAMED, w.kernel[SPOKE_B].endpoint);
+	});
+
+	it('takes a peer\'s candidate beside another peer\'s refused one', () => {
+		let w = refused_world('[fd00:20::12]:51820');
+		w.kernel[SPOKE_A] = { endpoint: null, hs: 0 };
+		w.payload = payload({ [SPOKE_B]: '[fd00:20::12]:51820', [SPOKE_A]: SPOKE_A_DIRECT });
+		w.reachable['2001:db8::11'] = true;
+		w.reachable[SPOKE_A_TUNNEL] = true;
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1 }, peers: { managed: [ SPOKE_B_PEER, SPOKE_A_PEER ], unmanaged: [] } }));
+		cycles(w, d, 5);
+		assert.match([ 'RELAY', 'DIRECT' ], [ d.status().peers[SPOKE_B].state, d.status().peers[SPOKE_A].state ]);
+	});
+});
+
 describe('daemon: spoke cycle, applying effects', () => {
 	it('reads the kernel once the underlay probes are in, so a roam during them is seen', () => {
 		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
@@ -852,7 +937,7 @@ describe('daemon: status', () => {
 		assert.match({
 			role: 'spoke', mode: 'steer', now: 1790456500, mesh_iface: 'wg_mesh', hub_iface: 'wg_hub', params: TIMING,
 			discovery: { fresh: false, last_ok: null, url: URL },
-			peers: { [SPOKE_B]: { state: 'RELAY', section: 'spoke_b', endpoint: null, target: null, candidate: null,
+			peers: { [SPOKE_B]: { state: 'RELAY', section: 'spoke_b', endpoint: null, target: null, candidate: null, candidate_refused: null,
 				last_target: null, since: 1790456500, trial_deadline: null, next_trial: null, up_streak: 0, down_streak: 0,
 				backoff: 0, ready: false, switches: 0, relayed_answers: 0, last_change: null } },
 			unmanaged: [ HUB_UNMANAGED ],
@@ -865,7 +950,7 @@ describe('daemon: status', () => {
 		w.reachable['2001:db8::12'] = true;
 		let d = start(w);
 		cycles(w, d, 2);
-		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, candidate: SPOKE_B_DIRECT,
+		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, candidate: SPOKE_B_DIRECT, candidate_refused: null,
 			last_target: null, since: 1790456500, trial_deadline: null, next_trial: null, up_streak: 2, down_streak: 0,
 			backoff: 0, ready: false, switches: 0, relayed_answers: 0, last_change: null }, d.status().peers[SPOKE_B]);
 	});
@@ -1004,7 +1089,7 @@ describe('daemon: scenario through the real decide', () => {
 		assert.match(contains({ state: 'DIRECT', down_streak: 1 }), peer());
 		let demoted_at = w.clock.wall();
 		cycle(w, d);
-		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, candidate: SPOKE_B_DIRECT,
+		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, candidate: SPOKE_B_DIRECT, candidate_refused: null,
 			last_target: SPOKE_B_ROAMED, since: demoted_at, trial_deadline: null, next_trial: demoted_at + 30,
 			up_streak: 0, down_streak: 0, backoff: 30, ready: false, switches: 3, relayed_answers: 0,
 			last_change: { ts: demoted_at, from: 'DIRECT', to: 'RELAY', reason: 'demoted' } }, peer());

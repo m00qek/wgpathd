@@ -12,6 +12,7 @@ import * as parameters from 'wgpathd.params';
 import * as publisher from 'wgpathd.publisher';
 import * as state from 'wgpathd.state';
 import * as relay from 'wgpathd.relay';
+import * as direct from 'wgpathd.direct';
 import { decide, trial_target } from 'wgpathd.decide';
 
 export const CACHE_PATH = '/var/run/wgpathd/cache.json';
@@ -105,6 +106,8 @@ function peer_record(peer, now) {
 		relayed_answers: 0,
 		ready_logged: false,
 		quiet: 0,
+		candidate: null,
+		candidate_refused: null,
 		metric: { state: ctl.state, up_streak: ctl.up_streak, down_streak: ctl.down_streak,
 			backoff: ctl.backoff, ready: false },
 	};
@@ -128,7 +131,7 @@ function peer_status(rec, candidate, params, clock) {
 	let ctl = rec.ctl;
 	let change = (ctl.last_change != null) ? { ...ctl.last_change, ts: wall(ctl.last_change.ts) } : null;
 	return { ...rec.metric, section: rec.peer.section, endpoint: ctl.asserted, target: ctl.target,
-		candidate: candidate, last_target: rec.last_target,
+		candidate: candidate, candidate_refused: rec.candidate_refused, last_target: rec.last_target,
 		since: wall(ctl.last_change?.ts ?? rec.managed_at),
 		trial_deadline: wall(ctl.trial_deadline),
 		next_trial: wall(next_trial(ctl, params, clock.now())),
@@ -161,7 +164,8 @@ function create_spoke(deps, cfg, params) {
 	let probe_outcome = null;
 
 	let log_peer = (level, peer, msg) => deps.log(level, `${peer_name(peer)}: ${msg}`);
-	let candidate = (rec) => disc.peers[rec.peer.pubkey]?.direct;
+	let published = (rec) => disc.peers[rec.peer.pubkey]?.direct;
+	let candidate = (rec) => rec.candidate;
 
 	// Every reason is a configuration error, except a relay route lookup that may yet succeed.
 	let log_unmanaged = (u, level) => log_peer(level ?? 'warning', u, `unmanaged reason=${u.reason}`);
@@ -297,6 +301,21 @@ function create_spoke(deps, cfg, params) {
 				probe_outcome = res;
 			on_result(p, res.ok && res.data === true, finish);
 		});
+	};
+
+	// A candidate is taken for the whole cycle, so its underlay probe and decide see the
+	// same one; a refusal is logged when it starts or changes, and when it ends.
+	let vet_candidates = function() {
+		for (let rec in records) {
+			let cand = published(rec);
+			let why = (cand != null) ? direct.refusal(deps.route_get, cfg, rec.peer, cand) : null;
+			if (why != null && why != rec.candidate_refused)
+				log_peer('warning', rec.peer, `candidate refused endpoint=${cand} reason=${why}`);
+			else if (why == null && rec.candidate_refused != null)
+				log_peer('notice', rec.peer, 'candidate no longer refused');
+			rec.candidate_refused = why;
+			rec.candidate = (why == null) ? cand : null;
+		}
 	};
 
 	// decide counts the underlay echo as evidence only in RELAY.
@@ -535,6 +554,7 @@ function create_spoke(deps, cfg, params) {
 
 		cycle: function(done) {
 			recheck_relays();
+			vet_candidates();
 			probe_outcome = null;
 			gather((read, underlay) => {
 				report_read(read);
@@ -566,7 +586,7 @@ function create_spoke(deps, cfg, params) {
 		status: function() {
 			let peers = {};
 			for (let rec in records)
-				peers[rec.peer.pubkey] = peer_status(rec, candidate(rec), params, deps.clock);
+				peers[rec.peer.pubkey] = peer_status(rec, published(rec), params, deps.clock);
 			return { role: 'spoke', mode: cfg.mode, now: int(deps.clock.wall()),
 				mesh_iface: cfg.mesh_iface, hub_iface: cfg.hub_iface, params: parameters.timing(params),
 				discovery: { fresh: disc.fresh, last_ok: disc.last_ok, url: discovery.redact(cfg.discovery) },

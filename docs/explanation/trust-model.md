@@ -12,6 +12,7 @@ The hub is usually a rented VPS, the most exposed machine in the setup. wgpathd 
 - **It cannot redirect traffic.** The hub publishes only candidate endpoints. A spoke uses a candidate only after its own tunnel probe gets an answer from the peer, and that answer has to come through a WireGuard session keyed with the peer's static key. An endpoint that leads anywhere else fails the trial, and the peer returns to the relay with a growing backoff.
 - **It cannot move the floor.** The relay endpoint of each peer comes from the spoke's own configuration (`wgpathd_relay`), never from discovery. A spoke with no discovery at all, even at a cold boot with the hub down, can always set every peer to relay.
 - **It cannot confuse the parser.** A discovery payload that breaks any limit is rejected as a whole. See [discovery](discovery.md).
+- **It cannot aim the probes inside the router or the tunnels.** A published address that is loopback, link-local, multicast or otherwise no place for a direct path is ignored, and so is one that belongs to the spoke itself, is the peer's relay or tunnel address, or routes into `wg_mesh` or `wg_hub`.
 
 What a hostile hub can do is stop relaying, stop publishing, or publish wrong addresses. Direct paths that already work keep working without it. Pairs that need the relay lose connectivity until the hub is back, which is true of any hub-and-spoke network.
 

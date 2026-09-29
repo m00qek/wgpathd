@@ -50,6 +50,7 @@ The reply depends on the role. Fields that have no value yet are `null`.
 			"endpoint": "[2001:db8:b::20]:51820",
 			"target": "[2001:db8:b::20]:51820",
 			"candidate": "[2001:db8:b::20]:51820",
+			"candidate_refused": null,
 			"last_target": "[2001:db8:b::20]:51820",
 			"since": 1790456400,
 			"trial_deadline": null,
@@ -73,6 +74,7 @@ The reply depends on the role. Fields that have no value yet are `null`.
 			"endpoint": "10.10.0.13:51820",
 			"target": null,
 			"candidate": "[2001:db8:c::30]:51820",
+			"candidate_refused": null,
 			"last_target": "[2001:db8:c::30]:51820",
 			"since": 1790456470,
 			"trial_deadline": null,
@@ -167,7 +169,8 @@ Apart from `discovery.last_ok`, these times are kept on the monotonic clock and 
 | `ready` | boolean | `true` when `up_streak` has reached `n_up`, or in RELAY on a cycle that saw an authenticated roam. In observe mode this means steer mode would start a trial. In steer mode it can stay `true` while a backoff is still running. |
 | `endpoint` | string or null | The endpoint wgpathd asserted on the last decided cycle: the relay endpoint in RELAY, the target otherwise. `null` before the first cycle. It is what wgpathd asked for, even if that `wg set` failed, and can differ from the kernel's current endpoint after a roam. |
 | `target` | string or null | The direct endpoint being trialed or held. `null` in RELAY. |
-| `candidate` | string or null | The peer's direct endpoint in the discovery map: from the last successful fetch, or from the cache until one succeeds. `null` if the map has none. A trial takes this endpoint, unless the peer roamed to another direct address first. |
+| `candidate` | string or null | The peer's direct endpoint in the discovery map: from the last successful fetch, or from the cache until one succeeds. `null` if the map has none. A trial takes this endpoint, unless the peer roamed to another direct address first, or it is refused. |
+| `candidate_refused` | string or null | Why `candidate` is not taken for this peer, as of the last cycle: `own address`, `relay address`, `tunnel address` or `routes into <iface>`; see [Discovery HTTP API](discovery-api.md#spoke-side-validation). `null` when it is taken, when there is none, and before the first cycle. |
 | `last_target` | string or null | The direct endpoint most recently trialed or held, kept after the peer falls back to RELAY: in RELAY after a `trial_timeout` or `demoted`, the address that failed. It follows roams while DIRECT. `null` until the first trial since the peer started being managed. |
 | `since` | integer | Unix time when the current state began: the last transition, or, before any, when the peer started being managed. |
 | `trial_deadline` | integer or null | In TRIALING, the Unix time at which the trial times out unless an answer proves it first. `null` in the other states. |

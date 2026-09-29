@@ -41,7 +41,9 @@ Because of that, discovery is allowed to be stale or missing:
 
 ## Strict about what it accepts
 
-The spoke treats the payload as untrusted input. One bad entry rejects the whole payload, which then counts as a failed fetch. The limits are listed in the [discovery HTTP API reference](../reference/discovery-api.md). Rejecting everything rather than filtering keeps a buggy or hostile hub to one effect: spokes stop learning new addresses. See the [trust model](trust-model.md) for why that is the worst it can do.
+The spoke treats the payload as untrusted input. One malformed entry rejects the whole payload, which then counts as a failed fetch. The limits are listed in the [discovery HTTP API reference](../reference/discovery-api.md). Rejecting everything rather than filtering keeps a buggy or hostile hub to one effect: spokes stop learning new addresses. See the [trust model](trust-model.md) for why that is the worst it can do.
+
+A well-formed entry is a different matter when its address simply cannot be a direct path: loopback, link-local, multicast, an IPv4 address in IPv6 clothing, and the like. That is one peer's address, not a broken payload, so the spoke leaves out that entry alone and keeps the rest; the hub does not publish such an address in the first place. Unique local addresses are kept, since a private mesh over ULA is as direct as one over the internet. Then, every cycle, the spoke refuses a candidate that is right for the internet but wrong for this router: one of its own addresses, the peer's relay or tunnel address, or an address routed into `wg_mesh` or `wg_hub`, where a WireGuard endpoint would loop into a tunnel. Either way the peer just has no candidate and stays on the relay, and a probe never leaves toward such an address.
 
 Entries for keys the spoke does not manage are ignored. The hub publishes every peer it sees, including the spoke itself; each spoke looks up only the `wg_mesh` public keys of its own annotated peers.
 

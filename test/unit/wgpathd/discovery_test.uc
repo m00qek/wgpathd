@@ -7,7 +7,8 @@ const KEY_B = 'ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc=';
 const CACHE = '/var/run/wgpathd/cache.json';
 
 const KEY  = gen.map(gen.string({ len: 43, charset: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/' }), (s) => s + '=');
-const V6   = gen.map(gen.array(gen.int(0, 255), { len: 16 }), arrtoip);
+// Global unicast (2000::/3), the only kind the ranges a direct path excludes never touch.
+const V6   = gen.map(gen.array(gen.int(0, 255), { len: 16 }), (b) => arrtoip([ 0x20 | (b[0] & 0x1f), ...slice(b, 1) ]));
 const PEER = gen.tuple(KEY, V6, gen.int(1, 65535), gen.optional(gen.int(0, 100000)));
 
 const BAD_VALUES = [
@@ -79,6 +80,42 @@ describe('discovery: parse accepts', () => {
 	prop('any valid generated payload, canonicalized', gen.array(PEER, { max_len: 10 }), (peers) => {
 		let payload = payload_of(peers);
 		assert.match(payload, parse_json(payload).data);
+	});
+});
+
+// The audit's addresses, one per range a direct path cannot be in.
+const NOT_DIRECT = [ '::1', '::', 'ff02::1', 'fe80::1', '::ffff:1.2.3.4', '::1.2.3.4', '64:ff9b::102:304', '100::1' ];
+
+describe('discovery: parse leaves out an address that can be no direct path', () => {
+	it('for each such range, and keeps the other entries', () => {
+		for (let a in NOT_DIRECT) {
+			let res = parse_json({ [KEY_A]: { direct: `[${a}]:51820` }, [KEY_B]: { direct: '[fd00:20::12]:51820' } });
+			assert.match({ [KEY_B]: { direct: '[fd00:20::12]:51820' } }, res.data, a);
+		}
+	});
+
+	it('keeps global and unique local addresses', () => {
+		for (let a in [ '2001:db8::1', '3000::1', 'fd00:20::12', 'fc00::1' ])
+			assert.match(true, exists(parse_json({ [KEY_A]: { direct: `[${a}]:1` } }).data, KEY_A), a);
+	});
+
+	it('still rejects the whole payload for a malformed entry beside it', () => {
+		assert.match(contains({ ok: false, details: KEY_B }),
+			parse_json({ [KEY_A]: { direct: '[::1]:51820' }, [KEY_B]: { direct: '[2001:db8::1]:51820', handshake_age: -1 } }));
+	});
+
+	it('leaves such an entry out of a cache on load', () => {
+		let fs = h.fs({ [CACHE]: sprintf('%J', { [KEY_A]: { direct: '[fe80::1]:51820' }, [KEY_B]: { direct: '[2001:db8::b]:1' } }) });
+		assert.match({ [KEY_B]: { direct: '[2001:db8::b]:1' } }, discovery.load_cache(fs, CACHE));
+	});
+
+	prop('keeps every good entry of a payload with one such entry', gen.tuple(gen.array(PEER, { max_len: 10 }),
+		gen.int(0, length(NOT_DIRECT) - 1)), (p) => {
+		let payload = payload_of(p[0]);
+		let good = parse_json(payload).data;
+		payload[KEY_A] = { direct: `[${NOT_DIRECT[p[1]]}]:51820` };
+		delete good[KEY_A];
+		assert.match(good, parse_json(payload).data);
 	});
 });
 

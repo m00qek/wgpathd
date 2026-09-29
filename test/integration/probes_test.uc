@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as uloop from 'uloop';
 import * as socket from 'socket';
 import * as prober from 'wgpathd.components.icmp';
-import { link_mtu, random_source } from 'wgpathd.deps';
+import { link_mtu, random_source, route_get } from 'wgpathd.deps';
 
 // Sends probes over the real loopback, whose kernel answers every echo, and
 // collects the answers; the loop ends when all are in, or after max_ms.
@@ -77,6 +77,17 @@ describe('deps: random_source', () => {
 		let draws = [ random(8), random(8), random(4) ];
 		assert.match([ 8, 8, 4 ], map(draws, length));
 		assert.match(false, draws[0] == draws[1]);
+	});
+});
+
+describe('deps: route_get', () => {
+	it('marks an address of the router itself as local', () => {
+		assert.match([ contains({ oif: 'lo', local: true }), contains({ oif: 'lo', local: true }) ],
+			[ route_get('127.0.0.1').data, route_get('::1').data ]);
+	});
+
+	it('fails for an address with no route', () => {
+		assert.match(contains({ ok: false, error: 'ROUTE_LOOKUP_FAILED' }), route_get('2001:db8::1'));
 	});
 });
 

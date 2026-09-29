@@ -234,13 +234,15 @@ export function status_reply(iface, kernel) {
 
 // A fake kernel and network. `kernel` maps pubkey -> { endpoint, hs } and is what
 // `wireguard status` reports and the batched `wg set` writes (all of it, or with
-// `set_code` != 0 none of it); routes default to dev wg_hub, and hosts in
-// `unrouted` fail the lookup; the mesh interface has MTU `mtu` (null: the lookup
-// fails). A probe is answered when its host is in `reachable` and it fits the path:
-// `max_size` caps the payload that gets through, `send_error[host]` fails the send;
-// `on_probe(probe)`, if set, runs as each probe is answered. `status_ok` false fails
-// every `wireguard status` read; `answer_read_ok` false fails only the reads made
-// after a tunnel probe was answered, until the cycle ends with its watchdog ping.
+// `set_code` != 0 none of it); routes default to dev wg_hub for IPv4 and wan for
+// IPv6 (the relays and the direct paths), hosts in `local` are the router's own,
+// and hosts in `unrouted` fail the lookup; the mesh interface has MTU `mtu` (null:
+// the lookup fails). A probe is answered when its host is in `reachable` and it fits
+// the path: `max_size` caps the payload that gets through, `send_error[host]` fails
+// the send; `on_probe(probe)`, if set, runs as each probe is answered. `status_ok`
+// false fails every `wireguard status` read; `answer_read_ok` false fails only the
+// reads made after a tunnel probe was answered, until the cycle ends with its
+// watchdog ping.
 // Discovery returns `payload` (null: the fetch fails).
 export function world(kernel, opts) {
 	opts ??= {};
@@ -248,6 +250,7 @@ export function world(kernel, opts) {
 		iface: opts.iface ?? 'wg_mesh',
 		kernel: kernel,
 		routes: {},
+		local: {},
 		unrouted: {},
 		reachable: {},
 		max_size: null,
@@ -319,9 +322,13 @@ export function world(kernel, opts) {
 		fs: w.fs,
 		clock: w.clock,
 		log: w.logs.log,
-		route_get: (host) => w.unrouted[host]
-			? Result.err('ROUTE_LOOKUP_FAILED', `${host}: Network unreachable`)
-			: Result.ok({ dst: `${host}/32`, oif: w.routes[host] ?? 'wg_hub' }),
+		route_get: function(host) {
+			if (w.unrouted[host])
+				return Result.err('ROUTE_LOOKUP_FAILED', `${host}: Network unreachable`);
+			if (w.local[host])
+				return Result.ok({ dst: host, oif: 'lo', local: true });
+			return Result.ok({ dst: host, oif: w.routes[host] ?? ((index(host, ':') >= 0) ? 'wan' : 'wg_hub'), local: false });
+		},
 	};
 	return w;
 };

@@ -112,6 +112,8 @@ What a reload applies is listed in [Service commands](service-commands.md#reload
 | notice | `<peer>: roamed endpoint=<endpoint>` | In DIRECT, the peer's kernel endpoint moved to a new direct address, which is now the target. |
 | notice | `<peer>: ready, steer would trial endpoint=<endpoint>` | Observe mode only: the peer has earned `n_up` cycles of direct evidence, or saw an authenticated roam this cycle. `endpoint` is the endpoint a trial would take: the roam's source if one was seen, else the discovered endpoint. In steer mode it would start a trial now. Logged once, until `no longer ready`. |
 | info | `<peer>: no longer ready` | Observe mode only: the peer is not ready and has had no direct evidence for more than `n_up` cycles in a row. A roam makes a peer ready for its cycle alone, so the line waits out the cycles between roams instead of following each one. |
+| warning | `<peer>: candidate refused endpoint=<endpoint> reason=<reason>` | The peer's candidate from discovery is not taken, for one of the reasons in [Discovery HTTP API](discovery-api.md#spoke-side-validation): `own address`, `relay address`, `tunnel address` or `routes into <iface>`. Logged when the refusal starts or its reason changes. Meanwhile the candidate is neither probed nor trialed. |
+| notice | `<peer>: candidate no longer refused` | The refused candidate is taken again, or discovery no longer offers it. |
 
 | Reason | Transition |
 | :--- | :--- |

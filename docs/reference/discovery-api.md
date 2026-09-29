@@ -18,7 +18,7 @@ curl -s http://10.10.0.1:7780/peers
 
 ## Response body
 
-A JSON object keyed by WireGuard public key. It contains every peer of the hub's `read_iface` whose current endpoint is IPv6. Peers with an IPv4 endpoint or no endpoint are left out. With no such peers, the body is `{}`.
+A JSON object keyed by WireGuard public key. It contains every peer of the hub's `read_iface` whose current endpoint could be a direct path: an IPv6 address that is not unspecified (`::`), loopback (`::1`), multicast (`ff00::/8`), link-local (`fe80::/10`), IPv4-mapped (`::ffff:0:0/96`), IPv4-compatible (`::/96`), NAT64 (`64:ff9b::/96`, `64:ff9b:1::/48`) or discard-only (`100::/64`). Global and unique local (`fc00::/7`) addresses are published. Peers with an IPv4 endpoint, another IPv6 endpoint or no endpoint are left out. With no such peers, the body is `{}`.
 
 ```json
 {
@@ -87,6 +87,17 @@ A spoke fetches the URL with an HTTP GET. The fetch counts as failed, with the l
 
 An entry is valid when it is an object whose `direct` is a valid `[v6]:port` endpoint with port 1–65535, and whose `handshake_age`, if present, is an integer of zero or more. Other fields are ignored.
 
-One invalid entry rejects the whole payload. On any failure the spoke keeps its previous map, sets `discovery.fresh` to `false` in the [status](ubus-status.md) and logs `discovery failed: <code> (<detail>)`.
+One invalid entry rejects the whole payload. A valid entry whose address could not be a direct path, one that is unspecified (`::`), loopback (`::1`), multicast (`ff00::/8`), link-local (`fe80::/10`), IPv4-mapped (`::ffff:0:0/96`), IPv4-compatible (`::/96`), NAT64 (`64:ff9b::/96`, `64:ff9b:1::/48`) or discard-only (`100::/64`), is left out alone, and the rest of the payload is taken: it is one peer's address, not a broken payload, and that peer simply has no candidate. The same rule applies to the cache when it is loaded. On any failure the spoke keeps its previous map, sets `discovery.fresh` to `false` in the [status](ubus-status.md) and logs `discovery failed: <code> (<detail>)`.
 
 A valid payload replaces the spoke's map and is written to `/var/run/wgpathd/cache.json`. Entries whose key is not one of the spoke's managed peers are ignored. The `handshake_age` field is accepted but not used in any decision.
+
+Every cycle, before probing, the spoke also refuses a peer's candidate that this router must not take as that peer's direct endpoint, whose address is:
+
+| Reason | The address is |
+| :--- | :--- |
+| `own address` | an address of this router |
+| `relay address` | the host of the peer's `wgpathd_relay` |
+| `tunnel address` | the peer's `wgpathd_tunnel` |
+| `routes into <iface>` | routed out of `mesh_iface` or `hub_iface`, where a WireGuard endpoint would loop into a tunnel |
+
+A refused candidate is neither probed nor trialed: a peer in RELAY stays there, unless it roams to a direct address by itself. The refusal is logged when it starts or its reason changes, and when it ends, and the peer's status shows it in `candidate_refused`. A candidate whose route cannot be looked up is not refused: its probes fail on their own. The refusal applies to candidates only; an authenticated roam is taken as before.
