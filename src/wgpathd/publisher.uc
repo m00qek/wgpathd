@@ -6,7 +6,8 @@ import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
 import * as endpoint from 'wgpathd.endpoint';
 
-const MAX_CONNECTIONS = 16;
+export const MAX_CONNECTIONS = 16;
+export const MAX_PER_SOURCE  = 2;
 const MAX_REQUEST     = 4096;
 const REQUEST_TIMEOUT = 2000;
 
@@ -49,18 +50,25 @@ function request_complete(buf) {
 	return index(buf, '\r\n\r\n') >= 0 || index(buf, '\n\n') >= 0;
 }
 
-function serve(deps, conn, peers_fn, on_close) {
+// Returns the connection's record, { source, close }; close runs once, whatever calls it.
+function serve(deps, conn, source, peers_fn, on_close) {
 	let sock = deps.socket;
 	let buf = '';
 	let handle = null;
 	let timer = null;
+	let record = { source: source };
+	let closed = false;
 
 	let close = function() {
+		if (closed)
+			return;
+		closed = true;
 		handle.delete();
 		timer.cancel();
 		conn.close();
-		on_close();
+		on_close(record);
 	};
+	record.close = close;
 
 	let on_readable = function() {
 		let chunk = conn.recv(MAX_REQUEST + 1 - length(buf), sock.MSG_DONTWAIT);
@@ -78,6 +86,7 @@ function serve(deps, conn, peers_fn, on_close) {
 
 	timer = deps.uloop.timer(REQUEST_TIMEOUT, close);
 	handle = deps.uloop.handle(conn, on_readable, deps.uloop.ULOOP_READ);
+	return record;
 }
 
 // peers_fn returns the current snapshot; the server never runs a command per request.
@@ -87,17 +96,33 @@ export function listen(deps, addr, port, peers_fn) {
 	if (!server)
 		return Result.err(errors.PUBLISHER_LISTEN_FAILED, `${addr}:${port}: ${sock.error()}`);
 
-	let open = 0;
-	let on_close = () => { open--; };
+	// The connections still waiting for their request, oldest first: an answered one is
+	// closed at once. A new one is always taken, so a client that holds connections
+	// open cannot lock others out: it takes the place of the oldest from its own source
+	// when that source already holds its share, else of the oldest of all when full.
+	let open = [];
+	let on_close = (record) => { open = filter(open, (r) => r != record); };
 	let handle = deps.uloop.handle(server, () => {
-		let conn = server.accept();
+		let peer = {};
+		let conn = server.accept(peer);
 		if (!conn)
 			return;
-		if (open >= MAX_CONNECTIONS)
-			return conn.close();
-		open++;
-		serve(deps, conn, peers_fn, on_close);
+		let source = endpoint.canonical_ip(peer.address);
+		let own = filter(open, (r) => r.source == source);
+		if (length(own) >= MAX_PER_SOURCE)
+			own[0].close();
+		else if (length(open) >= MAX_CONNECTIONS)
+			open[0].close();
+		push(open, serve(deps, conn, source, peers_fn, on_close));
 	}, deps.uloop.ULOOP_READ);
 
-	return Result.ok({ close: () => { handle.delete(); server.close(); } });
+	return Result.ok({
+		connections: () => length(open),
+		close: function() {
+			for (let r in open)
+				r.close();
+			handle.delete();
+			server.close();
+		},
+	});
 };

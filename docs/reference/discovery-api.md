@@ -63,7 +63,9 @@ Connection: close
 - One request per connection. The request is complete at the first blank line (`\r\n\r\n` or `\n\n`); anything after it is ignored.
 - A request larger than 4096 bytes without a blank line is closed without a reply.
 - A connection that has not completed its request within 2 seconds is closed without a reply.
-- At most 16 connections are open at once. Further connections are accepted and closed immediately.
+- At most 2 connections from one source address are open at once, the address compared in its canonical form. A third from the same address is served, and that address's oldest connection is closed without a reply.
+- At most 16 connections are open at once. When all 16 are open, a new connection from another address is served, and the oldest open connection is closed without a reply.
+- Every open connection is one still waiting for its request: an answered one is closed at once. So a client that opens connections and sends nothing cannot keep a client from another address out; at worst it takes a slow client's place, and that client's request fails like a timeout. A spoke sends its request as soon as it connects.
 - Requests never run a command on the hub; they are answered from memory.
 
 ## Spoke-side validation

@@ -74,7 +74,7 @@ These are not configurable.
 | Minimum gap between refresh-driven fetches | 10 s |
 | Discovery server: request read time limit | 2 s |
 | Discovery server: maximum request size | 4096 bytes |
-| Discovery server: maximum open connections | 16 |
+| Discovery server: maximum open connections | 16, of which at most 2 from one source address |
 | procd watchdog timeout (init script) | 30 s |
 | procd respawn delay (init script) | 5 s |
 
