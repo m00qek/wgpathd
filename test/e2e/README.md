@@ -26,11 +26,12 @@ make e2e SCENARIO=kill-direct              # one (or several, space-separated)
 | `mtu-blackhole` | the direct path drops full-size packets only → both RELAY on the full-size tunnel probe, full-size traffic crosses via the hub; restore → DIRECT |
 | `anchor-only` | spoke-b unreachable → both DIRECT (anchor promotes on roams, R2) |
 | `anchor-traffic` | spoke-b unreachable, 100–1000 packets/s from either site, both daemons restarted → both still DIRECT (R4) |
-| `relay-traffic` | direct dead, relay traffic from spoke-a → it keeps crossing, spoke-b's answers over the relay are refused (`relayed_answers`), it is never committed, its backoff grows (R4) |
+| `relay-traffic` | direct dead, relay traffic from spoke-a → it keeps crossing, spoke-b's answers over the relay are refused (`relayed_answers`), it is never committed, its backoff grows (R4); giving up is off here, so trials go on |
+| `direct-filtered` | direct UDP filtered, ICMPv6 answers → 3 trial timeouts, the address given up, no more trials and no gaps in relayed traffic; filter lifted → nothing until a new address (spoke-a) and a roam (spoke-b) resume, both DIRECT; again with a short pause → resumed when it is over |
 | `crash` | `kill -9` → procd respawn → RELAY → DIRECT |
 | `hang` | `kill -STOP` → procd watchdog restart (G2) → RELAY → DIRECT |
 | `neither-reachable` | no anchor → both stay RELAY |
-| `one-way` | direct loss in one direction → never promoted |
+| `one-way` | direct loss in one direction → never promoted, both give the address up |
 | `roam` | spoke-b changes its v6 → spoke-a follows |
 | `hub-down` | hub dark → direct sessions survive, a roam is still followed |
 | `mixed` | one side DIRECT, the other held by backoff → no ping loss |

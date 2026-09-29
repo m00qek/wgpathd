@@ -74,6 +74,10 @@ is_state() { [ "$(state "$1")" = "$2" ]; }
 both() { is_state spoke-a "$1" && is_state spoke-b "$1"; }
 neither() { ! is_state spoke-a "$1" && ! is_state spoke-b "$1"; }
 
+# The spoke has given its peer's direct address up after failed trials.
+given_up() { [ -n "$(peer "$1" given_up.since)" ]; }
+both_given_up() { given_up spoke-a && given_up spoke-b; }
+
 # The daemon answers status for its peer.
 daemon_up() { [ -n "$(state "$1")" ]; }
 
@@ -229,7 +233,8 @@ roam_to() { # new-address old-address
 }
 
 # Undoes whatever a scenario left behind, finished or not: faults, a stopped
-# daemon, a changed role file, a roamed address.
+# daemon, a changed role file, a roamed address, and a given-up direct address,
+# which would keep the next scenario off the direct path for give_up_pause.
 restore_all() {
 	clear_faults
 	for n in spoke-a spoke-b; do
@@ -237,6 +242,7 @@ restore_all() {
 			killall -CONT ucode 2>/dev/null
 			cmp -s /etc/config/wgpathd /etc/config/wgpathd.e2e && exit
 			cp /etc/config/wgpathd.e2e /etc/config/wgpathd && service wgpathd restart'
+		! given_up "$n" || restart_daemon "$n"
 	done
 	x spoke-b "ip -6 addr add $(transit6 spoke-b)/64 dev eth0 nodad 2>/dev/null
 		ip -6 addr del $ROAMED6/64 dev eth0 2>/dev/null; true"

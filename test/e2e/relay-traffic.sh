@@ -4,8 +4,11 @@
 # trial probe can leave and be answered over the relay. Only an answer that came
 # back direct counts (design R4): spoke-b is never committed, its trials time
 # out and its backoff grows. The traffic itself keeps crossing the relay, apart
-# from what each failed trial blackholes.
+# from what each failed trial blackholes. spoke-b does not give the address up
+# here: after three failed trials it would stop trialing (direct-filtered shows
+# that), and the traffic at 1000 packets/s would meet no trial to race.
 
+uci_set spoke-b give_up_after 100
 baseline
 unreachable spoke-b
 kill_direct
