@@ -41,19 +41,29 @@ export function family(host) {
 	return arr ? ((length(arr) == 16) ? 6 : 4) : null;
 };
 
-export function payload(size) {
+export const NONCE = 8;
+
+export function filler(size) {
 	let s = 'wgpathd ';
 	while (length(s) < size)
 		s += s;
 	return substr(s, 0, size);
 };
 
-// A payload and its sum, for the echo requests of that size to reuse: summing a
-// full-size payload takes milliseconds on a router, and a tunnel probe should leave
-// the moment `wg set` returns.
+// What the echo requests of a payload size share: the room their nonce takes and
+// the filler after it, with its sum. Summing a full-size payload takes milliseconds
+// on a router, and a tunnel probe should leave the moment `wg set` returns.
 export function echo_payload(size) {
-	let data = payload(size);
-	return { data: data, sum: sum16(data) };
+	let nonce = min(size, NONCE);
+	let body = filler(size - nonce);
+	return { nonce: nonce, body: body, sum: sum16(body) };
+};
+
+// A probe's own payload: its nonce, then the filler. The nonce has an even length
+// whenever a filler follows it, so the two sums add word for word.
+export function with_nonce(payload, nonce) {
+	let head = substr(nonce, 0, payload.nonce);
+	return { data: head + payload.body, sum: sum16(head) + payload.sum };
 };
 
 // The ICMPv6 checksum covers a pseudo-header with the source address, which only the
@@ -89,4 +99,8 @@ export function parse_reply(fam, packet) {
 // The kernel verifies an ICMPv6 checksum before a raw socket sees the message, but not an ICMPv4 one.
 export function intact(fam, packet, reply) {
 	return fam == 6 || checksum(packet, reply.offset) == 0;
+};
+
+export function echoed(packet, reply) {
+	return substr(packet, reply.offset + ECHO_HEADER);
 };

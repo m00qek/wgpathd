@@ -44,7 +44,7 @@ These make a spoke's discovery fetch fail. The spoke keeps its previous map.
 
 | Code | Detail | Trigger |
 | :--- | :--- | :--- |
-| `PROBE_SEND_FAILED` | `<host>: <socket error>`, `raw socket: <socket error>`, `raw socket on <device>: <socket error>`, or `<host>: not an IP address` | A probe could not be sent: the raw socket could not be opened or bound to `mesh_iface`, or the kernel refused the packet, for example with `Message too large` when a full-size tunnel probe does not fit the route. The probe counts as unanswered. |
+| `PROBE_SEND_FAILED` | `<host>: <socket error>`, `raw socket: <socket error>`, `raw socket on <device>: <socket error>`, `no random bytes`, or `<host>: not an IP address` | A probe could not be sent: the raw socket could not be opened or bound to `mesh_iface`, `/dev/urandom` gave no bytes for the probe's nonce, or the kernel refused the packet, for example with `Message too large` when a full-size tunnel probe does not fit the route. The probe counts as unanswered. |
 
 ## WireGuard
 

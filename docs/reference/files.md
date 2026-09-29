@@ -63,7 +63,7 @@ Both reloads are skipped when the package is installed into a firmware image rat
 | :--- | :--- |
 | `ucode` | The interpreter |
 | `ucode-mod-uloop` | Event loop, timers, the `wg set` process |
-| `ucode-mod-fs` | Discovery cache |
+| `ucode-mod-fs` | Discovery cache, random bytes for the probes (`/dev/urandom`) |
 | `ucode-mod-ubus` | `wireguard status`, status object, watchdog ping |
 | `ucode-mod-uci` | Configuration |
 | `ucode-mod-log` | syslog |

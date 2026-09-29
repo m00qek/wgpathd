@@ -61,10 +61,11 @@ export function link_mtu(dev) {
 	return link?.mtu ? Result.ok(link.mtu) : Result.err(errors.LINK_LOOKUP_FAILED, `${dev}: ${rtnl.error()}`);
 };
 
-// The echo id ping would use: the pid, which no other process on the host has.
-function echo_id() {
-	return +fs.readlink('/proc/self') & 0xffff;
-}
+// Returns a function giving n bytes from the kernel's generator, or null when it cannot be read.
+export function random_source(fs) {
+	let urandom = fs.open('/dev/urandom', 'r');
+	return (n) => urandom?.read(n);
+};
 
 const PRIORITIES = { err: 'LOG_ERR', warning: 'LOG_WARNING', notice: 'LOG_NOTICE', info: 'LOG_INFO' };
 
@@ -98,7 +99,7 @@ export function create() {
 		http: http.create(uclient, uloop),
 		clock: clock.create(),
 		exec: exec.create(uloop),
-		icmp: icmp.create(socket, uloop, echo_id()),
+		icmp: icmp.create(socket, uloop, random_source(fs)),
 		log: syslog_channel(log, stderr_echo()),
 	};
 };

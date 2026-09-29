@@ -39,7 +39,7 @@ describe('icmp: checksum', () => {
 	});
 
 	prop('makes every request it builds check out', gen.tuple(gen.int(0, 65535), gen.int(0, 65535), gen.int(0, 1400)), (t) => {
-		assert.match(0, icmp.checksum(icmp.echo_request(4, t[0], t[1], icmp.payload(t[2]))));
+		assert.match(0, icmp.checksum(icmp.echo_request(4, t[0], t[1], icmp.filler(t[2]))));
 	});
 });
 
@@ -52,22 +52,60 @@ describe('icmp: echo_request', () => {
 		assert.match(V6_REQUEST, icmp.echo_request(6, 0x4242, 7, 'abc'));
 	});
 
-	prop('builds the same bytes from a payload whose sum was kept', gen.tuple(gen.int(0, 65535), gen.int(0, 65535), gen.int(0, 1400)), (t) => {
-		let p = icmp.echo_payload(t[2]);
-		assert.match(icmp.payload(t[2]), p.data);
-		for (let fam in [ 4, 6 ])
-			assert.match(icmp.echo_request(fam, t[0], t[1], p.data), icmp.echo_request(fam, t[0], t[1], p.data, p.sum));
-	});
-
 	it('builds the captured request from a kept sum', () => {
 		assert.match(V4_REQUEST, icmp.echo_request(4, 0x4242, 7, 'abc', icmp.sum16('abc')));
 	});
 
 	it('carries a payload of exactly the size asked for', () => {
-		for (let size in [ 0, 1, 16, 1332, 8952 ]) {
-			assert.match(size, length(icmp.payload(size)));
-			assert.match(size + icmp.ECHO_HEADER, length(icmp.echo_request(4, 1, 1, icmp.payload(size))));
-		}
+		for (let size in [ 0, 1, 16, 1332, 8952 ])
+			assert.match(size + icmp.ECHO_HEADER, length(icmp.echo_request(4, 1, 1, icmp.filler(size))));
+	});
+});
+
+const NONCE = bytes('0102 0304 0506 0708');
+
+describe('icmp: payload with a nonce', () => {
+	it('puts the nonce first and fills the rest', () => {
+		assert.match(NONCE + 'wgpathd ', icmp.with_nonce(icmp.echo_payload(16), NONCE).data);
+	});
+
+	// By hand: 0x0800 + 0x4242 + 0x0007, the nonce 0x0102 + 0x0304 + 0x0506 + 0x0708 and
+	// "wgpathd " 0x7767 + 0x7061 + 0x7468 + 0x6420 add to 0x21aad; folding the carries
+	// gives 0x1aaf, whose complement is 0xe550.
+	it('builds an IPv4 request byte for byte from the kept sum and the nonce', () => {
+		let p = icmp.with_nonce(icmp.echo_payload(16), NONCE);
+		assert.match(bytes('08 00 e550 4242 0007 0102030405060708 7767706174686420'), icmp.echo_request(4, 0x4242, 7, p.data, p.sum));
+		assert.match(bytes('80 00 0000 4242 0007 0102030405060708 7767706174686420'), icmp.echo_request(6, 0x4242, 7, p.data, p.sum));
+	});
+
+	it('cuts the nonce to a payload it does not fit, odd sizes included', () => {
+		let p = icmp.with_nonce(icmp.echo_payload(3), NONCE);
+		assert.match(bytes('010203'), p.data);
+		assert.match(bytes('08 00 b1b4 4242 0007 010203'), icmp.echo_request(4, 0x4242, 7, p.data, p.sum));
+		assert.match('', icmp.with_nonce(icmp.echo_payload(0), NONCE).data);
+	});
+
+	it('takes no more of the random bytes than a nonce', () => {
+		assert.match(NONCE + 'wgpathd ', icmp.with_nonce(icmp.echo_payload(16), NONCE + 'more').data);
+	});
+
+	prop('is exactly the size asked for', gen.int(0, 9000), (size) => {
+		assert.match(size, length(icmp.with_nonce(icmp.echo_payload(size), NONCE).data));
+	});
+
+	prop('keeps a sum that builds the same bytes as summing the whole payload',
+		gen.tuple(gen.int(0, 65535), gen.int(0, 65535), gen.int(0, 1400), gen.array(gen.int(0, 255), { len: 8 })), (t) => {
+		let p = icmp.with_nonce(icmp.echo_payload(t[2]), join('', map(t[3], (b) => chr(b))));
+		for (let fam in [ 4, 6 ])
+			assert.match(icmp.echo_request(fam, t[0], t[1], p.data), icmp.echo_request(fam, t[0], t[1], p.data, p.sum));
+		assert.match(0, icmp.checksum(icmp.echo_request(4, t[0], t[1], p.data, p.sum)));
+	});
+});
+
+describe('icmp: echoed', () => {
+	it('is the payload of a reply, behind the headers', () => {
+		assert.match([ 'abc', 'abc' ], [ icmp.echoed(IP4 + V4_REPLY, icmp.parse_reply(4, IP4 + V4_REPLY)),
+			icmp.echoed(V6_REPLY, icmp.parse_reply(6, V6_REPLY)) ]);
 	});
 });
 

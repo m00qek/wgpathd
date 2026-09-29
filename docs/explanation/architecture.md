@@ -37,7 +37,7 @@ The I/O each part uses:
 
 The one command, `wg set`, runs through `uloop.process` with its output discarded, under a timer backstop, because a child process cannot be killed from ucode, only forgotten. A spoke therefore starts one process per cycle, however many peers it steers.
 
-The probes are sent by the daemon itself. It keeps a raw socket per address family and device, registered on the loop, and matches each echo reply to its probe by source address, echo id and sequence number: the id is the daemon's own and every probe takes a new sequence number, so a late reply to an earlier probe, or a reply to someone else's ping, never counts. Anything else the socket receives is dropped.
+The probes are sent by the daemon itself. It keeps a raw socket per address family and device, registered on the loop, and a reply answers a probe only if it arrives on the socket the probe left by, from the address probed, with that socket's echo id, the probe's sequence number and the payload the probe carried. Each socket draws its echo id and first sequence number at random when it opens, and every probe carries 8 random bytes, read from `/dev/urandom`, at the start of its payload. So a late reply to an earlier probe, or a reply to someone else's ping, never counts; and a reply forged from what the underlay probes show in the clear answers nothing, because a tunnel probe travels inside the tunnel and its reply must come back out of `mesh_iface`. Anything else the socket receives is dropped.
 
 Everything runs on one single-threaded uloop. Nothing blocks: the ubus read, the probes, `wg set` and the HTTP fetch are all callbacks.
 

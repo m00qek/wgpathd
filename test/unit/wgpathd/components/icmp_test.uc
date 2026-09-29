@@ -2,7 +2,6 @@ import { describe, it, assert, contains } from 'utest';
 import * as icmp from 'wgpathd.icmp';
 import * as prober from 'wgpathd.components.icmp';
 
-const ID = 0x1234;
 const IP4_HEADER = '\x45\x00\x00\x00\x00\x00\x40\x00\x40\x01\x00\x00\x0a\x00\x00\x02\x0a\x00\x00\x01';
 
 // A socket module whose sockets record what is sent and hand out queued datagrams.
@@ -49,9 +48,24 @@ function fake_uloop() {
 	return l;
 }
 
+// Random bytes that differ from draw to draw and are the same in every run; a test
+// may queue the bytes of the next draws, or make every draw fail.
+function fake_random() {
+	let r = { draws: 0, queued: [], fails: false };
+	r.bytes = function(n) {
+		if (r.fails)
+			return null;
+		if (length(r.queued) > 0)
+			return shift(r.queued);
+		r.draws++;
+		return join('', map(slice([ 0, 1, 2, 3, 4, 5, 6, 7 ], 0, n), (i) => chr((r.draws * 31 + i * 7) & 0xff)));
+	};
+	return r;
+}
+
 function setup() {
-	let t = { socket: fake_socket(), uloop: fake_uloop(), results: [] };
-	t.prober = prober.create(t.socket, t.uloop, ID);
+	let t = { socket: fake_socket(), uloop: fake_uloop(), random: fake_random(), results: [] };
+	t.prober = prober.create(t.socket, t.uloop, t.random.bytes);
 	t.send = (probes, timeout) => t.prober.send(probes, timeout ?? 1, (p, res) => push(t.results, [ p.host, res ]));
 	t.answers = () => map(t.results, (r) => [ r[0], r[1].ok ? r[1].data : r[1].error ]);
 	t.wakeup = (sock) => filter(t.uloop.handles, (h) => h.sock == sock)[0].cb();
@@ -119,23 +133,39 @@ describe('components.icmp: sockets', () => {
 		assert.match(3, length(filter(t.socket.opened[0].opts, (o) => o[1] == 25)));
 	});
 
-	it('sends an echo request with the daemon id, a fresh sequence number and the payload size asked for', () => {
+	it('sends an echo request with the id and the next sequence number of its socket, and the payload size asked for', () => {
 		let t = setup();
+		push(t.random.queued, '\x12\x34\x00\x07');
 		t.send([ { host: '10.0.0.2', size: 1332, device: 'wg_mesh' }, { host: '10.0.0.3', size: 0, device: 'wg_mesh' } ]);
 		t.send([ { host: '10.0.0.2', size: 1332, device: 'wg_mesh' } ]);
 		let sent = t.socket.opened[0].sent;
-		assert.match([ [ 8, ID, 1, 1340 ], [ 8, ID, 2, 8 ], [ 8, ID, 3, 1340 ] ],
+		assert.match([ [ 8, 0x1234, 8, 1340 ], [ 8, 0x1234, 9, 8 ], [ 8, 0x1234, 10, 1340 ] ],
 			map(sent, (s) => [ ord(s.data, 0), field(s.data, 4), field(s.data, 6), length(s.data) ]));
 		assert.match({ family: 2, address: '10.0.0.2', port: 0 }, sent[0].addr);
 		assert.match([ 0, 0, 0 ], map(sent, (s) => icmp.checksum(s.data)), 'each carries a checksum that adds up');
 	});
 
-	it('sends the same payload bytes to every probe of a size', () => {
+	it('starts the sequence numbers over after 65535', () => {
 		let t = setup();
+		push(t.random.queued, '\x12\x34\xff\xfe');
+		t.send([ { host: '10.0.0.2', size: 16, device: 'wg_mesh' }, { host: '10.0.0.2', size: 16, device: 'wg_mesh' } ]);
+		assert.match([ 0xffff, 0 ], map(t.socket.opened[0].sent, (s) => field(s.data, 6)));
+	});
+
+	it('draws an id and a first sequence number for each socket', () => {
+		let t = setup();
+		push(t.random.queued, '\x12\x34\x00\x07', 'nonce 01', '\xab\xcd\x90\x00', 'nonce 02');
+		t.send([ { host: '2001:db8::2', size: 16, device: null }, { host: 'fd00::2', size: 16, device: 'wg_mesh' } ]);
+		assert.match([ [ 0x1234, 8 ], [ 0xabcd, 0x9001 ] ],
+			map(t.socket.opened, (s) => [ field(s.sent[0].data, 4), field(s.sent[0].data, 6) ]));
+	});
+
+	it('gives every probe a nonce of its own, before the same filler', () => {
+		let t = setup();
+		push(t.random.queued, '\x12\x34\x00\x07', 'nonce 01', 'nonce 02');
 		t.send([ { host: '10.0.0.2', size: 1332, device: 'wg_mesh' }, { host: '10.0.0.3', size: 1332, device: 'wg_mesh' } ]);
-		let sent = t.socket.opened[0].sent;
-		assert.match(icmp.payload(1332), substr(sent[0].data, 8));
-		assert.match(substr(sent[0].data, 8), substr(sent[1].data, 8));
+		let payloads = map(t.socket.opened[0].sent, (s) => substr(s.data, 8));
+		assert.match([ 'nonce 01' + icmp.filler(1324), 'nonce 02' + icmp.filler(1324) ], payloads);
 	});
 });
 
@@ -205,13 +235,17 @@ describe('components.icmp: answers', () => {
 		let sock = t.socket.opened[0];
 		let req = sock.sent[0].data;
 		let others = {
-			'another id': [ reply(4, req, { id: ID + 1 }), '10.0.0.2' ],
-			'another sequence': [ reply(4, req, { seq: 2 }), '10.0.0.2' ],
+			'another id': [ reply(4, req, { id: field(req, 4) ^ 1 }), '10.0.0.2' ],
+			'another sequence': [ reply(4, req, { seq: field(req, 6) + 1 }), '10.0.0.2' ],
 			'another source': [ reply(4, req), '10.0.0.9' ],
 			'an echo request': [ IP4_HEADER + req, '10.0.0.2' ],
 			'a destination unreachable': [ reply(4, req, { type: 3 }), '10.0.0.2' ],
 			'a truncated packet': [ substr(reply(4, req), 0, 25), '10.0.0.2' ],
 			'a shortened payload': [ reply(4, req, { payload: substr(req, 8, 10) }), '10.0.0.2' ],
+			'a longer payload': [ reply(4, req, { payload: substr(req, 8) + 'x' }), '10.0.0.2' ],
+			'another nonce': [ reply(4, req, { payload: 'guessed!' + substr(req, 16) }), '10.0.0.2' ],
+			'the filler alone': [ reply(4, req, { payload: icmp.filler(16) }), '10.0.0.2' ],
+			'another filler': [ reply(4, req, { payload: substr(req, 8, 8) + 'WGPATHD ' }), '10.0.0.2' ],
 			'a corrupted packet': [ substr(reply(4, req), 0, 30) + 'X' + substr(reply(4, req), 31), '10.0.0.2' ],
 		};
 		for (let what, d in others) {
@@ -239,7 +273,80 @@ describe('components.icmp: answers', () => {
 	});
 });
 
+// The attack of the 2026-09-29 audit: the underlay probes show an id and sequence
+// numbers in the clear, and a reply forged with the peer's tunnel address as its source
+// reaches the unbound ICMPv6 socket from the WAN.
+describe('components.icmp: forged replies', () => {
+	const UNDERLAY = { host: '2001:db8:bad::1', size: 16, device: null };
+	const TUNNEL   = { host: 'fd00:20::12', size: 1372, device: 'wg_mesh' };
+
+	it('ignores the reply to a tunnel probe that arrives on another socket', () => {
+		let t = setup();
+		t.send([ UNDERLAY ]);
+		t.send([ TUNNEL ]);
+		let unbound = t.socket.opened[0], bound = t.socket.opened[1];
+		let perfect = reply(6, bound.sent[0].data);
+		t.deliver(unbound, [ perfect, 'fd00:20::12' ]);
+		assert.match([], t.answers());
+		t.deliver(bound, [ perfect, 'fd00:20::12' ]);
+		assert.match([ [ 'fd00:20::12', true ] ], t.answers());
+	});
+
+	it('ignores a reply built from what the underlay probe showed', () => {
+		let t = setup();
+		t.send([ UNDERLAY ]);
+		t.send([ TUNNEL ]);
+		let unbound = t.socket.opened[0], bound = t.socket.opened[1];
+		let seen = unbound.sent[0].data;
+		let forged = [];
+		for (let seq = field(seen, 6) - 2; seq <= field(seen, 6) + 2; seq++)
+			for (let nonce in [ substr(seen, 8, 8), 'wgpathd ' ])
+				push(forged, [ reply(6, seen, { seq: seq, payload: nonce + icmp.filler(1364) }), 'fd00:20::12' ]);
+		t.deliver(unbound, ...forged);
+		t.deliver(bound, ...forged);
+		assert.match([], t.answers());
+	});
+
+	it('ignores a reply with the right source, id and sequence number but another nonce', () => {
+		let t = setup();
+		t.send([ TUNNEL ]);
+		let bound = t.socket.opened[0];
+		let req = bound.sent[0].data;
+		t.deliver(bound, [ reply(6, req, { payload: '\x00\x00\x00\x00\x00\x00\x00\x00' + substr(req, 16) }), 'fd00:20::12' ]);
+		assert.match([], t.answers());
+		t.uloop.timers[0].cb();
+		assert.match([ [ 'fd00:20::12', false ] ], t.answers());
+	});
+
+	it('gives up on a probe at its timeout on the socket it left by', () => {
+		let t = setup();
+		t.send([ UNDERLAY, TUNNEL ]);
+		t.deliver(t.socket.opened[0], [ reply(6, t.socket.opened[0].sent[0].data), '2001:db8:bad::1' ]);
+		t.uloop.timers[0].cb();
+		assert.match([ [ '2001:db8:bad::1', true ], [ 'fd00:20::12', false ] ], t.answers());
+	});
+});
+
 describe('components.icmp: failures', () => {
+	it('fails a probe without random bytes, and opens no socket for it', () => {
+		let t = setup();
+		t.random.fails = true;
+		t.send([ { host: '10.0.0.2', size: 16, device: 'wg_mesh' } ]);
+		assert.match([ [ '10.0.0.2', 'PROBE_SEND_FAILED' ] ], t.answers());
+		assert.match('no random bytes', t.results[0][1].details);
+		assert.match([], t.socket.opened);
+		assert.match([], t.uloop.timers);
+	});
+
+	it('fails a probe whose nonce comes short, and sends the next one', () => {
+		let t = setup();
+		push(t.random.queued, '\x12\x34\x00\x07', 'short');
+		t.send([ { host: '10.0.0.2', size: 16, device: 'wg_mesh' } ]);
+		assert.match([ [ '10.0.0.2', 'PROBE_SEND_FAILED' ] ], t.answers());
+		t.send([ { host: '10.0.0.2', size: 16, device: 'wg_mesh' } ]);
+		assert.match([ 1 ], map(t.socket.opened, (s) => length(s.sent)));
+	});
+
 	it('fails a probe at once when the kernel refuses to send it, and waits for the others', () => {
 		let t = setup();
 		t.send([ { host: '10.0.0.2', size: 16, device: 'wg_mesh' } ]);

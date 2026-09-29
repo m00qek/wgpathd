@@ -1,5 +1,5 @@
 import { describe, it, assert } from 'utest';
-import { syslog_channel } from 'wgpathd.deps';
+import { syslog_channel, random_source } from 'wgpathd.deps';
 
 function fake_log() {
 	return {
@@ -57,5 +57,22 @@ describe('deps: syslog_channel', () => {
 		emit('notice', 'started role=hub');
 		emit('err', '100%s');
 		assert.match([ 'notice: started role=hub\n', 'err: 100%s\n' ], stderr.written);
+	});
+});
+
+describe('deps: random_source', () => {
+	it('reads the bytes from /dev/urandom, opened once', () => {
+		let opened = [];
+		let fs = { open: function(path, mode) {
+			push(opened, [ path, mode ]);
+			return { read: (n) => substr('0123456789', 0, n) };
+		} };
+		let random = random_source(fs);
+		assert.match([ '0123', '01234567' ], [ random(4), random(8) ]);
+		assert.match([ [ '/dev/urandom', 'r' ] ], opened);
+	});
+
+	it('gives null when the device cannot be opened', () => {
+		assert.match(null, random_source({ open: () => null })(8));
 	});
 });

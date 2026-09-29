@@ -42,6 +42,7 @@ These are not configurable.
 | :--- | :--- |
 | `wg set` time limit | 2 s |
 | Underlay probe: ICMPv6 echo payload | 16 bytes |
+| Probe nonce, the first bytes of every echo payload | 8 random bytes |
 | Tunnel probe: whole IP packet | the MTU of `mesh_iface`, read every cycle; never fragmented |
 | Discovery fetch time limit | 5 s |
 | Discovery response size limit | 65536 bytes |
