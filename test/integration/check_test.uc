@@ -38,7 +38,7 @@ function kernel_of(keys_) {
 }
 
 // status: the `wireguard status` answer (a reply object or a Result error); routes: host -> oif or false;
-// peers: the `peer` sections.
+// peers: the `peer` sections; firewall: /etc/config/firewall, none when not given; files: what fs holds.
 function run(main, net, opts) {
 	opts ??= {};
 	let status = opts.status ?? Result.ok({
@@ -46,8 +46,10 @@ function run(main, net, opts) {
 		...h.status_reply('wg_hub', kernel_of([ HUB ])),
 	});
 	let routes = opts.routes ?? {};
+	let config = { wgpathd: { main: main, ...(opts.peers ?? peers()) }, network: net ?? network(), firewall: opts.firewall };
 	let deps = {
-		uci: h.uci({ wgpathd: { main: main, ...(opts.peers ?? peers()) }, network: net ?? network() }).cursor(),
+		uci: h.uci(config).cursor(),
+		fs: h.fs(opts.files ?? {}),
 		ubus: h.ubus((obj, method) => (obj == 'wireguard' && method == 'status') ? status : die('unexpected')),
 		route_get: (host) => (routes[host] === false)
 			? Result.err('ROUTE_LOOKUP_FAILED', `${host}: Network unreachable`)
@@ -103,7 +105,8 @@ describe('check: full, spoke', () => {
 			'ok    wg_mesh: up, 2 peers\n' +
 			'ok    wg_hub: up, 1 peer\n' +
 			'ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12\n' +
-			'skip  peer hub: not steered (not configured)\n',
+			'skip  peer hub: not steered (not configured)\n' +
+			'skip  firewall: no /etc/config/firewall, not checked\n',
 			res.report);
 	});
 
@@ -130,7 +133,7 @@ describe('check: full, spoke', () => {
 				'run service wgpathd migrate or remove it',
 			`peer settings for ${SPOKE_A}: no such peer in wg_mesh, ignored`,
 		], map(filter(res.findings, (f) => f.level == 'warn'), (f) => f.message));
-		assert.match('skip  peer hub: not steered (not configured)', split(trim(res.report), '\n')[-1]);
+		assert.match('skip  peer hub: not steered (not configured)', split(trim(res.report), '\n')[-2]);
 	});
 
 	it('warns about a pending route lookup and a peer missing from the kernel', () => {
@@ -165,7 +168,7 @@ describe('check: full, spoke', () => {
 	it('skips the interfaces when ubus is unreachable, and still checks the peers', () => {
 		let res = run(SPOKE, null, { status: Result.err('UBUS_CONNECT_FAILED') });
 		assert.match(true, res.ok);
-		assert.match([ 'ok', 'skip', 'ok', 'skip' ], map(res.findings, (f) => f.level));
+		assert.match([ 'ok', 'skip', 'ok', 'skip', 'skip' ], map(res.findings, (f) => f.level));
 		assert.match('ubus unavailable: interfaces not checked', res.findings[1].message);
 	});
 
@@ -210,7 +213,8 @@ describe('check: full, hub', () => {
 	it('checks the read interface', () => {
 		let res = run(HUB_MAIN);
 		assert.match(true, res.ok);
-		assert.match('ok    config: hub, reads wg_mesh, serves 192.0.2.1:7780\nok    wg_mesh: up, 2 peers\n', res.report);
+		assert.match('ok    config: hub, reads wg_mesh, serves 192.0.2.1:7780\nok    wg_mesh: up, 2 peers\n' +
+			'skip  firewall: no /etc/config/firewall, not checked\n', res.report);
 	});
 
 	it('fails without the read interface', () => {
@@ -241,5 +245,87 @@ describe('check: full, hub', () => {
 	it('leaves serve_addr unwarned in a check of the config alone', () => {
 		let res = run({ ...HUB_MAIN, serve_addr: '198.51.100.1' }, null, { config_only: true });
 		assert.match([ 'ok' ], map(res.findings, (f) => f.level));
+	});
+});
+
+describe('check: the firewall', () => {
+	// A router whose zones but lan reject input, the WireGuard interfaces in `vpn`.
+	function firewall(...rules) {
+		return h.firewall({ '.type': 'defaults', input: 'REJECT', output: 'ACCEPT', forward: 'REJECT' },
+			h.zone('lan', [ 'lan' ], 'ACCEPT'), h.zone('wan', [ 'wan', 'wan6' ], 'REJECT'),
+			h.zone('vpn', [ 'wg_mesh', 'wg_hub' ], 'REJECT'), h.ALLOW_ICMPV6_INPUT, ...rules);
+	}
+
+	let net = network({ wg_mesh: { '.type': 'interface', proto: 'wireguard', listen_port: '51820', addresses: [ '10.20.0.11/24' ] } });
+	let lines = (res) => filter(split(res.report, '\n'), (l) => match(l, /^\S+ +firewall:/));
+
+	it('finds the rules a spoke needs in /etc/config/firewall', () => {
+		let res = run(SPOKE, net, { firewall: firewall(...h.spoke_rules('vpn')) });
+		assert.match([
+			'ok    firewall: ICMP echo-request (tunnel probe) from wg_mesh (zone vpn): accepted',
+			'ok    firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): accepted',
+			'ok    firewall: ICMPv6 echo-request (underlay probe) from zone wan: accepted',
+		], lines(res));
+	});
+
+	it('warns about a missing rule and prints it both ways, and still passes', () => {
+		let res = run(SPOKE, net, { firewall: firewall(h.spoke_rules('vpn')[0]) });
+		assert.match(true, res.ok);
+		let from = index(res.report, 'warn  firewall:');
+		assert.match(
+			'warn  firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): no rule accepts it\n' +
+			'      add it with:\n' +
+			'        uci add firewall rule\n' +
+			"        uci set firewall.@rule[-1].name='Allow-wgpathd-relay'\n" +
+			"        uci set firewall.@rule[-1].src='vpn'\n" +
+			"        uci set firewall.@rule[-1].proto='udp'\n" +
+			"        uci set firewall.@rule[-1].dest_port='51820'\n" +
+			"        uci set firewall.@rule[-1].target='ACCEPT'\n" +
+			'        uci commit firewall\n' +
+			'        service firewall reload\n' +
+			'      or in /etc/config/firewall:\n' +
+			'        config rule\n' +
+			"        \toption name 'Allow-wgpathd-relay'\n" +
+			"        \toption src 'vpn'\n" +
+			"        \toption proto 'udp'\n" +
+			"        \toption dest_port '51820'\n" +
+			"        \toption target 'ACCEPT'\n",
+			substr(res.report, from, index(res.report, 'ok    firewall: ICMPv6') - from));
+	});
+
+	it('follows the listen port of the mesh interface', () => {
+		let moved = network({ wg_mesh: { '.type': 'interface', proto: 'wireguard', listen_port: '51000' } });
+		let res = run(SPOKE, moved, { firewall: firewall(...h.spoke_rules('vpn')) });
+		assert.match('warn  firewall: UDP port 51000 (relayed WireGuard) from wg_hub (zone vpn): no rule accepts it', lines(res)[1]);
+		res = run(SPOKE, moved, { firewall: firewall(...h.spoke_rules('vpn', '51000')) });
+		assert.match([], filter(res.findings, (f) => f.level == 'warn'));
+	});
+
+	it('cannot confirm what custom nftables rules or a firewall include may accept', () => {
+		let chains = '## examples\n# chain user_pre_input {\n#     type filter hook input priority -1; policy accept;\n\n';
+		let custom = { '/etc/nftables.d/10-custom-filter-chains.nft': chains,
+			'/usr/share/nftables.d/chain-pre/input_vpn/50-wg.nft': 'udp dport 51820 accept\n' };
+		assert.match('warn  firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): could not confirm, ' +
+			'the firewall has custom nftables rules', lines(run(SPOKE, net, { firewall: firewall(), files: custom }))[1]);
+
+		let elsewhere = { '/etc/nftables.d/10-custom-filter-chains.nft': chains,
+			'/usr/share/nftables.d/chain-pre/forward/50-other.nft': 'accept\n' };
+		assert.match('warn  firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): no rule accepts it',
+			lines(run(SPOKE, net, { firewall: firewall(), files: elsewhere }))[1]);
+
+		let include = firewall({ '.type': 'include', path: '/etc/firewall.user' });
+		assert.match('warn  firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): could not confirm, ' +
+			'the firewall has custom nftables rules', lines(run(SPOKE, net, { firewall: include }))[1]);
+	});
+
+	it('checks the hub\'s discovery port on the interface that holds serve_addr', () => {
+		assert.match([ 'ok    firewall: TCP port 7780 (peer list) from wg_hub (zone vpn): accepted' ],
+			lines(run(HUB_MAIN, null, { firewall: firewall(h.hub_rule('vpn')) })));
+		assert.match('warn  firewall: TCP port 7780 (peer list) from wg_hub (zone vpn): no rule accepts it',
+			lines(run(HUB_MAIN, null, { firewall: firewall() }))[0]);
+	});
+
+	it('leaves the firewall out of a check of the config alone', () => {
+		assert.match([], lines(run(SPOKE, net, { config_only: true, firewall: firewall() })));
 	});
 });

@@ -110,6 +110,7 @@ export function create() {
 export function oneshot() {
 	return {
 		uci: uci.cursor(),
+		fs: fs,
 		ubus: ubus_channel(ubus.connect()),
 		route_get: route_get,
 		log: syslog_channel(log, stderr_echo()),
@@ -120,6 +121,7 @@ export function oneshot() {
 export function plugin() {
 	return {
 		uci_cursor: uci.cursor,
+		fs: fs,
 		route_get: route_get,
 	};
 };

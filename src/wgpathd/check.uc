@@ -2,7 +2,8 @@
 
 // `service wgpathd check` and the `wgpathd.config` check: validate the config with the
 // daemon's own loader and, unless config_only, the substrate it needs (interfaces,
-// peer settings, relay routes). findings() is pure; run() gathers what it reads.
+// peer settings, relay routes, firewall rules). findings() is pure; run() gathers what
+// it reads.
 
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
@@ -10,6 +11,7 @@ import * as config from 'wgpathd.config';
 import * as relay from 'wgpathd.relay';
 import * as wg from 'wgpathd.wg';
 import * as endpoint from 'wgpathd.endpoint';
+import * as firewall from 'wgpathd.firewall';
 import { parse_url } from 'wgpathd.discovery';
 
 const LABELS = { ok: 'ok  ', skip: 'skip', warn: 'warn', fail: 'FAIL' };
@@ -118,10 +120,11 @@ function check_enabled(enabled, add) {
 		add('warn', 'config', `service disabled (option enabled '${enabled}'): it will not start`, { option: 'enabled' });
 }
 
-// Only the firewall keeps the discovery server off other networks, and the shipped rule
-// accepts its port only from WireGuard interfaces: an address elsewhere is worth a word.
-function check_listener(cfg, wireguard_addresses, add) {
-	if (wireguard_addresses != null && !(cfg.serve_addr in wireguard_addresses))
+// Only the firewall keeps the discovery server off other networks, and it is meant to
+// accept the port from the hub tunnel alone: an address elsewhere is worth a word.
+function check_listener(cfg, interfaces, add) {
+	let held = (addr) => length(filter(values(interfaces), (i) => addr in i.addresses)) > 0;
+	if (interfaces != null && !held(cfg.serve_addr))
 		add('warn', 'config', `config: serve_addr ${cfg.serve_addr} is no address of a WireGuard interface in /etc/config/network`,
 			{ option: 'serve_addr' });
 }
@@ -173,7 +176,7 @@ function check_substrate(cfg, obs, add) {
 	let iface = (name, required) => (status == null || skipped) ? null : check_interface(status, name, required, add);
 
 	if (cfg.role == 'hub') {
-		check_listener(cfg, obs.wireguard_addresses, add);
+		check_listener(cfg, obs.interfaces, add);
 		return iface(cfg.read_iface, true);
 	}
 	check_discovery_route(cfg, obs.discovery_route, add);
@@ -185,14 +188,69 @@ function check_substrate(cfg, obs, add) {
 		check_unmanaged(u, add);
 }
 
+const FLOWS = {
+	tunnel:    (f) => `${(f.family == 6) ? 'ICMPv6' : 'ICMP'} echo-request (tunnel probe)`,
+	underlay:  () => 'ICMPv6 echo-request (underlay probe)',
+	relay:     (f) => (f.port != null) ? `UDP port ${f.port} (relayed WireGuard)` : 'UDP (relayed WireGuard)',
+	discovery: (f) => `TCP port ${f.port} (peer list)`,
+};
+
+const UNSURE_BECAUSE = {
+	[firewall.CONDITIONS]:  () => 'a rule or zone option this check does not follow applies',
+	[firewall.CUSTOM]:      () => 'the firewall has custom nftables rules',
+	[firewall.MATCHED_BY]:  () => 'a zone may take it by device or subnet',
+	[firewall.ZONE_FAMILY]: (cfg, flow, v) => `zone ${v.zone} is not for IPv${flow.family}`,
+	[firewall.NO_PORT]:     (cfg) => `${cfg.mesh_iface} has no listen_port`,
+	[firewall.NOT_FOUND]:   () => 'no such zone',
+};
+
+function flow_source(flow, zone) {
+	if (flow.zone != null)
+		return `zone ${flow.zone}`;
+	return `${flow.iface} (${(zone != null) ? `zone ${zone}` : 'no zone'})`;
+}
+
+function flow_outcome(cfg, flow, v) {
+	if (v.verdict == firewall.ACCEPTED)
+		return 'accepted';
+	if (v.verdict == firewall.UNSURE)
+		return `could not confirm, ${UNSURE_BECAUSE[v.reason](cfg, flow, v)}`;
+	if (v.reason == firewall.REJECTED)
+		return 'a rule rejects it before any accepts it';
+	if (v.reason == firewall.NO_ZONE)
+		return `no rule accepts it; put ${flow.iface} in a firewall zone`;
+	return (flow.kind == 'underlay') ? "no rule accepts it: restore OpenWrt's default rule Allow-ICMPv6-Input" : 'no rule accepts it';
+}
+
+// The package opens nothing, so each flow wgpathd needs is looked for in the rules the
+// operator added; a firewall this cannot read in full is only ever a warning.
+function check_firewall(cfg, obs, add) {
+	if (obs.firewall == null)
+		return;
+	if (!obs.firewall.found)
+		return add('skip', 'firewall', 'firewall: no /etc/config/firewall, not checked');
+	let flows = firewall.needs(cfg, obs.interfaces ?? {});
+	for (let flow in flows) {
+		let v = firewall.verdict(obs.firewall, flow);
+		let accepted = v.verdict == firewall.ACCEPTED;
+		let families = map(filter(flows, (f) => f.kind == flow.kind), (f) => f.family);
+		add(accepted ? 'ok' : 'warn', 'firewall', `firewall: ${FLOWS[flow.kind](flow)} from ${flow_source(flow, v.zone)}: ` +
+			flow_outcome(cfg, flow, v), (flow.option != null) ? { option: flow.option } : null,
+			accepted ? null : firewall.fix(flow, v.zone, families));
+	}
+}
+
 // loaded: config.load's result. obs: what the system looked like, or null for the
 // config alone: { enabled, wireguard: the `wireguard status` Result or null when not
 // read, routes: { <section>: relay.guard verdict }, discovery_route: on a spoke, the
-// route_get Result for the discovery host, null when it is a name; wireguard_addresses:
-// on a hub, the addresses /etc/config/network gives its WireGuard interfaces }.
+// route_get Result for the discovery host, null when it is a name; interfaces: the
+// WireGuard interfaces of /etc/config/network, { <name>: { addresses, listen_port } };
+// firewall: /etc/config/firewall as firewall.verdict reads it, with `found` false when
+// there is none, or null when not read }.
 export function findings(loaded, obs) {
 	let list = [];
-	let add = (level, subject, message, about) => push(list, { level: level, subject: subject, ...(about ?? {}), message: message });
+	let add = (level, subject, message, about, fix) =>
+		push(list, { level: level, subject: subject, ...(about ?? {}), message: message, ...(fix ? { fix: fix } : {}) });
 
 	if (!loaded.ok) {
 		let option = failed_option(loaded);
@@ -203,6 +261,7 @@ export function findings(loaded, obs) {
 	if (obs != null) {
 		check_enabled(obs.enabled, add);
 		check_substrate(loaded.data, obs, add);
+		check_firewall(loaded.data, obs, add);
 	}
 	return list;
 };
@@ -211,20 +270,58 @@ export function passed(list) {
 	return length(filter(list, (f) => f.level == 'fail')) == 0;
 };
 
+function indented(text) {
+	return join('', map(split(text, '\n'), (line) => `        ${line}\n`));
+}
+
+function render_fix(fix) {
+	return `      add it with:\n${indented(fix.uci)}      or in /etc/config/firewall:\n${indented(fix.config)}`;
+}
+
 export function render(list) {
-	return join('', map(list, (f) => `${LABELS[f.level]}  ${f.message}\n`));
+	return join('', map(list, (f) => `${LABELS[f.level]}  ${f.message}\n` + (f.fix ? render_fix(f.fix) : '')));
 };
 
-function wireguard_addresses(uci) {
-	let out = [];
+function wireguard_interfaces(uci) {
+	let out = {};
 	uci.foreach('network', 'interface', (s) => {
 		if (s.proto != 'wireguard')
 			return;
 		let list = (type(s.addresses) == 'array') ? s.addresses : split(s.addresses ?? '', /\s+/);
-		for (let a in list)
-			push(out, endpoint.canonical_ip(split(a, '/')[0]));
+		out[s['.name']] = { addresses: map(list, (a) => endpoint.canonical_ip(split(a, '/')[0])), listen_port: s.listen_port };
 	});
 	return out;
+}
+
+// fw4 includes these into its ruleset, where they may add to its input chains.
+const NFT_INCLUDES = [ '/etc/nftables.d/*.nft', '/usr/share/nftables.d/ruleset-*/*.nft', '/usr/share/nftables.d/table-*/*.nft',
+	'/usr/share/nftables.d/chain-*/input*/*.nft' ];
+
+// Anything but comments and blank lines may be a rule, and so may a file that cannot be read.
+function holds_rules(text) {
+	return text == null || match(text, /(^|\n)[ \t]*[^#[:space:]]/) != null;
+}
+
+function custom_rules(fs, includes) {
+	return includes > 0 || length(filter(fs?.glob(...NFT_INCLUDES) ?? [], (path) => holds_rules(fs.readfile(path)))) > 0;
+}
+
+function firewall_config(uci, fs) {
+	let fw = { found: false, defaults: null, zones: [], rules: [], custom: false };
+	let includes = 0;
+	uci.foreach('firewall', null, (s) => {
+		fw.found = true;
+		if (s['.type'] == 'defaults')
+			fw.defaults ??= s;
+		else if (s['.type'] == 'zone')
+			push(fw.zones, s);
+		else if (s['.type'] == 'rule')
+			push(fw.rules, s);
+		else if (s['.type'] == 'include' && !(s.enabled in DISABLED))
+			includes++;
+	});
+	fw.custom = fw.found && custom_rules(fs, includes);
+	return fw;
 }
 
 // Without deps.ubus the interfaces are not read: rpcd serves `wireguard status`
@@ -241,7 +338,8 @@ function observe(deps, cfg) {
 		wireguard: deps.ubus?.call('wireguard', 'status', {}),
 		routes: routes,
 		discovery_route: (host != null) ? deps.route_get(host) : null,
-		wireguard_addresses: spoke ? null : wireguard_addresses(deps.uci),
+		interfaces: wireguard_interfaces(deps.uci),
+		firewall: firewall_config(deps.uci, deps.fs),
 	};
 }
 

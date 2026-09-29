@@ -2,6 +2,7 @@ import { describe, it, assert, contains } from 'utest';
 import * as h from 'lib.helpers';
 import * as rpc from 'wgpathd.rpc';
 import * as check from 'wgpathd.check';
+import { fix as firewall_fix } from 'wgpathd.firewall';
 import * as params from 'wgpathd.params';
 import * as Result from 'wgpathd.result';
 
@@ -32,15 +33,30 @@ function network() {
 	};
 }
 
+// The WireGuard interfaces in a zone that rejects input, with the rules a spoke needs.
+function firewall() {
+	return h.firewall({ '.type': 'defaults', input: 'REJECT' }, h.zone('wan', [ 'wan' ], 'REJECT'),
+		h.zone('vpn', [ 'wg_mesh', 'wg_hub' ], 'REJECT'), h.ALLOW_ICMPV6_INPUT, ...h.spoke_rules('vpn'));
+}
+
+const FIREWALL_OK = [
+	{ level: 'ok', subject: 'firewall', option: 'mesh_iface',
+		message: 'firewall: ICMP echo-request (tunnel probe) from wg_mesh (zone vpn): accepted' },
+	{ level: 'ok', subject: 'firewall', option: 'hub_iface',
+		message: 'firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): accepted' },
+	{ level: 'ok', subject: 'firewall', message: 'firewall: ICMPv6 echo-request (underlay probe) from zone wan: accepted' },
+];
+
 // The plugin's deps over a committed config the test may change between calls; routes: host -> oif.
 function plugin_deps(main, routes) {
-	let uci = h.uci({ wgpathd: { main: main ?? MAIN, cfg01a2b3: SPOKE_B_SETTINGS }, network: network() });
+	let uci = h.uci({ wgpathd: { main: main ?? MAIN, cfg01a2b3: SPOKE_B_SETTINGS }, network: network(), firewall: firewall() });
 	let lookups = [];
 	return {
 		uci: uci,
 		lookups: lookups,
 		deps: {
 			uci_cursor: uci.cursor,
+			fs: h.fs({}),
 			route_get: (host) => {
 				push(lookups, host);
 				return Result.ok({ oif: routes?.[host] ?? 'wg_hub' });
@@ -72,8 +88,19 @@ describe('rpc: wgpathd.config check, committed config', () => {
 				message: 'peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12' },
 			{ level: 'skip', subject: 'peer', section: 'hub', public_key: HUB,
 				message: 'peer hub: not steered (not configured)' },
+			...FIREWALL_OK,
 		] }, call(p));
 		assert.match([ '10.10.0.12', '10.10.0.1' ], p.lookups, 'the relay host, then the discovery host');
+	});
+
+	it('reads /etc/config/firewall itself, and gives a missing rule with the rule to add', () => {
+		let p = plugin_deps();
+		p.uci.data.firewall = h.firewall(h.zone('vpn', [ 'wg_mesh', 'wg_hub' ], 'REJECT'), h.spoke_rules('vpn')[0]);
+		let relay = filter(call(p).findings, (f) => f.option == 'hub_iface')[0];
+		assert.match({ level: 'warn', subject: 'firewall', option: 'hub_iface',
+			message: 'firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): no rule accepts it',
+			fix: firewall_fix({ kind: 'relay', proto: 'udp', port: 51820 }, 'vpn') }, relay);
+		assert.match([ 'uci add firewall rule', 'config rule' ], [ split(relay.fix.uci, '\n')[0], split(relay.fix.config, '\n')[0] ]);
 	});
 
 	it('words each finding as service wgpathd check does', () => {
@@ -120,6 +147,7 @@ describe('rpc: wgpathd.config check, candidate', () => {
 				message: 'peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12' },
 			{ level: 'fail', subject: 'peer', section: 'hub', public_key: HUB, option: 'relay',
 				message: 'peer hub: not steered (invalid relay)' },
+			...FIREWALL_OK,
 		] }, res);
 	});
 
@@ -127,7 +155,7 @@ describe('rpc: wgpathd.config check, candidate', () => {
 		let p = plugin_deps(null, { '10.10.0.1': 'wg_mesh' });
 		let res = call(p, { candidate: { peers: { [HUB]: { relay: '10.10.0.1:51820', tunnel: '10.20.0.1' } } } });
 		assert.match(contains({ level: 'fail', section: 'hub', public_key: HUB, option: 'relay',
-			message: 'peer hub: relay routes into wg_mesh' }), res.findings[-1]);
+			message: 'peer hub: relay routes into wg_mesh' }), filter(res.findings, (f) => f.subject == 'peer')[-1]);
 	});
 
 	it('takes a peer cleared of both settings as not configured', () => {

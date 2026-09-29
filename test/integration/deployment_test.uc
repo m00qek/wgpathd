@@ -42,7 +42,7 @@ function spoke_network(name) {
 	let self = SPOKES[name];
 	let other = (name == 'spoke_a') ? 'spoke_b' : 'spoke_a';
 	return {
-		wg_mesh: { '.type': 'interface', proto: 'wireguard', addresses: [ `${self.tunnel}/24` ] },
+		wg_mesh: { '.type': 'interface', proto: 'wireguard', listen_port: '51820', addresses: [ `${self.tunnel}/24` ] },
 		[self.hub_iface]: { '.type': 'interface', proto: 'wireguard', addresses: [ `${self.relay}/24` ] },
 		wgmesh_hub: { '.type': 'wireguard_wg_mesh', public_key: HUB, endpoint_host: '2001:db8:4b::1',
 			endpoint_port: '51820' },
@@ -50,11 +50,32 @@ function spoke_network(name) {
 	};
 }
 
+// The firewall the routers have: every zone rejects input, OpenWrt's default rules, the
+// two WireGuard interfaces in a `mgmt` zone, and the rules the firewall how-to adds there.
+function firewall(tunnels, rules) {
+	return h.firewall(
+		{ '.type': 'defaults', syn_flood: '1', input: 'REJECT', output: 'ACCEPT', forward: 'REJECT' },
+		h.zone('lan', [ 'lan' ], 'REJECT'),
+		h.zone('wan', [ 'wan', 'wan6' ], 'REJECT', { masq: '1', mtu_fix: '1', forward: 'DROP' }),
+		h.zone('mgmt', tunnels, 'REJECT'),
+		{ '.type': 'rule', name: 'Allow-DHCP-Renew', src: 'wan', proto: 'udp', dest_port: '68', target: 'ACCEPT', family: 'ipv4' },
+		{ '.type': 'rule', name: 'Allow-Ping', src: 'wan', proto: 'icmp', icmp_type: 'echo-request', family: 'ipv4', target: 'ACCEPT' },
+		{ '.type': 'rule', name: 'Allow-DHCPv6', src: 'wan', proto: 'udp', dest_port: '546', family: 'ipv6', target: 'ACCEPT' },
+		h.ALLOW_ICMPV6_INPUT,
+		{ '.type': 'rule', name: 'Allow-wg_mesh', src: 'wan', proto: 'udp', dest_port: '51820', family: 'ipv6', target: 'ACCEPT' },
+		...rules);
+}
+
+function spoke_firewall(name, with_rules) {
+	return firewall([ 'wg_mesh', SPOKES[name].hub_iface ], with_rules ? h.spoke_rules('mgmt') : []);
+}
+
 // A spoke configured afresh: the other spoke's settings in a `peer` section.
-function fresh_spoke(name) {
+function fresh_spoke(name, with_rules) {
 	let other = other_spoke(name);
 	let peer = { '.type': 'peer', public_key: other.key, relay: `${other.relay}:51820`, tunnel: other.tunnel };
-	return h.uci({ wgpathd: { main: spoke_main(name), cfg01a2b3: peer }, network: spoke_network(name) }).cursor;
+	return h.uci({ wgpathd: { main: spoke_main(name), cfg01a2b3: peer }, network: spoke_network(name),
+		firewall: spoke_firewall(name, with_rules ?? true) }).cursor;
 }
 
 // A spoke as releases up to 4 left it, its settings options of the peer's network
@@ -64,7 +85,7 @@ function migrated_spoke(name) {
 	let network = spoke_network(name);
 	let section = (name == 'spoke_a') ? 'wgmesh_spoke_b' : 'wgmesh_spoke_a';
 	network[section] = { ...network[section], wgpathd_relay: `${other.relay}:51820`, wgpathd_tunnel: other.tunnel };
-	let dir = h.uci_dir({ wgpathd: { main: spoke_main(name) }, network: network });
+	let dir = h.uci_dir({ wgpathd: { main: spoke_main(name) }, network: network, firewall: spoke_firewall(name, true) });
 	assert.match(Result.ok(1), { ...migrate.run(uci.cursor(dir), h.logger().log) }, name);
 	return () => uci.cursor(dir);
 }
@@ -109,18 +130,43 @@ describe('deployment: service wgpathd check', () => {
 					...h.status_reply(self.hub_iface, kernel_of(HUB)),
 				});
 				assert.match(true, res.ok, name);
-				assert.match([ 'ok', 'ok', 'ok', 'ok', 'skip' ], map(res.findings, (f) => f.level), res.report);
+				assert.match([ 'ok', 'ok', 'ok', 'ok', 'skip', 'ok', 'ok', 'ok' ], map(res.findings, (f) => f.level), res.report);
 				let peer = (name == 'spoke_a') ? 'wgmesh_spoke_b' : 'wgmesh_spoke_a';
 				assert.match(`ok    peer ${peer}: relay ${other.relay}:51820 via ${self.hub_iface}, probes ${other.tunnel}`,
 					split(res.report, '\n')[3], name);
+				assert.match(`ok    firewall: UDP port 51820 (relayed WireGuard) from ${self.hub_iface} (zone mgmt): accepted`,
+					split(res.report, '\n')[6], name);
 			}
 		});
 
+	it('warns on both spokes about the two rules until they are added', () => {
+		for (let name, self in SPOKES) {
+			let other = other_spoke(name);
+			let res = run_check(fresh_spoke(name, false), self.hub_iface, {
+				...h.status_reply('wg_mesh', kernel_of(other.key, HUB)),
+				...h.status_reply(self.hub_iface, kernel_of(HUB)),
+			});
+			assert.match(true, res.ok, name);
+			assert.match([
+				[ 'mesh_iface', 'firewall: ICMP echo-request (tunnel probe) from wg_mesh (zone mgmt): no rule accepts it' ],
+				[ 'hub_iface', `firewall: UDP port 51820 (relayed WireGuard) from ${self.hub_iface} (zone mgmt): no rule accepts it` ],
+			], map(filter(res.findings, (f) => f.level == 'warn'), (f) => [ f.option, f.message ]), name);
+		}
+	});
+
+	let hub_check = (with_rule) => run_check(h.uci({ wgpathd: { main: HUB_MAIN }, network: HUB_NETWORK,
+		firewall: firewall([ 'wg_mesh', 'wg_hub' ], with_rule ? [ h.hub_rule('mgmt') ] : []) }).cursor, 'wg_hub',
+		h.status_reply('wg_mesh', kernel_of(SPOKE_A, SPOKE_B)));
+
 	it('passes the hub without a warning', () => {
-		let res = run_check(h.uci({ wgpathd: { main: HUB_MAIN }, network: HUB_NETWORK }).cursor, 'wg_hub',
-			h.status_reply('wg_mesh', kernel_of(SPOKE_A, SPOKE_B)));
+		let res = hub_check(true);
 		assert.match(true, res.ok);
-		assert.match([ 'ok', 'ok' ], map(res.findings, (f) => f.level), res.report);
+		assert.match([ 'ok', 'ok', 'ok' ], map(res.findings, (f) => f.level), res.report);
+	});
+
+	it('warns on the hub about the discovery rule until it is added', () => {
+		assert.match([ [ 'serve_port', 'firewall: TCP port 7780 (peer list) from wg_hub (zone mgmt): no rule accepts it' ] ],
+			map(filter(hub_check(false).findings, (f) => f.level == 'warn'), (f) => [ f.option, f.message ]));
 	});
 });
 

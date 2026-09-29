@@ -113,6 +113,12 @@ export function http(answer, deferred) {
 	return fake;
 };
 
+// A path pattern as a regexp, for glob(): `*` is any run of characters but `/`, and
+// `.` the only other character a path here needs escaped.
+function regexp_of(pattern) {
+	return regexp('^' + join('[^/]*', map(split(pattern, '*'), (part) => replace(part, '.', '\\.'))) + '$');
+}
+
 // Files by path, in directories that root owns with mode 0700 unless `dirs` says
 // otherwise ({ <path>: { uid, mode } }); `links` holds the symbolic links.
 export function fs(files) {
@@ -165,6 +171,8 @@ export function fs(files) {
 		delete fake.files[from];
 		return true;
 	};
+	fake.glob = (...patterns) =>
+		filter(sort(keys(fake.files)), (path) => length(filter(patterns, (p) => match(path, regexp_of(p)))) > 0);
 	fake.error = () => 'Operation not permitted';
 	return fake;
 };
@@ -203,6 +211,38 @@ export function uci(data) {
 	});
 	return fake;
 };
+
+// /etc/config/firewall as uci() takes it: the sections in order, anonymous as uci names them.
+export function firewall(...sections) {
+	let out = {};
+	for (let i = 0; i < length(sections); i++)
+		out[sprintf('cfg%02x%04x', i, 0xf1e0 + i)] = sections[i];
+	return out;
+};
+
+export function zone(name, networks, input, extra) {
+	return { '.type': 'zone', name: name, network: networks, input: input, output: 'ACCEPT', forward: 'REJECT', ...(extra ?? {}) };
+};
+
+// The rules the firewall how-to adds on a spoke and on a hub, from a zone.
+export function spoke_rules(zone, port) {
+	return [
+		{ '.type': 'rule', name: 'Allow-wgpathd-tunnel-probe', src: zone, proto: 'icmp', icmp_type: 'echo-request',
+			family: 'ipv4', target: 'ACCEPT' },
+		{ '.type': 'rule', name: 'Allow-wgpathd-relay', src: zone, proto: 'udp', dest_port: port ?? '51820', target: 'ACCEPT' },
+	];
+};
+
+export function hub_rule(zone, port) {
+	return { '.type': 'rule', name: 'Allow-wgpathd-discovery', src: zone, proto: 'tcp', dest_port: port ?? '7780', target: 'ACCEPT' };
+};
+
+// OpenWrt's own rule for incoming ICMPv6, as firewall4 ships it.
+export const ALLOW_ICMPV6_INPUT = { '.type': 'rule', name: 'Allow-ICMPv6-Input', src: 'wan', proto: 'icmp',
+	icmp_type: [ 'echo-request', 'echo-reply', 'destination-unreachable', 'packet-too-big', 'time-exceeded', 'bad-header',
+		'unknown-header-type', 'router-solicitation', 'neighbour-solicitation', 'router-advertisement',
+		'neighbour-advertisement' ],
+	limit: '1000/sec', family: 'ipv6', target: 'ACCEPT' };
 
 function uci_value(v) {
 	return "'" + replace(`${v}`, "'", "'\\''") + "'";

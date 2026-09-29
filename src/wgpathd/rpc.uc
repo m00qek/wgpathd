@@ -3,7 +3,7 @@
 // The `wgpathd.config` ubus object, which rpcd serves through
 // /usr/share/rpcd/ucode/wgpathd.uc whether or not the daemon runs.
 //
-//   check {}                          -> { ok, findings: [ { level, subject, section?, public_key?, option?, message } ] }
+//   check {}                          -> { ok, findings: [ { level, subject, section?, public_key?, option?, message, fix? } ] }
 //   check { candidate: { main, peers } } the same, for unsaved values over the committed config
 //   peers { iface? }                  -> { iface, interfaces: [ <name> ], peers: [ { section, public_key, description? } ] }
 //   schema {}                         -> { parameters: [ { name, default, min, max, whole } ] }
@@ -29,7 +29,7 @@ export function run_check(deps, candidate) {
 			return { error: view.error, message: view.details };
 		uci = view.data;
 	}
-	let res = check.run({ uci: uci, route_get: deps.route_get });
+	let res = check.run({ uci: uci, fs: deps.fs, route_get: deps.route_get });
 	return { ok: res.ok, findings: res.findings };
 };
 
