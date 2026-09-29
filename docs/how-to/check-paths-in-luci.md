@@ -1,9 +1,9 @@
 # How to Check Mesh Paths in LuCI
 
-This guide shows how to see, in the LuCI web interface, which path each mesh peer uses and why. It needs the `luci-app-wgpathd` package, which `make package` builds next to wgpathd as `bin/luci-app-wgpathd-0.1.0-r5.apk`. Copy it to the router and install it as in [Installing wgpathd](install.md#3-install-it):
+This guide shows how to see, in the LuCI web interface, which path each mesh peer uses and why. It needs the `luci-app-wgpathd` package, which `make package` builds next to wgpathd as `bin/luci-app-wgpathd-0.1.0-r6.apk`. Copy it to the router and install it as in [Installing wgpathd](install.md#3-install-it):
 
 ```bash
-apk add --allow-untrusted /tmp/luci-app-wgpathd-0.1.0-r5.apk
+apk add --allow-untrusted /tmp/luci-app-wgpathd-0.1.0-r6.apk
 ```
 
 Then log in to LuCI again, so it shows the new menu entries.
