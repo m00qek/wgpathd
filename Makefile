@@ -3,6 +3,8 @@ OPENWRT_VERSION ?= 25.12.5
 # The feed packages a package in openwrt/wgpathd/Makefile depends on: not kmods, not its sibling.
 feed_depends = $(shell sed -n '/^define Package\/$(1)$$/,/^endef/s/^[[:space:]]*DEPENDS:=//p' openwrt/wgpathd/Makefile \
 	| tr ' ' '\n' | sed 's/^+//' | grep -v -e '^kmod-' -e '^wgpathd$$')
+pkg_field       = $(shell sed -n 's/^PKG_$(1):=//p' openwrt/wgpathd/Makefile)
+PKG_FULLVERSION := $(call pkg_field,VERSION)-r$(call pkg_field,RELEASE)
 PKG_DEPENDS     := $(call feed_depends,wgpathd)
 APP_DEPENDS     := $(call feed_depends,luci-app-wgpathd)
 # Keyed by the image's inputs, so worktrees with different Dockerfiles don't overwrite each other's image.
@@ -62,7 +64,7 @@ package-check: package
 	docker build -q -t $(PKGCHECK_IMAGE) --build-arg OPENWRT_ARCH --build-arg OPENWRT_VERSION \
 		--build-arg PKG_DEPENDS="$(PKG_DEPENDS)" --build-arg APP_DEPENDS="$(APP_DEPENDS)" \
 		devenv/services/pkgcheck >/dev/null
-	docker run --rm $(if $(CI),,-t) --network none --cap-add NET_ADMIN \
+	docker run --rm $(if $(CI),,-t) --network none --cap-add NET_ADMIN -e PKG_FULLVERSION=$(PKG_FULLVERSION) \
 		-v $(CURDIR)/bin:/artifacts:ro \
 		-v $(CURDIR)/devenv/scripts/package-check.sh:/usr/local/bin/package-check.sh:ro \
 		$(PKGCHECK_IMAGE) /usr/local/bin/package-check.sh

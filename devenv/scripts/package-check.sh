@@ -4,8 +4,10 @@
 # can load rules for real. Nothing here boots procd or ubusd.
 set -u
 
-APK=$(ls /artifacts/wgpathd-*.apk 2>/dev/null | head -n1)
-APP=$(ls /artifacts/luci-app-wgpathd-*.apk 2>/dev/null | head -n1)
+# The version openwrt/wgpathd/Makefile builds: bin/ keeps older builds too.
+: "${PKG_FULLVERSION:?run through make package-check}"
+APK=/artifacts/wgpathd-$PKG_FULLVERSION.apk
+APP=/artifacts/luci-app-wgpathd-$PKG_FULLVERSION.apk
 failures=0
 exec 3>&1
 
@@ -38,8 +40,8 @@ scripts_parse() {
 	for s in /tmp/script.*; do sh -n "$s" || return 1; done
 }
 
-[ -n "$APK" ] || { echo "no wgpathd-*.apk in /artifacts (run make package)" >&2; exit 1; }
-[ -n "$APP" ] || { echo "no luci-app-wgpathd-*.apk in /artifacts (run make package)" >&2; exit 1; }
+[ -f "$APK" ] || { echo "no $APK (run make package)" >&2; exit 1; }
+[ -f "$APP" ] || { echo "no $APP (run make package)" >&2; exit 1; }
 echo "checking $APK and $APP"
 
 VIEWS=/www/luci-static/resources/view/wgpathd
