@@ -1,0 +1,17 @@
+add system system
+set system.@system[0].hostname='office'
+set system.@system[0].zonename='UTC'
+set network.wg_mesh=interface
+set network.wg_mesh.proto='wireguard'
+set network.office=wireguard_wg_mesh
+set network.office.public_key='vpW+HezCq3BzqfXrJ4lNvP1sRkZ8W0xUa6T2cYdE5mI='
+set network.home=wireguard_wg_mesh
+set network.home.public_key='ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc='
+set network.beach=wireguard_wg_mesh
+set network.beach.public_key='O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4='
+set network.lab=wireguard_wg_mesh
+set network.lab.public_key='hQrcvDZE8wGkiQzp3/zDaTL3dY0PfbFTcQ4r3sG1UUk='
+set wgpathd.main.serve_addr='10.10.0.1'
+set wgpathd.main.serve_port='7780'
+set luci.main.mediaurlbase='/luci-static/bootstrap'
+commit

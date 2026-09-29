@@ -3,6 +3,7 @@ import * as h from 'lib.helpers';
 import * as daemon from 'wgpathd.daemon';
 import * as params from 'wgpathd.params';
 import * as Result from 'wgpathd.result';
+import { readfile, lsdir } from 'fs';
 
 const SPOKE_B = 'O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=';
 const SPOKE_A = 'ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc=';
@@ -1253,5 +1254,79 @@ describe('daemon: reload on SIGHUP', () => {
 		run(w, MAIN, null, loop);
 		assert.match([ 'started role=spoke mode=steer managed=1 unmanaged=0', 'configuration reloaded peers_kept=1 added=0 removed=0' ],
 			map(w.logs.matching(/started|reloaded/), (e) => e[1]));
+	});
+});
+
+// The browser tests' fake wgpathd answers test/fixtures/luci/*.json as they are, so
+// each must have the fields of the daemon's own reply, at every level.
+describe('daemon: status fields of the LuCI browser fixtures', () => {
+	const FIXTURES = sourcepath(0, true) + '/../fixtures/luci';
+	// The publisher leaves out the handshake age of a peer never heard from.
+	const OPTIONAL = { handshake_age: true };
+
+	function kind(v) {
+		return (type(v) == 'int' || type(v) == 'double') ? 'number' : type(v);
+	}
+
+	// Paths where `fixture` differs from `real`: a field missing or extra, or a value of
+	// another type. A null on either side matches, as the reply has nulls for unset
+	// values. Maps keyed by public key and arrays are compared entry by entry against
+	// the first entry of `real`.
+	function differences(real, fixture, path, keyed, out) {
+		if (real == null || fixture == null)
+			return out;
+		if (kind(real) != kind(fixture)) {
+			push(out, `${path}: ${kind(fixture)}, not ${kind(real)}`);
+			return out;
+		}
+		if (type(real) == 'array') {
+			for (let i, v in fixture)
+				differences(real[0], v, `${path}[${i}]`, false, out);
+			return out;
+		}
+		if (type(real) != 'object')
+			return out;
+		if (keyed) {
+			let sample = values(real)[0];
+			for (let k, v in fixture)
+				differences(sample, v, `${path}.${k}`, false, out);
+			return out;
+		}
+		for (let k in keys(real))
+			if (!(k in fixture) && !OPTIONAL[k])
+				push(out, `${path}.${k}: missing`);
+		for (let k, v in fixture)
+			if (k in real)
+				differences(real[k], v, `${path}.${k}`, k == 'peers', out);
+			else
+				push(out, `${path}.${k}: not in the reply`);
+		return out;
+	}
+
+	// A spoke with every field set: a peer back on the hub after a failed trial, with
+	// its last change and the history, and an unmanaged peer.
+	function spoke_reply() {
+		let t = failed_trial();
+		cycles(t.w, t.d, 3);
+		let reply = t.d.status();
+		assert.match('object', type(reply.peers[SPOKE_B].last_change));
+		assert.match(true, length(reply.history) > 0 && length(reply.unmanaged) > 0);
+		return reply;
+	}
+
+	function hub_reply() {
+		let w = h.world({ [SPOKE_B]: { endpoint: SPOKE_B_DIRECT, hs: 1790456491 } });
+		return start(w, { role: 'hub', read_iface: 'wg_mesh', serve_addr: '10.10.0.1', serve_port: '7780',
+			overrides: {} }).status();
+	}
+
+	it('match the fields and types of the reply of their role', () => {
+		let real = { spoke: spoke_reply(), hub: hub_reply() };
+		let files = filter(lsdir(FIXTURES), (f) => match(f, /\.json$/));
+		assert.match(true, length(files) >= 9, 'fixtures found');
+		for (let f in files) {
+			let fixture = json(readfile(`${FIXTURES}/${f}`));
+			assert.match([], differences(real[fixture.role == 'hub' ? 'hub' : 'spoke'], fixture, f, false, []), f);
+		}
 	});
 });

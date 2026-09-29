@@ -1,0 +1,139 @@
+{
+	"role": "spoke",
+	"mode": "steer",
+	"now": 1790456500,
+	"mesh_iface": "wg_mesh",
+	"hub_iface": "wg_hub",
+	"params": {
+		"cycle": 3,
+		"n_up": 5,
+		"m_down": 2,
+		"tunnel_timeout": 1,
+		"trial_window": 8,
+		"backoff_min": 30,
+		"backoff_max": 900,
+		"backoff_reset": 600,
+		"discovery_interval": 60
+	},
+	"discovery": {
+		"fresh": true,
+		"last_ok": 1790456488,
+		"url": "http://10.10.0.1:7780/peers"
+	},
+	"peers": {
+		"ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc=": {
+			"state": "DIRECT",
+			"section": "home",
+			"up_streak": 0,
+			"down_streak": 0,
+			"backoff": 0,
+			"ready": false,
+			"endpoint": "[2001:db8:40::20]:51820",
+			"target": "[2001:db8:40::20]:51820",
+			"candidate": "[2001:db8:40::20]:51820",
+			"last_target": "[2001:db8:40::20]:51820",
+			"since": 1790448460,
+			"trial_deadline": null,
+			"next_trial": null,
+			"switches": 1,
+			"relayed_answers": 0,
+			"last_change": {
+				"ts": 1790448460,
+				"from": "TRIALING",
+				"to": "DIRECT",
+				"reason": "trial_ok"
+			}
+		},
+		"O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=": {
+			"state": "RELAY",
+			"section": "beach",
+			"up_streak": 0,
+			"down_streak": 0,
+			"backoff": 480,
+			"ready": false,
+			"endpoint": "10.10.0.13:51820",
+			"target": null,
+			"candidate": "[2001:db8:90::5]:51820",
+			"last_target": "[2001:db8:90::5]:51820",
+			"since": 1790456260,
+			"trial_deadline": null,
+			"next_trial": 1790456740,
+			"switches": 6,
+			"relayed_answers": 0,
+			"last_change": {
+				"ts": 1790456260,
+				"from": "DIRECT",
+				"to": "RELAY",
+				"reason": "demoted"
+			}
+		},
+		"hQrcvDZE8wGkiQzp3/zDaTL3dY0PfbFTcQ4r3sG1UUk=": {
+			"state": "TRIALING",
+			"section": "lab",
+			"up_streak": 0,
+			"down_streak": 0,
+			"backoff": 30,
+			"ready": false,
+			"endpoint": "[2001:db8:77::1]:51820",
+			"target": "[2001:db8:77::1]:51820",
+			"candidate": "[2001:db8:77::1]:51820",
+			"last_target": "[2001:db8:77::1]:51820",
+			"since": 1790456497,
+			"trial_deadline": 1790456505,
+			"next_trial": null,
+			"switches": 2,
+			"relayed_answers": 1,
+			"last_change": {
+				"ts": 1790456497,
+				"from": "RELAY",
+				"to": "TRIALING",
+				"reason": "trial_start"
+			}
+		}
+	},
+	"unmanaged": [
+		{
+			"section": "hub",
+			"pubkey": "W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=",
+			"reason": "missing wgpathd_relay"
+		}
+	],
+	"history": [
+		{
+			"ts": 1790456497,
+			"section": "lab",
+			"pubkey": "hQrcvDZE8wGkiQzp3/zDaTL3dY0PfbFTcQ4r3sG1UUk=",
+			"from": "RELAY",
+			"to": "TRIALING",
+			"reason": "trial_start",
+			"endpoint": "[2001:db8:77::1]:51820"
+		},
+		{
+			"ts": 1790456260,
+			"section": "beach",
+			"pubkey": "O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=",
+			"from": "DIRECT",
+			"to": "RELAY",
+			"reason": "demoted",
+			"endpoint": "10.10.0.13:51820"
+		},
+		{
+			"ts": 1790455000,
+			"section": "beach",
+			"pubkey": "O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=",
+			"from": "TRIALING",
+			"to": "DIRECT",
+			"reason": "trial_ok",
+			"endpoint": "[2001:db8:90::5]:51820"
+		},
+		{
+			"ts": 1790448460,
+			"section": "home",
+			"pubkey": "ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc=",
+			"from": "TRIALING",
+			"to": "DIRECT",
+			"reason": "trial_ok",
+			"endpoint": "[2001:db8:40::20]:51820"
+		}
+	]
+}

@@ -1,0 +1,12 @@
+{
+	"wgpathd-browser-tests": {
+		"description": "Lets the browser tests switch the fake wgpathd's fixture and the LuCI theme",
+		"write": {
+			"ubus": {
+				"wgpathd.fixture": [ "use" ],
+				"uci": [ "set", "commit" ]
+			},
+			"uci": [ "luci" ]
+		}
+	}
+}

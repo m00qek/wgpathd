@@ -1,0 +1,24 @@
+{
+	"role": "hub",
+	"peers": {
+		"vpW+HezCq3BzqfXrJ4lNvP1sRkZ8W0xUa6T2cYdE5mI=": {
+			"direct": "[2001:db8:10::20]:51820",
+			"handshake_age": 8
+		},
+		"ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc=": {
+			"direct": "[2001:db8:40::20]:51820",
+			"handshake_age": 21
+		},
+		"O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=": {
+			"direct": "[2001:db8:90::5]:51820",
+			"handshake_age": 64
+		},
+		"hQrcvDZE8wGkiQzp3/zDaTL3dY0PfbFTcQ4r3sG1UUk=": {
+			"direct": "[2001:db8:77::1]:51820",
+			"handshake_age": 39600
+		},
+		"Bf7nK2pQ9sT4vW1xY6zA3cD8eG5hJ0kL2mN7oP4qR9s=": {
+			"direct": "[2001:db8:aa::9]:51820"
+		}
+	}
+}

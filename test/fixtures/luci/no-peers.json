@@ -1,0 +1,42 @@
+{
+	"role": "spoke",
+	"mode": "steer",
+	"now": 1790456500,
+	"mesh_iface": "wg_mesh",
+	"hub_iface": "wg_hub",
+	"params": {
+		"cycle": 3,
+		"n_up": 5,
+		"m_down": 2,
+		"tunnel_timeout": 1,
+		"trial_window": 8,
+		"backoff_min": 30,
+		"backoff_max": 900,
+		"backoff_reset": 600,
+		"discovery_interval": 60
+	},
+	"discovery": {
+		"fresh": false,
+		"last_ok": null,
+		"url": "http://10.10.0.1:7780/peers"
+	},
+	"peers": {},
+	"unmanaged": [
+		{
+			"section": "hub",
+			"pubkey": "W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=",
+			"reason": "missing wgpathd_relay"
+		},
+		{
+			"section": "garage",
+			"pubkey": "Zr5mQ2vXbN8kLp4tYw7cJd1eHs9aFg3uKi6oPq0RxTU=",
+			"reason": "relay routes into wg_mesh"
+		},
+		{
+			"section": "attic",
+			"pubkey": "Bf7nK2pQ9sT4vW1xY6zA3cD8eG5hJ0kL2mN7oP4qR9s=",
+			"reason": "relay route lookup failed: ROUTE_LOOKUP_FAILED (10.10.0.19: Network unreachable)"
+		}
+	],
+	"history": []
+}

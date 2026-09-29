@@ -1,0 +1,9 @@
+{
+	"role": "hub",
+	"peers": {
+		"<img src=x onerror=window.__xss=1>": {
+			"direct": "<img src=x onerror=window.__xss=1>",
+			"handshake_age": 5
+		}
+	}
+}
