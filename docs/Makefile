@@ -14,7 +14,7 @@ MKDOCS_RUN   := docker run --rm --user $$(id -u):$$(id -g) -v $(PROJECT_ROOT):/d
 
 # The same image plus mike (devenv/services/docs/requirements.txt), git and node.
 TOOLS_DIR    := $(PROJECT_ROOT)/devenv/services/docs
-TOOLS_IMAGE  := wgpathd-docs:9.5.17
+TOOLS_IMAGE  := wgpathd-docs:$(lastword $(subst :, ,$(MKDOCS_IMAGE)))
 TOOLS_STAMP  := $(PROJECT_ROOT)/devenv/.built-docs
 TOOLS_RUN    := $(MKDOCS_RUN) -w /docs -e HOME=/tmp --network none $(TOOLS_IMAGE)
 

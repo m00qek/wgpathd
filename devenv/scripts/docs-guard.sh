@@ -10,11 +10,11 @@ die() { echo "$*" >&2; exit 1; }
 
 newest_tag() { git tag -l "v$1.*" | grep -xE 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -n 1; }
 
-case ${1#refs/heads/} in
+branch=${1#refs/heads/}
+case $branch in
 docs/*) ;;
 *) die "not a docs/X.Y branch: $1" ;;
 esac
-branch=${1#refs/heads/}
 minor=$("$here/docs-version.sh" "$branch")
 
 tag=${2:-$(newest_tag "$minor")}
