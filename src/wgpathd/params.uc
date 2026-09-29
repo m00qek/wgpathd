@@ -12,6 +12,8 @@ export const DEFAULTS = {
 	backoff_max: 900,
 	backoff_reset: 600,
 	discovery_interval: 60,
+	give_up_after: 3,
+	give_up_pause: 21600,
 };
 
 // The values a parameter may take. A cycle waits `cycle`, then up to `tunnel_timeout`
@@ -28,6 +30,8 @@ export const BOUNDS = {
 	backoff_max:        { min: 1,   max: 86400 },
 	backoff_reset:      { min: 1,   max: 86400 },
 	discovery_interval: { min: 5,   max: 86400 },
+	give_up_after:      { min: 1,   max: 100, whole: true },
+	give_up_pause:      { min: 60,  max: 604800 },
 };
 
 export function bounds_text(name) {

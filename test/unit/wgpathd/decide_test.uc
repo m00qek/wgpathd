@@ -4,7 +4,7 @@ import * as effects from 'wgpathd.effects';
 import { decide, trial_target } from 'wgpathd.decide';
 
 const P = { mode: 'steer', cycle: 3, n_up: 3, m_down: 2, tunnel_timeout: 1, trial_window: 8,
-	backoff_min: 30, backoff_max: 900, backoff_reset: 600 };
+	backoff_min: 30, backoff_max: 900, backoff_reset: 600, give_up_after: 3, give_up_pause: 21600 };
 const OBSERVE = { ...P, mode: 'observe' };
 
 const RELAY_EP = '10.10.0.11:51820';
@@ -552,16 +552,18 @@ describe('decide: failure-mode catalog', () => {
 	});
 
 	it('dead direct path under relay traffic: answers over the relay never commit', () => {
-		let s = sim();
-		let backoffs = [];
-		for (let i = 0; i < 2000; i++) {
-			let out = s.cycle({ underlay_ok: true, tunnel_ok: (s.ctl.state == state.RELAY) ? null : true,
-				cur_endpoint: RELAY_EP, answered_via: RELAY_EP });
-			assert.match(true, out.ctl.state != state.DIRECT);
-			if (out.ctl.last_change?.reason == 'trial_timeout' && out.ctl.last_change.ts == s.now - P.cycle)
-				push(backoffs, out.ctl.backoff);
+		for (let c in [ [ P, [ 30, 60, 120 ] ], [ { ...P, give_up_after: 100 }, [ 30, 60, 120, 240, 480, 900 ] ] ]) {
+			let s = sim(c[0]);
+			let backoffs = [];
+			for (let i = 0; i < 2000; i++) {
+				let out = s.cycle({ underlay_ok: true, tunnel_ok: (s.ctl.state == state.RELAY) ? null : true,
+					cur_endpoint: RELAY_EP, answered_via: RELAY_EP });
+				assert.match(true, out.ctl.state != state.DIRECT);
+				if (out.ctl.last_change?.reason == 'trial_timeout' && out.ctl.last_change.ts == s.now - P.cycle)
+					push(backoffs, out.ctl.backoff);
+			}
+			assert.match(c[1], slice(backoffs, 0, 6), 'the backoff grows until the address is given up');
 		}
-		assert.match([ 30, 60, 120, 240, 480, 900 ], slice(backoffs, 0, 6));
 	});
 
 	it('neither end reachable (#15): parks in RELAY', () => {
@@ -584,6 +586,238 @@ describe('decide: failure-mode catalog', () => {
 		to_direct(s);
 		let out = s.cycles(50, { tunnel_ok: true, discovery_fresh: false, direct_cand: null });
 		assert.match([ state.DIRECT, CAND ], [ out.ctl.state, endpoint(out) ]);
+	});
+});
+
+describe('decide: giving up a direct address', () => {
+	const CAND_PORT = '[2001:db8::a]:51821';
+
+	// Waits out any backoff and cycles on the echo until a trial starts; returns its start.
+	function start_trial(s, o) {
+		if (s.now < s.ctl.backoff_until)
+			s.now = s.ctl.backoff_until;
+		let out;
+		for (let i = 0; i <= P.n_up && s.ctl.state == state.RELAY; i++)
+			out = s.cycle({ underlay_ok: true, ...(o ?? {}) });
+		assert.match(state.TRIALING, out.ctl.state, 'a trial started');
+		return out;
+	}
+
+	// A trial on the echo whose tunnel probe is never answered; returns its timeout.
+	function fail_trial(s, o) {
+		start_trial(s, o);
+		let out;
+		while (s.ctl.state == state.TRIALING)
+			out = s.cycle({ underlay_ok: true, tunnel_ok: false, direct_cand: o?.direct_cand ?? CAND });
+		assert.match('trial_timeout', out.ctl.last_change.reason);
+		return out;
+	}
+
+	function give_up(s, o) {
+		let out;
+		for (let i = 0; i < P.give_up_after; i++)
+			out = fail_trial(s, o);
+		assert.match(true, out.ctl.given_up_at != null, 'given up');
+		return out;
+	}
+
+	function kinds(out) {
+		return map(out.effects, (e) => keys(e)[0]);
+	}
+
+	function ready(out) {
+		return of_kind(out.effects, 'metric')[0].ready;
+	}
+
+	it('starts with no failed trial', () => {
+		assert.match([ null, 0, null ], [ state.init().failed_target, state.init().failed_trials, state.init().given_up_at ]);
+	});
+
+	it('counts a trial timeout against the trial target', () => {
+		let out = fail_trial(sim());
+		assert.match([ CAND, 1, null ], [ out.ctl.failed_target, out.ctl.failed_trials, out.ctl.given_up_at ]);
+	});
+
+	it('counts timeouts on the same target in a row; another target, a changed port included, starts afresh', () => {
+		let s = sim();
+		fail_trial(s);
+		assert.match(2, fail_trial(s).ctl.failed_trials);
+		let out = fail_trial(s, { direct_cand: CAND2 });
+		assert.match([ CAND2, 1 ], [ out.ctl.failed_target, out.ctl.failed_trials ]);
+		out = fail_trial(s, { direct_cand: CAND_PORT });
+		assert.match([ CAND_PORT, 1 ], [ out.ctl.failed_target, out.ctl.failed_trials ]);
+	});
+
+	it('gives the address up at the give_up_after-th timeout in a row, and says so once, after the transition', () => {
+		let s = sim();
+		for (let i = 1; i < P.give_up_after; i++) {
+			let out = fail_trial(s);
+			assert.match([ null, false ], [ out.ctl.given_up_at, has(out, 'given_up') ]);
+		}
+		let out = fail_trial(s);
+		let now = s.now - P.cycle;
+		assert.match([ state.RELAY, now, P.give_up_after ], [ out.ctl.state, out.ctl.given_up_at, out.ctl.failed_trials ]);
+		assert.match([ { endpoint: CAND, failed_trials: P.give_up_after } ], of_kind(out.effects, 'given_up'));
+		assert.match(true, index(kinds(out), 'log') < index(kinds(out), 'given_up'));
+		assert.match(true, effects.validate(out.effects));
+		assert.match(false, has(s.cycle({ underlay_ok: true }), 'given_up'));
+	});
+
+	it('a trial that commits clears the count', () => {
+		let s = sim();
+		fail_trial(s);
+		fail_trial(s);
+		start_trial(s);
+		let out = s.cycle({ tunnel_ok: true });
+		assert.match([ state.DIRECT, null, 0, null ], [ out.ctl.state, out.ctl.failed_target, out.ctl.failed_trials, out.ctl.given_up_at ]);
+	});
+
+	// The path carried the peer's traffic, so the address is right: the backoff, not
+	// giving up, handles a path that keeps passing its trial and failing soon after.
+	it('a demotion is not a failed trial, however often the path passes its trial and dies', () => {
+		let s = sim();
+		fail_trial(s);
+		for (let i = 0; i < 10; i++) {
+			start_trial(s);
+			s.cycle({ tunnel_ok: true });
+			let out = s.cycles(P.m_down, { tunnel_ok: false });
+			assert.match([ state.RELAY, 'demoted', 0, null ],
+				[ out.ctl.state, out.ctl.last_change.reason, out.ctl.failed_trials, out.ctl.given_up_at ]);
+		}
+	});
+
+	it('while given up, the echo alone starts no trial: the peer stays on the relay and keeps counting evidence', () => {
+		let s = sim();
+		let given_up_at = give_up(s).ctl.given_up_at;
+		let streak = s.ctl.up_streak;
+		while (s.now < given_up_at + P.give_up_pause - P.cycle) {
+			let out = s.cycle({ underlay_ok: true });
+			assert.match([ state.RELAY, RELAY_EP, false ], [ out.ctl.state, endpoint(out), ready(out) ]);
+			assert.match([ false, false ], [ has(out, 'tunnel_probe'), has(out, 'refresh_discovery') ]);
+			assert.match([], logs(out));
+		}
+		assert.match(true, s.ctl.up_streak > streak);
+	});
+
+	it('a roam trials at once toward its source, and says why trials resumed', () => {
+		for (let roam in [ ROAM, CAND ]) {
+			let s = sim();
+			give_up(s);
+			s.now = s.ctl.backoff_until;
+			let out = s.cycle({ cur_endpoint: roam });
+			assert.match([ state.TRIALING, roam, null ], [ out.ctl.state, out.ctl.target, out.ctl.given_up_at ]);
+			assert.match([ { endpoint: CAND, reason: 'roam' } ], of_kind(out.effects, 'resumed'));
+			assert.match(true, index(kinds(out), 'resumed') < index(kinds(out), 'log'));
+			assert.match(true, effects.validate(out.effects));
+		}
+	});
+
+	it('a roam while given up still waits for the backoff', () => {
+		let s = sim();
+		give_up(s);
+		let out = s.cycle({ cur_endpoint: ROAM });
+		assert.match([ state.RELAY, true ], [ out.ctl.state, ready(out) ]);
+		s.now = s.ctl.backoff_until;
+		assert.match(state.TRIALING, s.cycle({ cur_endpoint: ROAM }).ctl.state);
+	});
+
+	it('a trial on a roam from the given-up address that fails gives it up again at once', () => {
+		let s = sim();
+		give_up(s);
+		s.now = s.ctl.backoff_until;
+		s.cycle({ cur_endpoint: CAND });
+		let out;
+		while (s.ctl.state == state.TRIALING)
+			out = s.cycle({ tunnel_ok: false });
+		assert.match([ CAND, P.give_up_after + 1, true ], [ out.ctl.failed_target, out.ctl.failed_trials, out.ctl.given_up_at != null ]);
+	});
+
+	it('a different candidate trials on its echo, and says why trials resumed', () => {
+		let s = sim();
+		give_up(s);
+		let out = start_trial(s, { direct_cand: CAND2 });
+		assert.match([ CAND2, null ], [ out.ctl.target, out.ctl.given_up_at ]);
+		assert.match([ { endpoint: CAND, reason: 'new_candidate' } ], of_kind(out.effects, 'resumed'));
+	});
+
+	it('a failed trial on the different candidate counts afresh', () => {
+		let s = sim();
+		give_up(s);
+		let out = fail_trial(s, { direct_cand: CAND2 });
+		assert.match([ CAND2, 1, null ], [ out.ctl.failed_target, out.ctl.failed_trials, out.ctl.given_up_at ]);
+	});
+
+	it('a candidate that goes away and comes back as the same address stays given up', () => {
+		let s = sim();
+		give_up(s);
+		s.cycles(3, { direct_cand: null });
+		let out = s.cycles(P.n_up + 5, { underlay_ok: true });
+		assert.match([ state.RELAY, false ], [ out.ctl.state, ready(out) ]);
+	});
+
+	it('once the pause is over, the echo starts one more trial; its failure gives up again at once and restarts the pause', () => {
+		let s = sim();
+		let given_up_at = give_up(s).ctl.given_up_at;
+		s.cycles(P.n_up, { underlay_ok: true });
+		s.now = given_up_at + P.give_up_pause - 1;
+		assert.match(state.RELAY, s.cycle({ underlay_ok: true }).ctl.state);
+		s.now = given_up_at + P.give_up_pause;
+		let out = s.cycle({ underlay_ok: true });
+		assert.match([ state.TRIALING, CAND ], [ out.ctl.state, out.ctl.target ]);
+		assert.match([ { endpoint: CAND, reason: 'pause_over' } ], of_kind(out.effects, 'resumed'));
+
+		while (s.ctl.state == state.TRIALING)
+			out = s.cycle({ underlay_ok: true, tunnel_ok: false });
+		let again = s.now - P.cycle;
+		assert.match([ again, P.give_up_after + 1 ], [ out.ctl.given_up_at, out.ctl.failed_trials ]);
+		assert.match([ { endpoint: CAND, failed_trials: P.give_up_after + 1 } ], of_kind(out.effects, 'given_up'));
+		s.now = again + P.give_up_pause - 1;
+		assert.match(state.RELAY, s.cycle({ underlay_ok: true }).ctl.state);
+	});
+
+	it('the single trial after the pause commits on a path that works again', () => {
+		let s = sim();
+		let given_up_at = give_up(s).ctl.given_up_at;
+		s.cycles(P.n_up, { underlay_ok: true });
+		s.now = given_up_at + P.give_up_pause;
+		assert.match(state.TRIALING, s.cycle({ underlay_ok: true }).ctl.state);
+		let out = s.cycle({ tunnel_ok: true });
+		assert.match([ state.DIRECT, 0, null ], [ out.ctl.state, out.ctl.failed_trials, out.ctl.given_up_at ]);
+	});
+
+	it('the backoff still holds a trial after the pause', () => {
+		let p = { ...P, give_up_pause: 60, backoff_min: 300, backoff_max: 300 };
+		let s = sim(p);
+		for (let i = 0; i < p.give_up_after; i++) {
+			if (s.now < s.ctl.backoff_until)
+				s.now = s.ctl.backoff_until;
+			s.cycles(p.n_up, { underlay_ok: true });
+			while (s.ctl.state == state.TRIALING)
+				s.cycle({ underlay_ok: true, tunnel_ok: false });
+		}
+		let until = s.ctl.backoff_until;
+		assert.match(true, s.ctl.given_up_at + p.give_up_pause < until);
+		s.now = s.ctl.given_up_at + p.give_up_pause;
+		while (s.now < until)
+			assert.match(state.RELAY, s.cycle({ underlay_ok: true }).ctl.state);
+		assert.match(state.TRIALING, s.cycle({ underlay_ok: true }).ctl.state);
+	});
+
+	it('observe mode never trials, so never counts a failure', () => {
+		let s = sim(OBSERVE);
+		let out = s.cycles(2000, { underlay_ok: true, tunnel_ok: false });
+		assert.match([ null, 0, null ], [ out.ctl.failed_target, out.ctl.failed_trials, out.ctl.given_up_at ]);
+	});
+
+	it('observe mode reports a given-up peer as not ready until the pause is over', () => {
+		let s = sim();
+		let given_up_at = give_up(s).ctl.given_up_at;
+		s.params = OBSERVE;
+		assert.match(false, ready(s.cycles(P.n_up + 1, { underlay_ok: true })));
+		assert.match(true, ready(s.cycle({ underlay_ok: true, cur_endpoint: ROAM })), 'a roam would trial');
+		s.now = given_up_at + P.give_up_pause;
+		let out = s.cycle({ underlay_ok: true });
+		assert.match([ true, state.RELAY, given_up_at ], [ ready(out), out.ctl.state, out.ctl.given_up_at ]);
 	});
 });
 

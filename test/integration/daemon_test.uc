@@ -920,7 +920,7 @@ describe('daemon: watchdog', () => {
 });
 
 const TIMING = { cycle: 3, n_up: 5, m_down: 2, tunnel_timeout: 1, trial_window: 8, backoff_min: 30,
-	backoff_max: 900, backoff_reset: 600, discovery_interval: 60 };
+	backoff_max: 900, backoff_reset: 600, discovery_interval: 60, give_up_after: 3, give_up_pause: 21600 };
 
 // A trial on spoke-b that times out: its direct path answers the underlay echo but not the tunnel probe.
 function failed_trial(cfg_extra) {
@@ -1040,7 +1040,7 @@ describe('daemon: status history', () => {
 	it('keeps the last 20 changes only', () => {
 		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
 		w.reachable['2001:db8::12'] = true;
-		let d = start(w, spoke_cfg({ overrides: { n_up: 1, trial_window: 1, backoff_min: 1, backoff_max: 1 } }));
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1, trial_window: 1, backoff_min: 1, backoff_max: 1, give_up_after: 100 } }));
 		cycles(w, d, 30);
 		let history = d.status().history;
 		assert.match(20, length(history));

@@ -1,7 +1,7 @@
 import { describe, it, prop, gen, assert } from 'utest';
 import * as state from 'wgpathd.state';
 
-const P = { n_up: 3, backoff_min: 30, backoff_max: 900, backoff_reset: 600 };
+const P = { n_up: 3, backoff_min: 30, backoff_max: 900, backoff_reset: 600, give_up_after: 3 };
 
 describe('state: init', () => {
 	it('starts in RELAY with nothing earned', () => {
@@ -16,6 +16,9 @@ describe('state: init', () => {
 			target: null,
 			asserted: null,
 			last_change: null,
+			failed_target: null,
+			failed_trials: 0,
+			given_up_at: null,
 		}, state.init());
 	});
 
@@ -51,6 +54,16 @@ describe('state: entering a state', () => {
 		assert.match('t', c.target);
 		assert.match(103.5, c.direct_since);
 		assert.match(null, c.trial_deadline);
+	});
+
+	it('trialing ends a give-up and keeps the count', () => {
+		let c = state.trialing({ ...state.init(), failed_target: 'a', failed_trials: 3, given_up_at: 50.5 }, 'a', 108.5);
+		assert.match([ 'a', 3, null ], [ c.failed_target, c.failed_trials, c.given_up_at ]);
+	});
+
+	it('direct clears the count and any give-up', () => {
+		let c = state.direct({ ...state.init(), failed_target: 'a', failed_trials: 2, given_up_at: 50.5 }, 103.5);
+		assert.match([ null, 0, null ], [ c.failed_target, c.failed_trials, c.given_up_at ]);
 	});
 
 	it('keeps backoff and asserted across transitions', () => {
@@ -97,6 +110,27 @@ describe('state: backoff', () => {
 		let c = { ...state.direct(state.init(), 100.5), backoff: 120 };
 		assert.match(120, state.settle_backoff(c, P, 700.25).backoff);
 		assert.match(0, state.settle_backoff(c, P, 700.5).backoff);
+	});
+});
+
+describe('state: failed trials', () => {
+	const trying = (target, failed_target, failed_trials) =>
+		({ ...state.init(), state: state.TRIALING, target: target, failed_target: failed_target, failed_trials: failed_trials });
+
+	it('counts a failure against the target, and a different target afresh', () => {
+		let c = state.count_failure(trying('a', null, 0), P, 10.5);
+		assert.match([ 'a', 1, null ], [ c.failed_target, c.failed_trials, c.given_up_at ]);
+		c = state.count_failure(trying('a', 'a', 1), P, 10.5);
+		assert.match([ 'a', 2, null ], [ c.failed_target, c.failed_trials, c.given_up_at ]);
+		c = state.count_failure(trying('b', 'a', 2), P, 10.5);
+		assert.match([ 'b', 1, null ], [ c.failed_target, c.failed_trials, c.given_up_at ]);
+	});
+
+	it('gives the target up from give_up_after failures in a row, at the time of the failure', () => {
+		let c = state.count_failure(trying('a', 'a', 2), P, 10.5);
+		assert.match([ 3, 10.5 ], [ c.failed_trials, c.given_up_at ]);
+		c = state.count_failure(trying('a', 'a', 3), P, 20.5);
+		assert.match([ 4, 20.5 ], [ c.failed_trials, c.given_up_at ]);
 	});
 });
 

@@ -26,6 +26,25 @@ function is_ready(ctl, ev, params) {
 	return (ctl.state == state.RELAY && ev.roam != null) || state.is_ready(ctl, params);
 }
 
+// A given-up address is not trialed on the underlay echo alone until the pause is
+// over: a path that answers ping but cannot carry WireGuard would otherwise cost a
+// trial window every backoff forever. A roam, or a candidate other than the given-up
+// address, still trials.
+function held_by_give_up(ctl, ev, params, now) {
+	return ctl.given_up_at != null && ev.roam == null && ev.target == ctl.failed_target
+		&& now < ctl.given_up_at + params.give_up_pause;
+}
+
+function may_trial(ctl, ev, params, now) {
+	return is_ready(ctl, ev, params) && !held_by_give_up(ctl, ev, params, now);
+}
+
+function resume_reason(ctl, ev) {
+	if (ev.roam != null)
+		return 'roam';
+	return (ev.target != ctl.failed_target) ? 'new_candidate' : 'pause_over';
+}
+
 // Relay traffic from the peer roams the kernel back onto the relay, so the probe may
 // have left and come back that way. A trial commits to its target, so only an answer
 // that came back from the target proves it (R4).
@@ -35,15 +54,17 @@ function trial_proven(ctl, obs) {
 
 function relay_step(ctl, obs, ev, params, now, steering) {
 	let next = { ...ctl, up_streak: ev.present ? ctl.up_streak + 1 : 0 };
-	if (steering && obs.tunnel_addr && is_ready(next, ev, params) && now >= ctl.backoff_until)
-		return { ctl: state.trialing(next, ev.target, now + params.trial_window), reason: 'trial_start' };
+	if (steering && obs.tunnel_addr && may_trial(next, ev, params, now) && now >= ctl.backoff_until)
+		return { ctl: state.trialing(next, ev.target, now + params.trial_window), reason: 'trial_start',
+			resumed: (ctl.given_up_at != null) ? resume_reason(ctl, ev) : null };
 	return { ctl: next, reason: null };
 }
 
 // The deadline is checked first: an answer we cannot place before it does not commit.
 function trialing_step(ctl, obs, params, now) {
 	if (now >= ctl.trial_deadline)
-		return { ctl: state.relay(state.bump_backoff(ctl, params, now)), reason: 'trial_timeout' };
+		return { ctl: state.relay(state.count_failure(state.bump_backoff(ctl, params, now), params, now)),
+			reason: 'trial_timeout' };
 	if (trial_proven(ctl, obs))
 		return { ctl: state.direct(ctl, now), reason: 'trial_ok' };
 	return { ctl: ctl, reason: null };
@@ -77,7 +98,7 @@ function step(ctl, obs, ev, params, now) {
 	}
 }
 
-function emit(prev, next, obs, ev, reason, params) {
+function emit(prev, next, obs, ev, res, params, now) {
 	let out = [ fx.set_endpoint(next.asserted) ];
 	if (next.state == state.RELAY) {
 		if (!ev.present)
@@ -86,9 +107,13 @@ function emit(prev, next, obs, ev, reason, params) {
 	else if (obs.tunnel_addr) {
 		push(out, fx.tunnel_probe(obs.tunnel_addr));
 	}
-	if (reason != null)
-		push(out, fx.log(reason == 'roam_adopted' ? 'roam' : 'transition', prev.state, next.state, reason));
-	push(out, fx.metric({ ...next, ready: is_ready(next, ev, params) }));
+	if (res.resumed != null)
+		push(out, fx.resumed(prev.failed_target, res.resumed));
+	if (res.reason != null)
+		push(out, fx.log(res.reason == 'roam_adopted' ? 'roam' : 'transition', prev.state, next.state, res.reason));
+	if (res.reason == 'trial_timeout' && next.given_up_at != null)
+		push(out, fx.given_up(next.failed_target, next.failed_trials));
+	push(out, fx.metric({ ...next, ready: may_trial(next, ev, params, now) }));
 	return out;
 }
 
@@ -104,5 +129,5 @@ export function decide(ctl, obs, params, now) {
 	if (next.state != ctl.state)
 		next.last_change = { ts: now, from: ctl.state, to: next.state, reason: res.reason };
 
-	return { ctl: next, effects: emit(ctl, next, obs, ev, res.reason, params) };
+	return { ctl: next, effects: emit(ctl, next, obs, ev, res, params, now) };
 };

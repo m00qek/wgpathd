@@ -4,7 +4,7 @@ import * as params from 'wgpathd.params';
 describe('params: build', () => {
 	it('uses the design defaults and the configured mode', () => {
 		assert.match({ cycle: 3, n_up: 5, m_down: 2, tunnel_timeout: 1, trial_window: 8, backoff_min: 30,
-			backoff_max: 900, backoff_reset: 600, discovery_interval: 60, mode: 'observe' },
+			backoff_max: 900, backoff_reset: 600, discovery_interval: 60, give_up_after: 3, give_up_pause: 21600, mode: 'observe' },
 			params.build({ mode: 'observe', overrides: {} }));
 	});
 
@@ -18,7 +18,7 @@ describe('params: timing', () => {
 	it('keeps the timing values in effect and leaves the mode out', () => {
 		let p = params.build({ mode: 'steer', overrides: { m_down: 3 } });
 		assert.match({ cycle: 3, n_up: 5, m_down: 3, tunnel_timeout: 1, trial_window: 8, backoff_min: 30,
-			backoff_max: 900, backoff_reset: 600, discovery_interval: 60 }, params.timing(p));
+			backoff_max: 900, backoff_reset: 600, discovery_interval: 60, give_up_after: 3, give_up_pause: 21600 }, params.timing(p));
 	});
 });
 

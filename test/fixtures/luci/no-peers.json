@@ -13,7 +13,9 @@
 		"backoff_min": 30,
 		"backoff_max": 900,
 		"backoff_reset": 600,
-		"discovery_interval": 60
+		"discovery_interval": 60,
+		"give_up_after": 3,
+		"give_up_pause": 21600
 	},
 	"discovery": {
 		"fresh": false,
