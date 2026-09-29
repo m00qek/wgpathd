@@ -28,7 +28,7 @@ The I/O each part uses:
 | Read WireGuard peer state | `ubus call wireguard status` (from `rpcd-mod-wireguard`), asynchronous |
 | Set the endpoints | one `wg set <iface> peer <key> endpoint <addr> ...` per cycle, exit code only |
 | Underlay and tunnel probes | ICMP echo on raw sockets via `ucode-mod-socket`, on the uloop |
-| Relay route check, mesh MTU | rtnl `RTM_GETROUTE` and `RTM_GETLINK` via `ucode-mod-rtnl` |
+| Relay and candidate route checks, mesh MTU | rtnl `RTM_GETROUTE` and `RTM_GETLINK` via `ucode-mod-rtnl` |
 | Discovery fetch (spoke) | asynchronous HTTP GET via `ucode-mod-uclient` |
 | Discovery server (hub) | TCP listener via `ucode-mod-socket` on the uloop |
 | Status | a `wgpathd` ubus object with a `status` method |
@@ -46,7 +46,8 @@ Everything runs on one single-threaded uloop. Nothing blocks: the ubus read, the
 ```mermaid
 flowchart TD
     T([cycle timer fires]) --> R[recheck relay routes of peers still waiting]
-    R --> G["an underlay ping to each peer in RELAY with a candidate, all at once"]
+    R --> V["set aside each candidate that is the router's own,<br/>the peer's relay or tunnel, or routes into a tunnel"]
+    V --> G["an underlay ping to each peer in RELAY with a candidate, all at once"]
     G --> K[wireguard status]
     K --> D[decide, per peer]
     D --> S["one wg set for every peer's endpoint"]
@@ -59,6 +60,7 @@ flowchart TD
 
 Some details that matter operationally:
 
+- **A candidate is vetted once per cycle, before the probes.** An address from discovery that belongs to the router, is the peer's relay or tunnel address, or routes out of `mesh_iface` or `hub_iface` is set aside for the cycle: the peer has no candidate, so it is neither probed nor trialed there. The underlay ping and `decide` see the same candidate. See [discovery](discovery.md#strict-about-what-it-accepts).
 - **The kernel is read last, just before deciding.** Every cycle re-asserts every endpoint, and a peer's direct packet may roam the kernel while the underlay pings wait. Reading `wireguard status` after them, rather than alongside, lets `decide` see such a roam before the re-assert overwrites it.
 - **A tunnel probe answer belongs to the next cycle.** The pings are sent right after `wg set` returns, and their results are stored for the next cycle's `obs`. If `wg set` fails, no probe is sent at all, since the command may have set some endpoints and not others, so a probe over the old path can never commit a trial.
 - **An answer is read together with the path it came back on.** The answer, like every authenticated packet, moves the kernel endpoint to where it came from, so the shell reads `wireguard status` right after it and stores that endpoint with the result. `decide` commits a trial only on an answer that came back from its target (see [the state machine](state-machine.md#relay-traffic-and-the-proof)). Answers that arrive while such a read is in flight share the next read, which starts as soon as it returns; a read made before an answer arrived could show the endpoint from before that answer moved it, so it never serves one.
@@ -101,7 +103,8 @@ If the configuration is invalid by the time the daemon reads it, the daemon logs
 | :--- | :--- |
 | `decide.uc`, `state.uc`, `effects.uc` | The pure core: decision, state helpers, effect vocabulary |
 | `daemon.uc` | The shell: startup, reload, cycles, status, hub snapshot |
-| `relay.uc` | The relay loop guard, shared by the daemon and the check |
+| `relay.uc`, `direct.uc` | The relay loop guard, shared by the daemon and the check, and the guard on direct candidates |
+| `address.uc` | The special-purpose address ranges: where the hub may listen, and which addresses can be a direct path |
 | `check.uc`, `status_view.uc` | `service wgpathd check` and the text of `service wgpathd status` |
 | `rpc.uc`, `candidate.uc` | The `wgpathd.config` ubus object that rpcd serves, and unsaved values laid over the saved configuration |
 | `publisher.uc` | Hub snapshot and the HTTP request/response mapping and listener |

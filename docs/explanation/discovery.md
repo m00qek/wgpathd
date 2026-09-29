@@ -8,7 +8,7 @@ A spoke cannot try a direct path to a peer without knowing the peer's public IPv
 
 Every spoke has the hub as a `wg_mesh` peer with a fixed endpoint and a persistent keepalive. The keepalive means each spoke sends the hub a packet over IPv6 at least every 25 seconds or so. WireGuard on the hub records the source address of each valid packet as that peer's endpoint. So the hub's own `wg_mesh` peer table always holds each spoke's current public IPv6 address and port, with no extra protocol.
 
-The hub side of wgpathd simply reads that table once per cycle and keeps a snapshot of the peers whose endpoint is IPv6. It publishes the snapshot as JSON on `GET /peers`. It keeps no other state.
+The hub side of wgpathd simply reads that table once per cycle and keeps a snapshot of the peers whose endpoint is an IPv6 address that could be a direct path. It publishes the snapshot as JSON on `GET /peers`. It keeps no other state.
 
 ```mermaid
 sequenceDiagram
@@ -18,7 +18,7 @@ sequenceDiagram
     B->>H: wg_mesh keepalive over IPv6
     Note over H: kernel records spoke-b's<br/>endpoint [2001:db8:b::20]:51820
     loop every cycle
-        H->>H: read wg_mesh peers,<br/>keep IPv6 endpoints
+        H->>H: read wg_mesh peers,<br/>keep usable IPv6 endpoints
     end
     A->>H: GET /peers over wg_hub
     H-->>A: { spoke-b key: { direct, handshake_age } }
@@ -37,7 +37,7 @@ Because of that, discovery is allowed to be stale or missing:
 - A spoke fetches on its first cycle and then every `discovery_interval` (60 seconds by default). When a peer sits in RELAY with no evidence, the spoke asks for an early refresh, at most every 10 seconds. That is how a spoke picks up a peer that moved while the direct path was down.
 - The fetch runs in the background. The cycle never waits for it, so a dead hub never slows a fallback to relay.
 - A good payload replaces the known map and is saved to `/var/run/wgpathd/cache.json`. A failed fetch keeps the last map. On startup the spoke loads the cache, so it can probe before the first fetch succeeds.
-- The cache is on tmpfs. It survives a daemon restart but not a reboot. That is fine: the relay endpoint never comes from discovery, so an empty cache only means a spoke stays on the relay until the hub answers.
+- The cache lives in `/var/run`, which is in memory. It survives a restart or an upgrade of the daemon, but not a reboot: after a reboot a spoke remembers no addresses until it reaches the hub again. It is kept out of the router's flash on purpose, to spare it a write after every fetch. The relay endpoint never comes from discovery, so an empty cache only means a spoke stays on the relay until the hub answers.
 
 ## Strict about what it accepts
 
@@ -49,7 +49,7 @@ Entries for keys the spoke does not manage are ignored. The hub publishes every 
 
 ## Only the roamer really needs it
 
-A spoke with a stable public address could, in principle, be configured statically. wgpathd does not bother. Discovery publishes every IPv6 peer, stable or not, so all spokes can share one identical wgpathd configuration. The per-peer facts that must not come from the hub, the relay address and the tunnel address, live in the static network configuration next to each peer's key.
+A spoke with a stable public address could, in principle, be configured statically. wgpathd does not bother. Discovery publishes every peer with a usable IPv6 endpoint, stable or not, so all spokes can share one identical wgpathd configuration. The per-peer facts that must not come from the hub, the relay address and the tunnel address, live in the static network configuration next to each peer's key.
 
 ## Further reading
 

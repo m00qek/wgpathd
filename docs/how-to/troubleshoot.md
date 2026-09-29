@@ -41,7 +41,8 @@ A managed peer that is missing from the kernel's peer table is skipped and logge
 
 - **Roamer side (it should reach an anchor):**
     - Discovery is `stale` (`discovery.fresh` is `false`): the spoke cannot fetch from the hub. See `discovery failed:` lines in the log, and try `uclient-fetch -qO- <discovery URL>`.
-    - The peer's key is not in the hub's published list: the hub has no IPv6 endpoint for it. On the hub, check `service wgpathd status`.
+    - The peer's key is not in the hub's published list: the hub has no IPv6 endpoint for it, or none that could be a direct path. On the hub, check `service wgpathd status`.
+    - `candidate_refused` is set: this router will not take the published address, and the log says why in `candidate refused endpoint=<endpoint> reason=<reason>`. An `own address` or `routes into <iface>` usually means a route or an address on this router covers the peer's public address; see [Discovery HTTP API](../reference/discovery-api.md#spoke-side-validation).
     - `ping -6 <peer IPv6 address>` fails: the peer's host does not answer ICMPv6 echo, or the address is stale.
 - **Anchor side:** an anchor usually cannot ping a roamer behind a stateful firewall. Its evidence comes from the roamer's direct packets. Make sure the roamer is in steer mode and has reached DIRECT.
 - **Neither side is inbound-reachable:** the pair stays on the relay. That is the intended result.

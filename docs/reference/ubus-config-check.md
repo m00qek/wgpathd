@@ -119,7 +119,7 @@ Nothing is written, staged or committed: a later call without `candidate` checks
 | `level` | string | `ok`, `skip`, `warn` or `fail`. `service wgpathd check` prints `fail` as `FAIL`. |
 | `subject` | string | `config` for the configuration and the `enabled` option, `peer` for a peer. (`service wgpathd check` also uses the interface name and `ubus`, for the lines left out here.) |
 | `section` | string | Only for `peer`: the peer's section name in `/etc/config/network`. |
-| `option` | string | Present when the finding is about one option: the loader failures that name one (`role`, a missing option, an option with an invalid value), `mode` for an unknown mode, `enabled`, and for a peer the annotation that is missing or malformed (`wgpathd_relay`, `wgpathd_tunnel`, `public_key`) or `wgpathd_relay` for a relay routed into the mesh. Left out otherwise, for example for `no interface <name> in /etc/config/network`. |
+| `option` | string | Present when the finding is about one option: the loader failures that name one (`role`, a missing option, an option with an invalid value), `mode` for an unknown mode, `enabled`, `discovery` for the warnings about the discovery host, `serve_addr` for a listener address outside the WireGuard interfaces, and for a peer the annotation that is missing or malformed (`wgpathd_relay`, `wgpathd_tunnel`, `public_key`) or `wgpathd_relay` for a relay routed into the mesh. Left out otherwise, for example for `no interface <name> in /etc/config/network`. |
 | `message` | string | The line `service wgpathd check` prints after the level, word for word. |
 
 `section` and `option` name UCI sections and options, so a client can attach a finding to the field it is about; `message` is for showing.

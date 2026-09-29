@@ -57,7 +57,7 @@ These make a spoke's discovery fetch fail. The spoke keeps its previous map.
 
 | Code | Detail | Trigger |
 | :--- | :--- | :--- |
-| `ROUTE_LOOKUP_FAILED` | `<host>: <error>` | The route lookup for a peer's relay host failed. The peer stays unmanaged and is rechecked every cycle. |
+| `ROUTE_LOOKUP_FAILED` | `<host>: <error>` | The route lookup for a peer's relay host failed. The peer stays unmanaged and is rechecked every cycle. `service wgpathd check` also shows it in a warning when the lookup for the discovery host fails. A failed lookup for a direct candidate is not reported: the candidate is kept, and its probes fail on their own. |
 | `LINK_LOOKUP_FAILED` | `<iface>: <error>` | The MTU of `mesh_iface` could not be read. No tunnel probe is sent that cycle. |
 
 ## ubus
