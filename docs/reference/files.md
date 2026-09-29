@@ -17,10 +17,9 @@ The package is `wgpathd`, version `0.1.0`, release `5`, architecture `all`, lice
 | `/usr/share/ucode/wgpathd/components/*.uc` | 0644 | I/O components: command runner, ICMP prober, HTTP client, clock. |
 | `/etc/config/wgpathd` | 0600 | UCI configuration; a conffile, kept on upgrade. See [UCI configuration](uci-config.md). |
 | `/etc/init.d/wgpathd` | 0755 | procd init script. See [below](#etcinitdwgpathd). |
-| `/usr/share/nftables.d/chain-pre/input/wgpathd.nft` | 0644 | fw4 include. See [Firewall rules](firewall.md). |
 | `/usr/share/rpcd/ucode/wgpathd.uc` | 0644 | rpcd plugin serving the `wgpathd.config` ubus object. See [ubus config check](ubus-config-check.md). |
 
-Nothing is installed on the `PATH`. The scripts in `/usr/libexec/wgpathd/` are ucode scripts, meant to be run through the init script; see [Service commands](service-commands.md).
+Nothing is installed on the `PATH`, and no firewall rule: the operator adds what wgpathd needs, see [Firewall rules](firewall.md). The scripts in `/usr/libexec/wgpathd/` are ucode scripts, meant to be run through the init script; see [Service commands](service-commands.md).
 
 ## Runtime files
 
@@ -64,12 +63,12 @@ It runs on a first install and on every upgrade, from the package's post-install
 
 | Script | Effect |
 | :--- | :--- |
-| post-install (install and upgrade) | OpenWrt's default first: run the package's uci-defaults script, which moves peer settings left in `/etc/config/network`; on a first install, enable the service; on both, run `start`, which does nothing while `enabled` is `0` or the daemon is already running. Then `/etc/init.d/firewall reload` and `/etc/init.d/rpcd reload`, and on an upgrade, restart the daemon if it is running so the new code takes over; the migration has run by then, so the restarted daemon reads the moved settings. |
-| post-remove | `/etc/init.d/firewall reload` and `/etc/init.d/rpcd reload`. |
+| post-install (install and upgrade) | OpenWrt's default first: run the package's uci-defaults script, which moves peer settings left in `/etc/config/network`; on a first install, enable the service; on both, run `start`, which does nothing while `enabled` is `0` or the daemon is already running. Then `/etc/init.d/rpcd reload`; `/etc/init.d/firewall reload` when rules with a `wgpathd:` comment are loaded, which only a release up to 5 left, whose include the upgrade has just removed; and on an upgrade, restart the daemon if it is running so the new code takes over. The migration has run by then, so the restarted daemon reads the moved settings. |
+| post-remove | `/etc/init.d/rpcd reload`. |
 
 The rpcd reload makes rpcd load the `wgpathd.config` plugin, or drop it after removal, and pick up new module code after an upgrade. rpcd re-executes itself and keeps its sessions, so LuCI users stay logged in.
 
-Both reloads are skipped when the package is installed into a firmware image rather than on a running router.
+The reloads and the restart are skipped when the package is installed into a firmware image rather than on a running router.
 
 ## Dependencies
 
@@ -115,7 +114,7 @@ The LuCI pages for wgpathd are a second package, `luci-app-wgpathd`, built from 
 | read | ubus `wgpathd` `status`; ubus `wgpathd.config` `check`, `peers` and `schema`; UCI `wgpathd` |
 | write | UCI `wgpathd` |
 
-It grants nothing of `/etc/config/network`, which holds every WireGuard private key of the router. The pages name the peers through the [`peers` method](ubus-config-check.md#peers), which returns each peer's section name, public key and description and nothing else, and a peer's settings are [`peer` sections](uci-config.md#peer-sections) of `/etc/config/wgpathd`.
+It grants nothing of `/etc/config/network`, which holds every WireGuard private key of the router, nor of `/etc/config/firewall`, which the configuration check reads inside rpcd. The pages name the peers through the [`peers` method](ubus-config-check.md#peers), which returns each peer's section name, public key and description and nothing else, and a peer's settings are [`peer` sections](uci-config.md#peer-sections) of `/etc/config/wgpathd`.
 
 The pages also read the router's host name and time zone from UCI `system`, which the `luci-base` ACL already grants: the name labels this router in the path strip, and the time zone sets the clock times of recent changes, as in the system log. Without it they show "This router" and UTC.
 

@@ -109,7 +109,7 @@ That is the package an operator installs on a hub or a spoke.
 make package-check
 ```
 
-This rebuilds the package, installs it offline into an OpenWrt rootfs container that already has its dependencies, and runs a list of checks, including loading its firewall rules. The output should end like this:
+This rebuilds the package, installs it offline into an OpenWrt rootfs container that already has its dependencies, and runs a list of checks, including an upgrade from an earlier release that loaded firewall rules of its own. Among the lines it prints are these, and it ends with the last one:
 
 ```
 ok   shipped disabled
@@ -120,15 +120,16 @@ ok   config check fails cleanly on the example
      -> wgpathd: cannot read status: UBUS_CONNECT_FAILED
 ok   status without a daemon fails cleanly
 ok   full check passes a valid config without ubus
+ok   full check prints the firewall rule the hub needs
 ok   init script enables
-ok   fw4 includes the nft file
-ok   install loads the four wgpathd rules
-ok   fw4 ruleset passes nft -c
-ok   install, upgrade and removal reload fw4
+ok   only install and upgrade may reload fw4
 ok   upgrade restarts a running daemon
 ok   package scripts parse
 ok   package removes cleanly
-ok   removal unloads the wgpathd rules
+ok   a release with the fw4 include, its rules loaded
+ok   upgrade from a release with the fw4 include
+ok   upgrade removed the include
+ok   upgrade unloaded its rules
 package-check: all passed
 ```
 

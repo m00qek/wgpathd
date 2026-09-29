@@ -118,7 +118,28 @@ ok    wg_hub: up, 1 peer
 ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12
 skip  peer hub: not steered (not configured)
 FAIL  peer spoke_c: not steered (invalid relay)
+ok    firewall: ICMP echo-request (tunnel probe) from wg_mesh (zone vpn): accepted
+warn  firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): no rule accepts it
+      add it with:
+        uci add firewall rule
+        uci set firewall.@rule[-1].name='Allow-wgpathd-relay'
+        uci set firewall.@rule[-1].src='vpn'
+        uci set firewall.@rule[-1].proto='udp'
+        uci set firewall.@rule[-1].dest_port='51820'
+        uci set firewall.@rule[-1].target='ACCEPT'
+        uci commit firewall
+        service firewall reload
+      or in /etc/config/firewall:
+        config rule
+        	option name 'Allow-wgpathd-relay'
+        	option src 'vpn'
+        	option proto 'udp'
+        	option dest_port '51820'
+        	option target 'ACCEPT'
+ok    firewall: ICMPv6 echo-request (underlay probe) from zone wan: accepted
 ```
+
+A firewall warning that can name the rule to add is followed by it, indented, both as uci commands and as a section of `/etc/config/firewall`.
 
 ### Findings
 
@@ -140,7 +161,7 @@ FAIL  peer spoke_c: not steered (invalid relay)
 | `warn` | `config: discovery host <name> is a name, not an address: every fetch waits for DNS` | The `discovery` URL names its host. The fetch looks it up without letting the daemon run meanwhile. |
 | `warn` | `config: discovery host <addr> routes via <oif>, not <hub_iface>` | The route to the discovery host does not leave via `hub_iface`, so discovery would stop with the path it goes over. Not checked with `--config`. |
 | `warn` | `config: discovery host <addr>: route lookup failed: <CODE> (<detail>)` | No route to the discovery host. Not checked with `--config`. |
-| `warn` | `config: serve_addr <addr> is no address of a WireGuard interface in /etc/config/network` | On a hub, no `interface` section with `proto 'wireguard'` lists `serve_addr` in its `addresses`. The discovery server then answers on whatever network holds that address, as far as the firewall lets it; see [Firewall rules](firewall.md). Not checked with `--config`. |
+| `warn` | `config: serve_addr <addr> is no address of a WireGuard interface in /etc/config/network` | On a hub, no `interface` section with `proto 'wireguard'` lists `serve_addr` in its `addresses`. The discovery server then answers wherever the firewall lets that address be reached, and the check looks for no firewall rule for it; see [Firewall rules](firewall.md#peer-list). Not checked with `--config`. |
 | `warn` | `config: network section <section>: <options> left over from an earlier version, ignored; run service wgpathd migrate or remove it` | The section still has `wgpathd_relay`, `wgpathd_tunnel` or both, which releases up to 4 read and this one does not. `<options>` names them, joined by `and`; with two, the line ends `remove them`. See [How to upgrade from a release that kept peer settings in the network configuration](../how-to/upgrade-peer-settings.md). |
 | `warn` | `peer settings for <key>: no such peer in <mesh_iface>, ignored` | On a spoke, a `peer` section's `public_key` is the key of no `wireguard_<mesh_iface>` section. |
 | `warn` | `peer settings without a public_key: ignored` | On a spoke, a `peer` section has no `public_key`. |
@@ -159,11 +180,43 @@ FAIL  peer spoke_c: not steered (invalid relay)
 
 The peer reasons are the ones in [Managed and unmanaged peers](uci-config.md#managed-and-unmanaged-peers).
 
+The firewall lines come last, one for each traffic the role needs accepted, as [Firewall rules](firewall.md#what-the-check-confirms) describes. They are not checked with `--config`.
+
+| Level | Line | When |
+| :--- | :--- | :--- |
+| `ok` | `firewall: <traffic> from <source>: accepted` | A rule, or the zone's input policy, accepts the traffic. |
+| `warn` | `firewall: <traffic> from <source>: no rule accepts it` | No rule accepts it, and the zone's policy rejects or drops it. The rule to add follows. |
+| `warn` | `firewall: <traffic> from <source>: a rule rejects it before any accepts it` | A rule with `target 'REJECT'` or `'DROP'` decides it first. The rule to add follows; place it above the one that rejects. |
+| `warn` | `firewall: <traffic> from <iface> (no zone): no rule accepts it; put <iface> in a firewall zone` | The interface is in no zone, and the default input policy rejects the traffic. |
+| `warn` | `firewall: ICMPv6 echo-request (underlay probe) from zone wan: no rule accepts it: restore OpenWrt's default rule Allow-ICMPv6-Input` | On a spoke, nothing accepts ICMPv6 echo requests from `wan`. |
+| `warn` | `firewall: <traffic> from <source>: could not confirm, <reason>` | The check cannot tell. The rule to add follows when there is a zone and a port to name it by. |
+| `skip` | `firewall: no /etc/config/firewall, not checked` | There is no firewall configuration. |
+
+`<traffic>` is one of:
+
+| `<traffic>` | Role | `option` of the finding over ubus |
+| :--- | :--- | :--- |
+| `ICMP echo-request (tunnel probe)`, `ICMPv6 echo-request (tunnel probe)` | Spoke, one line for each address family of `mesh_iface` | `mesh_iface` |
+| `UDP port <listen_port> (relayed WireGuard)`, or `UDP (relayed WireGuard)` without a `listen_port` | Spoke | `hub_iface` |
+| `ICMPv6 echo-request (underlay probe)` | Spoke | none |
+| `TCP port <serve_port> (peer list)` | Hub, when a WireGuard interface holds `serve_addr` | `serve_port` |
+
+`<source>` is `<iface> (zone <zone>)`, `<iface> (no zone)` or, for the underlay probe, `zone wan`. `<reason>` is one of:
+
+| `<reason>` | Cause |
+| :--- | :--- |
+| `a rule or zone option this check does not follow applies` | A rule that may decide the traffic, or the zone, has an option the check does not follow, such as `src_ip` or `extra_src`. |
+| `the firewall has custom nftables rules` | An `include` section, or an nftables file fw4 includes, may add rules the check cannot read. |
+| `a zone may take it by device or subnet` | A zone that matches by `device` or `subnet` may take the traffic before the interface's own. |
+| `zone <zone> is not for IPv<n>` | The zone's `family` excludes the traffic's. |
+| `<mesh_iface> has no listen_port` | The relay port is not fixed, so it cannot be looked for. |
+| `no such zone` | There is no zone named `wan`. |
+
 The same findings, apart from the interface lines, are available over ubus, also for values not saved yet: see [ubus config check](ubus-config-check.md).
 
 ### `--config`
 
-`/usr/libexec/wgpathd/check.uc --config` runs only the configuration findings: the `config:` lines, including the options left over in `/etc/config/network`, and the `peer settings` warnings, without the `enabled` warning, ubus, routes or the other peer lines. It is what `start` and `reload` run. Any other argument prints `usage: check.uc [--config]` on standard error and exits with `2`.
+`/usr/libexec/wgpathd/check.uc --config` runs only the configuration findings: the `config:` lines, including the options left over in `/etc/config/network`, and the `peer settings` warnings, without the `enabled` warning, ubus, routes, the firewall or the other peer lines. It is what `start` and `reload` run. Any other argument prints `usage: check.uc [--config]` on standard error and exits with `2`.
 
 ## `migrate`
 

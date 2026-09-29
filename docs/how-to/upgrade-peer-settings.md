@@ -8,6 +8,10 @@ The package moves them for you. This guide shows how to check that it did, and h
 
 - A spoke that runs a release up to 4 with its peers steered.
 - The new package, built and copied to the router as in [How to install wgpathd](install.md).
+- The firewall rules of [How to open the firewall for wgpathd](open-firewall.md), added on every node.
+
+!!! warning "Add the firewall rules before you upgrade"
+    Releases up to 5 loaded wgpathd's firewall accepts themselves, and the upgrade removes them from the running firewall. Without the rules added first, a zone that rejects input rejects the probes, relayed packets and peer list as soon as the upgrade finishes, and the peers lose their direct paths, and possibly the relay.
 
 ---
 
@@ -48,7 +52,7 @@ The first command prints a `public_key`, `relay` and `tunnel` for each steered p
 service wgpathd check
 ```
 
-Each peer you steered before has an `ok  peer` line, and no line says `left over from an earlier version`.
+Each peer you steered before has an `ok  peer` line, no line says `left over from an earlier version`, and every `firewall:` line is `ok`.
 
 ## If it could not move them
 

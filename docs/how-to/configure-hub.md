@@ -6,6 +6,7 @@ On the hub, wgpathd reads the `wg_mesh` peer table and publishes the spokes' IPv
 
 - wgpathd is installed: [How to install wgpathd](install.md).
 - The hub has `wg_mesh` and `wg_hub` as in [How to prepare the WireGuard substrate](prepare-substrate.md), and spokes are handshaking on `wg_mesh`.
+- The hub's firewall accepts the spokes' peer list requests: [How to open the firewall for wgpathd](open-firewall.md#4-add-the-rule-of-the-hub).
 
 ---
 
@@ -24,7 +25,7 @@ config wgpathd 'main'
 
 - `read_iface` is the interface whose peer endpoints are published: the mesh, where the spokes' IPv6 endpoints appear.
 - `serve_addr` is the hub's own address on `wg_hub`. Spokes reach it through the tunnel that stays up when the mesh is down.
-- Keep `serve_port` at `7780` unless you also add your own firewall rule for another port; the shipped rule only accepts `7780`, and only through WireGuard.
+- `serve_port` is the TCP port of the list, the one the hub's firewall rule accepts from the zone of `wg_hub`.
 
 Every option is described in [UCI configuration](../reference/uci-config.md#hub-options).
 
@@ -37,9 +38,10 @@ service wgpathd check
 ```
 ok    config: hub, reads wg_mesh, serves 10.10.0.1:7780
 ok    wg_mesh: up, 2 peers
+ok    firewall: TCP port 7780 (peer list) from wg_hub (zone vpn): accepted
 ```
 
-Fix every `FAIL` line before you go on. Each line is explained in [Service commands](../reference/service-commands.md#findings).
+Fix every `FAIL` line before you go on. A `warn  firewall:` line means the spokes cannot fetch the list yet; it comes with the rule to add. Each line is explained in [Service commands](../reference/service-commands.md#findings).
 
 ## 3. Start the service
 

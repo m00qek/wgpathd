@@ -43,13 +43,23 @@ Roams count as evidence because they are authenticated. The kernel only moves a 
 
 ## Firewall
 
-The package ships its own firewall rules so that the probes and the relay work as soon as it is installed. Three of the four rules accept only packets that came out of a WireGuard interface, which only a key holder can produce. The fourth accepts ICMPv6 echo requests from anywhere, so that other spokes can probe this node's public address. Read the [firewall rules reference](../reference/firewall.md) before you deploy.
+The package never touches the firewall: it ships no rules, and nothing in it writes `/etc/config/firewall` or loads rules. What wgpathd needs to be accepted, you add as ordinary traffic rules in your own zones, where your zone policy and your other rules still apply to them ([How to open the firewall for wgpathd](../how-to/open-firewall.md)). `service wgpathd check` only reads the firewall configuration, to say which of them it finds.
+
+Earlier releases shipped their own accepts instead, ahead of every zone rule, so that the probes and the relay worked as soon as the package was installed. A security review found what that costs: rules the operator never wrote, on every WireGuard interface of the router, and an unlimited ICMPv6 accept from the internet that a flood could use to keep the daemon busy. OpenWrt's own packages do not ship accept rules either.
+
+What the rules expose, per role:
+
+- **A spoke** answers ICMP echo requests from the zone of `wg_mesh`, and takes UDP to its `wg_mesh` listen port from the zone of `wg_hub`. With both interfaces in a zone of their own, only the hub and the other spokes can send either, since only a key holder can get a packet out of a WireGuard interface. The listen port was already open to the whole internet for WireGuard itself, which answers nothing without a valid handshake.
+- **A spoke** also answers ICMPv6 echo requests from the internet, through OpenWrt's default `Allow-ICMPv6-Input`, rate-limited: the same answers any OpenWrt router with that rule gives.
+- **The hub** takes TCP on `serve_port` from the zone of the interface that holds `serve_addr`. The peer list it serves holds the spokes' public endpoints, which the members of the mesh already see; see below for why the zone matters.
+
+Put the WireGuard interfaces in a zone that holds nothing else, and these rules open nothing to a LAN or to the internet.
 
 ## Why wgpathd runs as root
 
 Like most OpenWrt services, wgpathd runs as root rather than as a jailed, unprivileged user. It has to hold the network-admin capability to run `wg set`, and that capability alone already lets a process rewrite routes, firewall rules and interfaces, so a jail would protect little that matters. What limits the damage instead is the narrow input surface: a spoke rejects any discovery payload that is not fully valid, and the hub's discovery server answers one fixed request with data that is already public to the mesh.
 
-Where that server can be reached is partly up to you. wgpathd binds it to the one address in `serve_addr` and refuses a wildcard, a host name or a multicast address there, so it never listens on every interface at once. It does not make sure that the address belongs to a WireGuard interface: the configuration says which address, not which interface, and `service wgpathd check` only warns when no WireGuard interface in `/etc/config/network` has it. The shipped firewall rule accepts the port only from WireGuard interfaces, but your zone rules may accept it from elsewhere, for example from LAN when `serve_addr` is a LAN address.
+Where that server can be reached is partly up to you. wgpathd binds it to the one address in `serve_addr` and refuses a wildcard, a host name or a multicast address there, so it never listens on every interface at once. It does not make sure that the address belongs to a WireGuard interface: the configuration says which address, not which interface, and `service wgpathd check` only warns when no WireGuard interface in `/etc/config/network` has it. The firewall decides the rest: the rule the check asks for accepts the port from the zone of the hub tunnel only, but a zone that accepts all input, such as LAN by default, reaches the server as well, since the router takes a packet for any of its addresses on any interface.
 
 ## Further reading
 

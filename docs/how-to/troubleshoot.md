@@ -42,10 +42,10 @@ A managed peer that is missing from the kernel's peer table is skipped and logge
 `up_streak` stays at 0 and `ready` stays `false`. The peer has no direct evidence.
 
 - **Roamer side (it should reach an anchor):**
-    - Discovery is `stale` (`discovery.fresh` is `false`): the spoke cannot fetch from the hub. See `discovery failed:` lines in the log, and try `uclient-fetch -qO- <discovery URL>`.
+    - Discovery is `stale` (`discovery.fresh` is `false`): the spoke cannot fetch from the hub. See `discovery failed:` lines in the log, and try `uclient-fetch -qO- <discovery URL>`. A `Connection refused` usually means the hub's firewall rejects the port: `service wgpathd check` on the hub says so in its `firewall:` line.
     - The peer's key is not in the hub's published list: the hub has no IPv6 endpoint for it, or none that could be a direct path. On the hub, check `service wgpathd status`.
     - `candidate_refused` is set: this router will not take the published address, and the log says why in `candidate refused endpoint=<endpoint> reason=<reason>`. An `own address` or `routes into <iface>` usually means a route or an address on this router covers the peer's public address; see [Discovery HTTP API](../reference/discovery-api.md#spoke-side-validation).
-    - `ping -6 <peer IPv6 address>` fails: the peer's host does not answer ICMPv6 echo, or the address is stale.
+    - `ping -6 <peer IPv6 address>` fails: the peer's host does not answer ICMPv6 echo, for example because its firewall lost OpenWrt's `Allow-ICMPv6-Input` (its `service wgpathd check` says so), or the address is stale.
 - **Anchor side:** an anchor usually cannot ping a roamer behind a stateful firewall. Its evidence comes from the roamer's direct packets. Make sure the roamer is in steer mode and has reached DIRECT.
 - **Neither side is inbound-reachable:** the pair stays on the relay. That is the intended result.
 
@@ -62,7 +62,7 @@ The direct endpoint answers ping, but WireGuard traffic does not get through bot
 
 - The anchor does not accept UDP `51820` from WAN over IPv6.
 - The endpoint published by the hub has a port that does not reach the peer's `wg_mesh`, for example because of port translation.
-- The peer does not answer the tunnel probe: its firewall lacks the `wgpathd: tunnel probe` rule. Check `nft list ruleset | grep wgpathd:` on the peer.
+- The peer does not answer the tunnel probe: its firewall does not accept ICMP echo requests from the zone of its `wg_mesh`. Run `service wgpathd check` on the peer: its `firewall:` line for the tunnel probe says so, with the rule to add. See [How to open the firewall for wgpathd](open-firewall.md).
 - One direction is broken. The trial needs a round trip, so one-way loss correctly fails it.
 - The path drops large packets. The tunnel probe fills the `wg_mesh` MTU, so a direct path that only carries smaller packets, for example over a link with a lower MTU that drops what does not fit, fails the trial. Lower the `wg_mesh` MTU on both sides until full-size packets cross, or leave the peer on the relay.
 - The other side is in RELAY and sends a lot of traffic through the relay. Its packets move this side's endpoint back onto the relay, and an answer that comes back that way does not count. On a healthy path a trial still gets through between those packets, and the other side then trials on the roam; if it is held by its own backoff, this side waits for that backoff to run out.

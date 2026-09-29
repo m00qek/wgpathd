@@ -17,7 +17,7 @@ ubus call wgpathd.config schema
 
 None of them changes anything. rpcd serves the object through the plugin `/usr/share/rpcd/ucode/wgpathd.uc`, so it answers whether or not the daemon runs, is enabled or has a valid configuration. rpcd loads the plugin when it starts or reloads; the package reloads rpcd when it is installed, upgraded or removed. The plugin reads the configuration afresh on every call.
 
-Who may call it is up to rpcd's ACLs. The `wgpathd` package ships none; `luci-app-wgpathd` grants all three methods to its pages (see [Files and dependencies](files.md#acl)). Grant them as you would grant reading the configuration. A caller learns from the replies what the router holds: the WireGuard interfaces, the section names, public keys and descriptions of their peers, which peers have settings, and, through the relay and discovery route checks, whether the router would reach any address the caller puts in a candidate's `relay` or `discovery`, and by which interface. It learns no private or preshared key, endpoint or allowed IP from `/etc/config/network`.
+Who may call it is up to rpcd's ACLs. The `wgpathd` package ships none; `luci-app-wgpathd` grants all three methods to its pages (see [Files and dependencies](files.md#acl)). Grant them as you would grant reading the configuration. A caller learns from the replies what the router holds: the WireGuard interfaces, the section names, public keys and descriptions of their peers, which peers have settings, through the relay and discovery route checks, whether the router would reach any address the caller puts in a candidate's `relay` or `discovery`, and by which interface, and, through the firewall lines, the firewall zones of the interfaces wgpathd uses and whether the firewall accepts wgpathd's traffic. It learns no private or preshared key, endpoint or allowed IP from `/etc/config/network`, and nothing else of `/etc/config/firewall`. The plugin reads both files itself, as root inside rpcd, so a caller needs no access to either.
 
 ---
 
@@ -34,6 +34,7 @@ Who may call it is up to rpcd's ACLs. The `wgpathd` package ships none; `luci-ap
 | For a hub, whether `serve_addr` is an address of a WireGuard interface | |
 | For a spoke, one line per peer: the relay route check of each steered peer and the reason each other one is not steered | `ubus unavailable: interfaces not checked` |
 | The warnings about `peer` sections that match no mesh peer, and about options left over in `/etc/config/network` | |
+| The `firewall:` lines, from `/etc/config/firewall` and the nftables files fw4 includes | |
 
 The interface lines are left out because rpcd itself serves `wireguard status`, through `rpcd-mod-wireguard`, and cannot answer that call while it waits for it inside the plugin. For those lines, run `service wgpathd check` on the router.
 
@@ -45,7 +46,7 @@ Each finding is described in [Service commands](service-commands.md#findings).
 
 | Argument | Type | Description |
 | :--- | :--- | :--- |
-| `candidate` | object, optional | Values to check instead of the saved ones. Without it, `check` checks `/etc/config/wgpathd` and `/etc/config/network` as `service wgpathd check` reads them. |
+| `candidate` | object, optional | Values to check instead of the saved ones. Without it, `check` checks `/etc/config/wgpathd`, `/etc/config/network` and `/etc/config/firewall` as `service wgpathd check` reads them. |
 
 rpcd refuses a `candidate` that is not an object, and any other argument, with `Invalid argument` (`UBUS_STATUS_INVALID_ARGUMENT`).
 
@@ -80,7 +81,7 @@ Values are merged over the saved configuration, option by option:
 - `main` may be given when `/etc/config/wgpathd` has no `main` section; its options then make up the whole section.
 - A peer is named by its WireGuard public key. Its values are merged over the `peer` section with that key; when there is none, they make up a new one. When several sections have the key, each gets the values.
 - A peer left with neither `relay` nor `tunnel` has no `peer` section, as clearing both fields of a peer in a form removes its section.
-- A key that is no peer of `mesh_iface` is accepted, and checked as a stale `peer` section. The candidate cannot change anything in `/etc/config/network`.
+- A key that is no peer of `mesh_iface` is accepted, and checked as a stale `peer` section. The candidate cannot change anything in `/etc/config/network` or `/etc/config/firewall`.
 - The merged values are checked as if they were saved: which peers are read depends on the merged `mesh_iface`, so a candidate that changes `mesh_iface` checks the peers of the new interface.
 
 Nothing is written, staged or committed: a later call without `candidate` checks the saved configuration again. Changes staged but not committed with the `uci` command are part of the saved configuration here, as they are for `service wgpathd check`; changes staged in LuCI are not, since rpcd keeps them per session.
@@ -116,6 +117,16 @@ Nothing is written, staged or committed: a later call without `candidate` checks
 			"public_key": "hQrcvDZE8wGkiQzp3/zDaTL3dY0PfbFTcQ4r3sG1UUk=",
 			"option": "relay",
 			"message": "peer spoke_c: not steered (invalid relay)"
+		},
+		{
+			"level": "warn",
+			"subject": "firewall",
+			"option": "hub_iface",
+			"message": "firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): no rule accepts it",
+			"fix": {
+				"uci": "uci add firewall rule\nuci set firewall.@rule[-1].name='Allow-wgpathd-relay'\nuci set firewall.@rule[-1].src='vpn'\nuci set firewall.@rule[-1].proto='udp'\nuci set firewall.@rule[-1].dest_port='51820'\nuci set firewall.@rule[-1].target='ACCEPT'\nuci commit firewall\nservice firewall reload",
+				"config": "config rule\n\toption name 'Allow-wgpathd-relay'\n\toption src 'vpn'\n\toption proto 'udp'\n\toption dest_port '51820'\n\toption target 'ACCEPT'"
+			}
 		}
 	]
 }
@@ -131,13 +142,16 @@ Nothing is written, staged or committed: a later call without `candidate` checks
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `level` | string | `ok`, `skip`, `warn` or `fail`. `service wgpathd check` prints `fail` as `FAIL`. |
-| `subject` | string | `config` for the configuration and the `enabled` option, `peer` for a peer or a `peer` section. (`service wgpathd check` also uses the interface name and `ubus`, for the lines left out here.) |
+| `subject` | string | `config` for the configuration and the `enabled` option, `peer` for a peer or a `peer` section, `firewall` for the firewall. (`service wgpathd check` also uses the interface name and `ubus`, for the lines left out here.) |
 | `section` | string | The section of `/etc/config/network` the finding is about: for `peer`, the peer's section; for `config`, a section with options left over from an earlier release. Left out for a `peer` section that matches no mesh peer. |
 | `public_key` | string | For `peer`, the peer's public key, when it is a valid key. It names the peer's [`peer` section](uci-config.md#peer-sections) in `/etc/config/wgpathd`. |
-| `option` | string | Present when the finding is about one option: the loader failures that name one (`role`, a missing option, an option with an invalid value), `mode` for an unknown mode, `enabled`, `discovery` for the warnings about the discovery host, `serve_addr` for a listener address outside the WireGuard interfaces, and for a peer the option of its `peer` section that is missing or malformed (`relay`, `tunnel`), `relay` for a relay routed into the mesh, or `public_key` for a peer in `/etc/config/network` without a valid key. Left out otherwise, for example for `no interface <name> in /etc/config/network` or `configured more than once`. |
+| `option` | string | Present when the finding is about one option: the loader failures that name one (`role`, a missing option, an option with an invalid value), `mode` for an unknown mode, `enabled`, `discovery` for the warnings about the discovery host, `serve_addr` for a listener address outside the WireGuard interfaces, and for a peer the option of its `peer` section that is missing or malformed (`relay`, `tunnel`), `relay` for a relay routed into the mesh, or `public_key` for a peer in `/etc/config/network` without a valid key; for the firewall, the option the traffic follows from: `mesh_iface` for the tunnel probe, `hub_iface` for relayed packets, `serve_port` for the peer list. Left out otherwise, for example for `no interface <name> in /etc/config/network`, `configured more than once` or the underlay probe. |
 | `message` | string | The line `service wgpathd check` prints after the level, word for word. |
+| `fix` | object | For a firewall finding that is not `ok`, when there is a zone and a port to name: the rule that would accept the traffic. `service wgpathd check` prints it under the line. Left out otherwise. |
+| `fix.uci` | string | The rule as `uci` commands, one per line, ending with `uci commit firewall` and `service firewall reload`. |
+| `fix.config` | string | The same rule as a `config rule` section of `/etc/config/firewall`, one line per option, indented with a tab. |
 
-`section`, `public_key` and `option` name UCI sections and options, so a client can attach a finding to the field it is about; `message` is for showing.
+`section`, `public_key` and `option` name UCI sections and options, so a client can attach a finding to the field it is about; `message` and `fix` are for showing, as text. The firewall messages and rules hold names from `/etc/config/firewall` and `/etc/config/network`; zone names are only those fw4 accepts, letters, digits and `_./-`.
 
 #### Malformed candidate
 

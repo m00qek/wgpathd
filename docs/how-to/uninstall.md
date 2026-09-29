@@ -23,7 +23,7 @@ sleep 5
 apk del wgpathd
 ```
 
-Removing the package stops and disables the service, reloads the firewall, which drops the `wgpathd:` rules, and reloads rpcd, which drops the `wgpathd.config` ubus object.
+Removing the package stops and disables the service, and reloads rpcd, which drops the `wgpathd.config` ubus object. It leaves the firewall as it is.
 
 ## 3. Clean up leftovers
 
@@ -34,6 +34,8 @@ rm -rf /var/run/wgpathd
 ```
 
 If `/etc/config/wgpathd` is still there after removal, delete it.
+
+The traffic rules you added for wgpathd stay in `/etc/config/firewall`. Remove them if nothing else needs them: the ones named `Allow-wgpathd-*` in **Network → Firewall → Traffic Rules**, or with `uci delete` on their sections, then `uci commit firewall` and `service firewall reload`. Keep `Allow-ICMPv6-Input`, which is OpenWrt's own.
 
 wgpathd keeps nothing in `/etc/config/network`. If the router ran a release up to 4 and its settings were never moved, the `wgpathd_relay` and `wgpathd_tunnel` options may still be there: netifd ignores them, so they can stay, or you can remove them for a clean file.
 

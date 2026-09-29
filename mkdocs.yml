@@ -56,6 +56,7 @@ nav:
       - Overview: how-to/index.md
       - Operators:
           - Preparing the WireGuard Substrate: how-to/prepare-substrate.md
+          - Opening the Firewall for wgpathd: how-to/open-firewall.md
           - Installing wgpathd: how-to/install.md
           - Upgrading Peer Settings from Earlier Releases: how-to/upgrade-peer-settings.md
           - Configuring the Hub: how-to/configure-hub.md

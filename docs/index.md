@@ -35,7 +35,7 @@ Before wgpathd can do anything useful you need:
 **Goal-oriented.** Prepare the substrate, install, configure the hub and the spokes, turn on steering, apply changes, tune timing, troubleshoot, remove. Plus developer tasks.
 
 ### [Reference](reference/index.md)
-**Information-oriented.** Every UCI option, parameter, service command, status field, HTTP behavior, log message, error code, installed file and firewall rule.
+**Information-oriented.** Every UCI option, parameter, service command, status field, HTTP behavior, log message, error code, installed file, and the firewall rules wgpathd needs.
 
 ### [Explanation](explanation/index.md)
 **Understanding-oriented.** Why direct-versus-relay works the way it does: the state machine, discovery, the trust model and the architecture.

@@ -5,6 +5,7 @@ wgpathd is one architecture-independent `.apk` package for OpenWrt 25.12 and lat
 ## Prerequisites
 
 - The WireGuard substrate is in place: [How to prepare the WireGuard substrate](prepare-substrate.md).
+- The firewall accepts what wgpathd needs: [How to open the firewall for wgpathd](open-firewall.md). The package adds no firewall rules.
 - The router can reach its package feeds, so `apk` can pull in the dependencies.
 - A checkout of the wgpathd repository and Docker on your workstation, to build the package.
 
@@ -52,15 +53,7 @@ active with no instances
 disabled (option enabled in /etc/config/wgpathd)
 ```
 
-Installing also reloads the firewall, which loads the package's rules:
-
-```bash
-nft list ruleset | grep 'wgpathd:'
-```
-
-You should see four rules whose comments start with `wgpathd:`. They assume UDP `51820` for `wg_mesh` and TCP `7780` for discovery; see [Firewall rules](../reference/firewall.md) if yours differ.
-
-It also reloads rpcd, which then serves the configuration check over ubus, daemon or not:
+Installing reloads rpcd, which then serves the configuration check over ubus, daemon or not:
 
 ```bash
 ubus call wgpathd.config check
@@ -75,6 +68,9 @@ Until you configure a role, the answer has `"ok": false` and a finding `config: 
 
 ## To upgrade
 
-Build and copy the new package, then run `apk add --allow-untrusted` on it as above. Your `/etc/config/wgpathd` is kept, the firewall is reloaded with the new rules, and a running daemon is restarted on the new code. Every peer starts again in RELAY and earns direct within a few cycles.
+!!! warning "From release 5 or earlier: add the firewall rules first"
+    Releases up to 5 loaded wgpathd's firewall accepts themselves; this one does not, and the upgrade removes them from the running firewall. On every node, add the rules of [How to open the firewall for wgpathd](open-firewall.md) **before** you upgrade it. Otherwise a zone that rejects input rejects wgpathd's probes, relayed packets and peer list from the moment the upgrade finishes.
+
+Build and copy the new package, then run `apk add --allow-untrusted` on it as above. Your `/etc/config/wgpathd` is kept, and a running daemon is restarted on the new code. Every peer starts again in RELAY and earns direct within a few cycles. After an upgrade from release 5 or earlier, run `service wgpathd check` and make sure no `firewall:` line is a warning.
 
 Releases up to 4 kept each peer's relay endpoint and tunnel address in `/etc/config/network`. An upgrade from one of them moves those settings into `/etc/config/wgpathd` before the daemon restarts; [How to upgrade from a release that kept peer settings in the network configuration](upgrade-peer-settings.md) shows how to check that it did.

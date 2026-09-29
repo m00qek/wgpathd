@@ -48,8 +48,9 @@ wgpathd does not check these, but relaying and probing depend on them.
 
 - **The relay host routes via the hub tunnel.** The spoke's `wg_hub` peer for the hub must include the transit range (for example `10.10.0.0/24`) in `allowed_ips`, with a route installed. No `wg_mesh` peer may include any transit address.
 - **The hub forwards between its `wg_hub` peers** within the transit range.
-- **Relayed packets are accepted.** They arrive on the spoke's `wg_hub` interface, addressed to the `wg_mesh` listen port. The package's firewall include accepts this for port `51820`; see [Firewall rules](firewall.md).
-- **The tunnel address answers ping** through `wg_mesh`.
+- **The `wg_mesh` listen port is fixed.** The other spokes' relay endpoints name it. `service wgpathd check` warns when `mesh_iface` has no `listen_port`.
+- **Relayed packets are accepted.** They arrive on the spoke's `wg_hub` interface, addressed to the `wg_mesh` listen port. The firewall must accept them: see [Firewall rules](firewall.md#relayed-packets).
+- **The tunnel address answers ping** through `wg_mesh`, which the firewall must accept too: see [Firewall rules](firewall.md#tunnel-probe).
 - **The hub is a `wg_mesh` peer of every spoke,** with a fixed IPv6 endpoint and a persistent keepalive, so the hub sees each spoke's current IPv6 endpoint. See [About discovery](../explanation/discovery.md).
 
 [How to prepare the WireGuard substrate](../how-to/prepare-substrate.md) shows a complete working layout.

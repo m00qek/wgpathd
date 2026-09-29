@@ -2,7 +2,7 @@
 
 In this tutorial we will set up wgpathd on a hub and two spokes, watch both spokes move their traffic onto the direct path, cut that path while a ping runs, and watch the relay through the hub take over without the ping dying. Then we will put the direct path back and watch wgpathd return to it.
 
-Everything happens in a lab: three OpenWrt containers on one Docker network, with the WireGuard interfaces and firewall already set up the way [How to prepare the WireGuard substrate](../how-to/prepare-substrate.md) describes. wgpathd is installed on all three but switched off. Turning it on is our job.
+Everything happens in a lab: three OpenWrt containers on one Docker network, with the WireGuard interfaces and the firewall already set up the way [How to prepare the WireGuard substrate](../how-to/prepare-substrate.md) and [How to open the firewall for wgpathd](../how-to/open-firewall.md) describe. wgpathd is installed on all three but switched off. Turning it on is our job.
 
 ```mermaid
 flowchart LR
@@ -118,9 +118,10 @@ service wgpathd check
 ```
 ok    config: hub, reads wg_mesh, serves 10.10.0.1:7780
 ok    wg_mesh: up, 2 peers
+ok    firewall: TCP port 7780 (peer list) from wg_hub (zone vpn): accepted
 ```
 
-Two `ok` lines. Let's start it and look again:
+Three `ok` lines: the configuration, the mesh interface, and the firewall rule that lets the spokes fetch the peer list. Let's start it and look again:
 
 ```bash
 service wgpathd start
@@ -186,9 +187,12 @@ ok    wg_mesh: up, 2 peers
 ok    wg_hub: up, 1 peer
 ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12
 skip  peer hub: not steered (not configured)
+ok    firewall: ICMP echo-request (tunnel probe) from wg_mesh (zone vpn): accepted
+ok    firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): accepted
+ok    firewall: ICMPv6 echo-request (underlay probe) from zone wan: accepted
 ```
 
-spoke-b will be steered; the hub is left alone, since it has no `peer` section ([Peer sections](../reference/uci-config.md#peer-sections) lists the options). Let's start it:
+spoke-b will be steered; the hub is left alone, since it has no `peer` section ([Peer sections](../reference/uci-config.md#peer-sections) lists the options). The last three lines say that spoke-a's firewall lets in what spoke-b will send it: its pings to spoke-a's mesh address, its packets through the hub, and its pings to spoke-a's public address. Let's start it:
 
 ```bash
 service wgpathd start

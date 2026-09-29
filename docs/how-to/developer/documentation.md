@@ -54,7 +54,8 @@ Reference pages describe the code as it is. When you change an option, parameter
 | `files/etc/init.d/wgpathd`, `check.uc`, `status_view.uc`, daemon reload | [Service commands](../../reference/service-commands.md) |
 | `rpc.uc`, `candidate.uc` | [ubus config check](../../reference/ubus-config-check.md) |
 | `migrate.uc`, `files/etc/uci-defaults/` | [Files and dependencies](../../reference/files.md), [How to upgrade peer settings](../upgrade-peer-settings.md) |
-| `files/`, `openwrt/wgpathd/Makefile` | [Files and dependencies](../../reference/files.md), [Firewall rules](../../reference/firewall.md) |
+| `files/`, `openwrt/wgpathd/Makefile` | [Files and dependencies](../../reference/files.md) |
+| `firewall.uc`, the firewall findings of `check.uc` | [Firewall rules](../../reference/firewall.md), [Service commands](../../reference/service-commands.md#findings), [How to open the firewall](../open-firewall.md) |
 | root `Makefile` | [Make targets](../../reference/make-targets.md) |
 | `luci/` pages, menu and ACL | [Files and dependencies](../../reference/files.md#luci-app-wgpathd), [How to check mesh paths in LuCI](../check-paths-in-luci.md), [How to configure mesh paths in LuCI](../configure-in-luci.md) |
 | `docs/Makefile`, `devenv/scripts/docs-*.sh`, `.github/workflows/docs.yml`, `mkdocs.mike.yml`, `docs/overrides/`, `devenv/gh-pages/`, `devenv/services/docs/` | [Make targets](../../reference/make-targets.md), [Documentation publishing](../../reference/docs-publishing.md) |

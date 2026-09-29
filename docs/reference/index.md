@@ -20,7 +20,7 @@ Reference documentation is technical description of the machinery. It is informa
 - [Error Codes](error-codes.md) - Every error code and its details.
 
 ## Package
-- [Firewall Rules](firewall.md) - The shipped fw4 include, rule by rule.
+- [Firewall Rules](firewall.md) - What each role needs the firewall to accept and why, and what the check can confirm. The package ships no rules.
 - [Files and Dependencies](files.md) - Installed files, runtime files, the init script, package scripts and dependencies.
 - [Make Targets](make-targets.md) - Development targets and variables.
 - [Documentation Publishing](docs-publishing.md) - The `docs` workflow, the `gh-pages` layout, the `latest` rule, the docs-only guard, the link check and the scripts behind them.

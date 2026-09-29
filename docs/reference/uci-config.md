@@ -56,7 +56,7 @@ config wgpathd 'main'
 | :--- | :--- | :--- | :--- |
 | `read_iface` | Yes | — | The WireGuard interface whose peer endpoints are published. Must be a name of letters, digits and `_`, and a `network` section of type `interface`, and must appear in the `ubus call wireguard status` reply at startup. |
 | `serve_addr` | Yes | — | Local address the discovery listener binds to: one literal IPv4 or IPv6 address, which wgpathd uses in its canonical form. A host name, the wildcard addresses `0.0.0.0` and `::`, a multicast or broadcast address, and an IPv6 link-local address (which needs a zone) are refused. `service wgpathd check` warns when it is not an address of a WireGuard interface. |
-| `serve_port` | Yes | — | TCP port of the discovery listener: a decimal number from `1` to `65535`, without spaces, leading zeros or other notations. The shipped firewall rule accepts port `7780`; see [Firewall rules](firewall.md). |
+| `serve_port` | Yes | — | TCP port of the discovery listener: a decimal number from `1` to `65535`, without spaces, leading zeros or other notations. The firewall must accept it from the hub tunnel; see [Firewall rules](firewall.md#peer-list). |
 
 The hub ignores `mode`.
 

@@ -6,7 +6,7 @@ On a spoke, wgpathd steers the endpoint of each `wg_mesh` peer you give a relay 
 
 - wgpathd is installed: [How to install wgpathd](install.md).
 - The spoke's `wg_mesh` and `wg_hub` are set up as in [How to prepare the WireGuard substrate](prepare-substrate.md).
-- wgpathd is installed on the other spokes too. Each spoke must answer the others' tunnel probes and accept relayed packets, which the package's firewall rules provide.
+- Every spoke's firewall answers the others' tunnel probes and accepts relayed packets: [How to open the firewall for wgpathd](open-firewall.md).
 - The hub is configured: [How to configure the hub](configure-hub.md).
 
 ---
@@ -54,9 +54,12 @@ ok    wg_mesh: up, 2 peers
 ok    wg_hub: up, 1 peer
 ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12
 skip  peer hub: not steered (not configured)
+ok    firewall: ICMP echo-request (tunnel probe) from wg_mesh (zone vpn): accepted
+ok    firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): accepted
+ok    firewall: ICMPv6 echo-request (underlay probe) from zone wan: accepted
 ```
 
-There should be one `ok  peer` line per other spoke, with its relay `via wg_hub`. The hub peer is always `skip`, since it has no `peer` section. Fix every `FAIL` and `warn` line before you go on; [Service commands](../reference/service-commands.md#findings) explains each one, and [Managed and unmanaged peers](../reference/uci-config.md#managed-and-unmanaged-peers) the peer reasons.
+There should be one `ok  peer` line per other spoke, with its relay `via wg_hub`. The hub peer is always `skip`, since it has no `peer` section. The `firewall:` lines say whether this spoke's firewall accepts what the other spokes send it; a warning comes with the rule to add ([How to open the firewall for wgpathd](open-firewall.md)). Fix every `FAIL` and `warn` line before you go on; [Service commands](../reference/service-commands.md#findings) explains each one, and [Managed and unmanaged peers](../reference/uci-config.md#managed-and-unmanaged-peers) the peer reasons.
 
 ## 3. Start the service and check the relay path
 
@@ -85,7 +88,7 @@ Then prove the relay carries traffic, using the other spoke's tunnel address:
 ping -c3 10.20.0.12
 ```
 
-If this fails, the relay floor does not work yet, and there is no point in turning on steering. Check that the hub forwards the transit range and that wgpathd is installed on the other spoke, whose firewall rules accept the relayed packets.
+If this fails, the relay floor does not work yet, and there is no point in turning on steering. Check that the hub forwards the transit range, and that `service wgpathd check` on the other spoke shows its firewall accepting relayed packets and the tunnel probe.
 
 ## 4. Watch for readiness
 

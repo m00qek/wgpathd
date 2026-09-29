@@ -106,6 +106,7 @@ If the configuration is invalid by the time the daemon reads it, the daemon logs
 | `relay.uc`, `direct.uc` | The relay loop guard, shared by the daemon and the check, and the guard on direct candidates |
 | `address.uc` | The special-purpose address ranges: where the hub may listen, and which addresses can be a direct path |
 | `check.uc`, `status_view.uc` | `service wgpathd check` and the text of `service wgpathd status` |
+| `firewall.uc` | What each role needs the firewall to accept, and whether `/etc/config/firewall` does, for the check |
 | `rpc.uc`, `candidate.uc` | The `wgpathd.config` ubus object that rpcd serves (the check, the mesh peers without their keys, the parameter bounds), and unsaved values laid over the saved configuration |
 | `migrate.uc` | The move of peer settings out of `/etc/config/network`, from releases up to 4 |
 | `publisher.uc` | Hub snapshot and the HTTP request/response mapping and listener |

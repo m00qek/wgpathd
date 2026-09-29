@@ -18,7 +18,7 @@ If you already run hub-and-spoke on one interface, that interface can be your `w
 ## Before you start
 
 - Generate **two keypairs per node**, one for `wg_hub` and one for `wg_mesh`. Do not reuse a key across interfaces.
-- Give the mesh interface listen port `51820` on every node. The firewall rules shipped with the package assume that port; see [Firewall rules](../reference/firewall.md). The examples call the interfaces `wg_hub` and `wg_mesh`, but any names work: you tell wgpathd which is which.
+- Give the mesh interface a fixed listen port on every node, `51820` in the examples: the other spokes' relay endpoints name it, and the firewall accepts relayed packets on it. The examples call the interfaces `wg_hub` and `wg_mesh`, but any names work: you tell wgpathd which is which.
 - Keep the `wg_mesh` MTU at least 60 bytes below the `wg_hub` MTU, so a relayed packet fits inside the hub tunnel. The examples use `1360` inside the default `1420`.
 
 ## 1. Configure the hub
@@ -146,7 +146,7 @@ config rule
 
 A roaming site behind a stateful firewall (spoke-b) needs no inbound rule. Its outgoing probes open the way.
 
-Put `wg_hub` and `wg_mesh` in firewall zones as your site policy requires. The probe and relay accepts are shipped by the package.
+Put `wg_hub` and `wg_mesh` in a firewall zone, `vpn` in the examples, as your site policy requires. A zone that holds only them keeps the rules wgpathd needs, added in the next guide, from opening anything to other networks.
 
 ## 5. Apply and check
 
@@ -163,4 +163,4 @@ Then check:
 - On each spoke, `ip route get 10.10.0.12` (the other spoke's transit address) answers `dev wg_hub`.
 - On each spoke, `wg show wg_mesh` lists the hub peer with a recent handshake, and the other spokes with no endpoint.
 
-The spokes cannot yet reach each other over `wg_mesh`: their mesh peers have no endpoint until wgpathd sets one. Continue with [How to install wgpathd](install.md).
+The spokes cannot yet reach each other over `wg_mesh`: their mesh peers have no endpoint until wgpathd sets one. Continue with [How to open the firewall for wgpathd](open-firewall.md), then [How to install wgpathd](install.md).

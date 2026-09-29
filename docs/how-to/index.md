@@ -9,6 +9,7 @@ How-to guides are recipes. Each one takes you through the steps to reach one spe
 Roughly in the order you will need them:
 
 - [Preparing the WireGuard Substrate](prepare-substrate.md) - How to set up `wg_hub`, `wg_mesh` and the hub's forwarding.
+- [Opening the Firewall for wgpathd](open-firewall.md) - How to add the traffic rules each role needs, and confirm them with the check. Before upgrading from release 5 or earlier too.
 - [Installing wgpathd](install.md) - How to build, install and upgrade the package.
 - [Upgrading Peer Settings from Earlier Releases](upgrade-peer-settings.md) - How to check, or do by hand, the move of peer settings out of `/etc/config/network`.
 - [Configuring the Hub](configure-hub.md) - How to publish discovery from the hub.

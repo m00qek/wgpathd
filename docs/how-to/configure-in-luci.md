@@ -6,6 +6,7 @@ This guide sets up wgpathd from the LuCI web interface instead of `/etc/config/w
 
 - wgpathd and `luci-app-wgpathd` are installed: [How to install wgpathd](install.md) and [How to check mesh paths in LuCI](check-paths-in-luci.md).
 - The WireGuard interfaces and their peers are set up, as in [How to prepare the WireGuard substrate](prepare-substrate.md). The page chooses among them; it does not create them.
+- The firewall accepts what wgpathd needs, as in [How to open the firewall for wgpathd](open-firewall.md). The check below says what is missing.
 
 ---
 
@@ -58,6 +59,8 @@ Click **Check configuration**. The **Configuration check** list says, line by li
 | **Fail** | wgpathd would refuse the configuration, or leave the peer unsteered. |
 
 Each **Fail** marks its field in red, and the page opens the tab that holds the first one. Fix the fields and check again.
+
+The last lines are about the firewall: whether it accepts the tunnel probe and relayed packets on a spoke, and the peer list requests on the hub. A **Warn** there shows the rule to add under it, as commands to run on the router and as the section of `/etc/config/firewall`; add it under **Network → Firewall → Traffic Rules**, as in [How to open the firewall for wgpathd](open-firewall.md). These warnings never stop Save & Apply.
 
 Then click **Save & Apply**. It runs the same check first. If a line fails, it saves and applies nothing and says so above the list. Otherwise LuCI applies the change, and the running service reloads it. Look at **Status → Mesh paths** to see the peers.
 
