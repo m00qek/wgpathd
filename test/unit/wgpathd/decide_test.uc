@@ -821,6 +821,66 @@ describe('decide: giving up a direct address', () => {
 	});
 });
 
+// The cost claims of docs/explanation/state-machine.md, "What a trial costs": while
+// TRIALING, all of the peer's traffic takes the candidate path.
+describe('decide: what trials cost over a day', () => {
+	const DAY = 86400;
+	const PER_TRIAL = P.trial_window + P.cycle;
+
+	// Runs a day of cycles, obs(i, s) giving each cycle's observation.
+	function day(params, obs) {
+		let s = sim(params);
+		let r = { trials: 0, trialing: 0, first_direct: null };
+		for (let i = 0; s.now < T0 + DAY; i++) {
+			let now = s.now;
+			let out = s.cycle(obs(i, s));
+			if (out.ctl.last_change?.ts == now && out.ctl.last_change.reason == 'trial_start')
+				r.trials++;
+			if (out.ctl.state == state.TRIALING)
+				r.trialing += params.cycle;
+			if (out.ctl.state == state.DIRECT && r.first_direct == null)
+				r.first_direct = now;
+		}
+		return r;
+	}
+
+	const bad = () => ({ underlay_ok: true, tunnel_ok: false });
+
+	it('a fixed address that answers ping but never carries WireGuard: give_up_after trials, then one per pause', () => {
+		let r = day(P, bad);
+		let bound = P.give_up_after + int((DAY + P.give_up_pause - 1) / P.give_up_pause);
+		assert.match(true, r.trials > P.give_up_after && r.trials <= bound, `${r.trials} trials`);
+		assert.match(true, r.trialing <= bound * PER_TRIAL, `${r.trialing} s trialing`);
+		let before = day({ ...P, give_up_after: 100 }, bad);
+		assert.match(true, before.trials >= DAY / (P.backoff_max + PER_TRIAL), `${before.trials} trials without giving up`);
+		assert.match(true, r.trialing * 10 < before.trialing);
+	});
+
+	it('a hub that publishes another bad address every discovery_interval buys one trial per backoff', () => {
+		let r = day(P, (i) => ({ ...bad(), direct_cand: sprintf('[2001:db8:bad::%x]:51820', int(i / 20)) }));
+		let ramp = 6;
+		assert.match(true, r.trials <= ramp + DAY / P.backoff_max, `${r.trials} trials`);
+		assert.match(true, r.trialing <= (ramp + DAY / P.backoff_max) * PER_TRIAL, `${r.trialing} s trialing`);
+	});
+
+	it('a good address is taken at the first trial and held all day', () => {
+		let r = day(P, () => ({ underlay_ok: true, tunnel_ok: true }));
+		assert.match([ 1, P.cycle ], [ r.trials, r.trialing ]);
+		assert.match(T0 + P.n_up * P.cycle, r.first_direct);
+	});
+
+	it('a good address that failed its trials during an outage is back within the pause, or at once on a roam', () => {
+		let healed = T0 + 7200;
+		let r = day(P, (i, s) => (s.now < healed) ? bad() : { underlay_ok: true, tunnel_ok: true });
+		assert.match(true, r.first_direct > healed && r.first_direct <= healed + P.give_up_pause, `${r.first_direct - healed} s after`);
+
+		let roam_at = healed + 60;
+		r = day(P, (i, s) => (s.now < healed) ? bad()
+			: { underlay_ok: true, tunnel_ok: true, cur_endpoint: (s.now >= roam_at && s.ctl.state == state.RELAY) ? CAND : s.ctl.asserted });
+		assert.match(true, r.first_direct >= roam_at && r.first_direct <= roam_at + 2 * P.cycle, `${r.first_direct - roam_at} s after the roam`);
+	});
+});
+
 describe('decide: metric', () => {
 	it('emits exactly one metric per cycle mirroring the new ctl', () => {
 		let s = sim();
@@ -944,13 +1004,25 @@ describe('decide: purity and determinism', () => {
 // Property tests: random plausible obs sequences, invariants checked after every step.
 const STRANGER = '[2001:db8:dead::1]:51820';
 const TRI = [ true, false, null ];
-const STEPS = [ 3, 3, 3, 3, 3, 40, 700 ];
+// The last step outlasts give_up_pause.
+const STEPS = [ 3, 3, 3, 3, 3, 40, 700, 25000 ];
 const MAX_TRIAL_CYCLES = int((P.trial_window + P.cycle - 1) / P.cycle);
 const RECOVERY_BOUND = MAX_TRIAL_CYCLES + P.m_down;
 
 const obs_choice = gen.tuple(gen.int(0, 2), gen.int(0, 2), gen.int(0, 4), gen.int(0, 2), gen.int(0, length(STEPS) - 1),
 	gen.int(0, 4));
-const sequence = gen.array(obs_choice, { max_len: 80 });
+
+// Mostly an echo that answers, a probe that does not, no roam, the same candidate
+// and short steps: the failed trials in a row that give an address up.
+const sticky_choice = gen.tuple(
+	gen.frequency([ 3, gen.constant(0) ], [ 1, gen.int(1, 2) ]),
+	gen.frequency([ 1, gen.constant(0) ], [ 3, gen.int(1, 2) ]),
+	gen.frequency([ 6, gen.constant(1) ], [ 1, gen.int(0, 4) ]),
+	gen.frequency([ 8, gen.constant(0) ], [ 1, gen.int(1, 2) ]),
+	gen.frequency([ 12, gen.int(0, 4) ], [ 2, gen.int(5, 6) ], [ 1, gen.constant(7) ]),
+	gen.int(0, 4));
+
+const sequence = gen.oneof(gen.array(obs_choice, { max_len: 80 }), gen.array(sticky_choice, { max_len: 150 }));
 
 function make_obs(ctl, c) {
 	return { ...BASE,
@@ -1086,11 +1158,50 @@ describe('decide: invariants', () => {
 		});
 	});
 
+	// A change is a roam, a candidate other than the last one, the pause running out,
+	// or a committed trial, which clears the count.
+	prop('I9: between two changes, at most give_up_after trials start on the same target', sequence, (seq, ctx) => {
+		let starts = {};
+		let last_cand = null;
+		let gave_up = false;
+		replay(seq, P, (out, obs, prev, now) => {
+			let changed = roam_of(prev, obs) != null
+				|| (obs.direct_cand != null && last_cand != null && obs.direct_cand != last_cand)
+				|| (prev.given_up_at != null && now >= prev.given_up_at + P.give_up_pause);
+			last_cand = obs.direct_cand ?? last_cand;
+			if (changed)
+				starts = {};
+			if (prev.state == state.RELAY && out.ctl.state == state.TRIALING) {
+				starts[out.ctl.target] = (starts[out.ctl.target] ?? 0) + 1;
+				assert.match(true, starts[out.ctl.target] <= P.give_up_after, out.ctl.target);
+			}
+			if (out.ctl.state == state.DIRECT)
+				starts = {};
+			gave_up ||= out.ctl.given_up_at != null;
+		});
+		ctx.classify('gave an address up', gave_up);
+	});
+
+	prop('while an address is given up, only a roam or another candidate starts a trial, until the pause is over',
+		sequence, (seq, ctx) => {
+		replay(seq, P, (out, obs, prev, now) => {
+			if (prev.given_up_at == null || out.ctl.state != state.TRIALING)
+				return;
+			let roam = roam_of(prev, obs);
+			let why = (roam != null) ? 'roam' : (out.ctl.target != prev.failed_target) ? 'new_candidate' : 'pause_over';
+			ctx.classify(why);
+			if (why == 'pause_over')
+				assert.match(true, now >= prev.given_up_at + P.give_up_pause);
+			assert.match([ { endpoint: prev.failed_target, reason: why } ], of_kind(out.effects, 'resumed'));
+		});
+	});
+
 	prop('I5: observe mode only ever sets the relay and never probes the tunnel', sequence, (seq) => {
 		replay(seq, OBSERVE, (out) => {
 			assert.match(RELAY_EP, endpoint(out));
 			assert.match(false, has(out, 'tunnel_probe'));
 			assert.match(state.RELAY, out.ctl.state);
+			assert.match(0, out.ctl.failed_trials);
 		});
 	});
 
