@@ -34,6 +34,17 @@ for f in $(find luci -name '*.js'); do
 	qjs --std -e 'new Function(std.loadFile(scriptArgs[0]))' "$f" || { echo "  in $f" >&2; status=1; }
 done
 
+devenv/scripts/luci-dom-lint.sh $(find luci/htdocs -name '*.js') || status=1
+
+# The check above must still catch what it is for.
+bad=$(mktemp)
+for line in "el.innerHTML = x;" "_('Peer %s').format(name);" "'%s'.format(name);"; do
+	echo "$line" >"$bad"
+	devenv/scripts/luci-dom-lint.sh "$bad" >/dev/null 2>&1 &&
+		{ echo "luci-dom-lint.sh let through: $line" >&2; status=1; }
+done
+rm -f "$bad"
+
 devenv/scripts/docs-links.sh || status=1
 
 exit $status

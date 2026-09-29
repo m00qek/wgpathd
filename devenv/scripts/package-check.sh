@@ -46,6 +46,8 @@ scripts_parse() {
 echo "checking $APK and $APP"
 
 VIEWS=/www/luci-static/resources/view/wgpathd
+MODULE=/www/luci-static/resources/wgpathd.js
+INCLUDE=/www/luci-static/resources/view/status/include/70_wgpathd.js
 MENU=/usr/share/luci/menu.d/luci-app-wgpathd.json
 ACL=/usr/share/rpcd/acl.d/luci-app-wgpathd.json
 
@@ -164,19 +166,22 @@ check "app refuses another wgpathd release" refuses_other_daemon_release
 seed_luci_caches
 check "app installs" apk add --allow-untrusted --no-network "$APP"
 check "app install clears the LuCI caches" luci_caches_cleared
-check "app ships only its menu, ACL and views" sh -c \
-	'[ "$(grep -c . /lib/apk/packages/luci-app-wgpathd.list)" = 4 ]'
-for f in "$MENU" "$ACL" "$VIEWS/status.js" "$VIEWS/settings.js"; do
+check "app ships only its menu, ACL, views, module and Overview include" sh -c \
+	'[ "$(grep -c . /lib/apk/packages/luci-app-wgpathd.list)" = 6 ]'
+for f in "$MENU" "$ACL" "$VIEWS/status.js" "$VIEWS/settings.js" "$MODULE" "$INCLUDE"; do
 	check "$f 0644" has_mode 644 "$f"
 done
 check "menu JSON parses" json_parses "$MENU"
 check "ACL JSON parses" json_parses "$ACL"
 check "status view parses" view_parses "$VIEWS/status.js"
 check "settings view parses" view_parses "$VIEWS/settings.js"
+check "shared module parses" view_parses "$MODULE"
+check "Overview include parses" view_parses "$INCLUDE"
 check "app scripts parse" scripts_parse "$APP"
 seed_luci_caches
 check "app removes cleanly and keeps the daemon" sh -c \
-	'apk del luci-app-wgpathd >/dev/null 2>&1 && [ ! -e "$1" ] && [ ! -d "$2" ] && apk info -e wgpathd' - "$MENU" "$VIEWS"
+	'apk del luci-app-wgpathd >/dev/null 2>&1 && [ ! -e "$1" ] && [ ! -d "$2" ] && [ ! -e "$3" ] && [ ! -e "$4" ] &&
+		apk info -e wgpathd' - "$MENU" "$VIEWS" "$MODULE" "$INCLUDE"
 check "app removal clears the LuCI caches" luci_caches_cleared
 
 check "package removes cleanly" sh -c \

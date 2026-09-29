@@ -1,13 +1,27 @@
 import { describe, it, assert } from 'utest';
-import { readfile, lsdir, access } from 'fs';
+import { readfile, lsdir, access, stat } from 'fs';
 
 const LUCI  = sourcepath(0, true) + '/../../luci';
-const VIEWS = LUCI + '/htdocs/luci-static/resources/view/';
+const RESOURCES = LUCI + '/htdocs/luci-static/resources/';
+const VIEWS = RESOURCES + 'view/';
 const MENU  = json(readfile(LUCI + '/root/usr/share/luci/menu.d/luci-app-wgpathd.json'));
 const ACL   = json(readfile(LUCI + '/root/usr/share/rpcd/acl.d/luci-app-wgpathd.json'));
 
 function view_files() {
 	return map(sort(lsdir(VIEWS + 'wgpathd')), (f) => VIEWS + 'wgpathd/' + f);
+}
+
+// Every script the app ships: views, the Overview include and the shared module.
+function scripts(dir) {
+	let out = [];
+	for (let f in sort(lsdir(dir))) {
+		let path = dir + f;
+		if (stat(path).type == 'directory')
+			push(out, ...scripts(path + '/'));
+		else if (match(f, /\.js$/))
+			push(out, path);
+	}
+	return out;
 }
 
 function declared_calls(file) {
@@ -55,9 +69,11 @@ describe('luci-app-wgpathd: ACL', () => {
 		}, { read: ACL['luci-app-wgpathd'].read, write: ACL['luci-app-wgpathd'].write });
 	});
 
-	it('covers every ubus call a view declares', () => {
+	it('covers every ubus call a script declares', () => {
 		let granted = ACL['luci-app-wgpathd'].read.ubus;
-		for (let file in view_files())
+		let files = scripts(RESOURCES);
+		assert.match(true, length(filter(files, (f) => length(declared_calls(f)) > 0)) > 0, 'some script declares a call');
+		for (let file in files)
 			for (let call in declared_calls(file))
 				assert.match(true, call.method in granted[call.object], `${file}: ${call.object}.${call.method}`);
 	});
@@ -69,6 +85,21 @@ describe('luci-app-wgpathd: views', () => {
 			let src = readfile(file);
 			assert.match(0, index(src, "'use strict';\n"), file);
 			assert.match(true, index(src, "\nreturn view.extend({") > 0, file);
+		}
+	});
+});
+
+describe('luci-app-wgpathd: shared module and Overview include', () => {
+	it('ships the shared module and one Status → Overview include', () => {
+		assert.match([ RESOURCES + 'view/status/include/70_wgpathd.js', RESOURCES + 'view/wgpathd/settings.js',
+			RESOURCES + 'view/wgpathd/status.js', RESOURCES + 'wgpathd.js' ], sort(scripts(RESOURCES)));
+	});
+
+	it('each is a strict-mode LuCI class', () => {
+		for (let file in [ RESOURCES + 'wgpathd.js', RESOURCES + 'view/status/include/70_wgpathd.js' ]) {
+			let src = readfile(file);
+			assert.match(0, index(src, "'use strict';\n"), file);
+			assert.match(true, index(src, "\nreturn baseclass.extend({") > 0, file);
 		}
 	});
 });

@@ -1,16 +1,11 @@
 'use strict';
 'require view';
 'require form';
-'require rpc';
-
-const callStatus = rpc.declare({
-	object: 'wgpathd',
-	method: 'status'
-});
+'require wgpathd';
 
 return view.extend({
 	load() {
-		return L.resolveDefault(callStatus(), null);
+		return wgpathd.status();
 	},
 
 	render(status) {
@@ -18,9 +13,9 @@ return view.extend({
 			_('How wgpathd chooses between the direct path and the hub relay for each WireGuard mesh peer.'));
 
 		return m.render().then((node) => {
-			if (!L.isObject(status))
+			if (!wgpathd.isRunning(status))
 				node.querySelector('.cbi-map-descr').after(
-					E('div', { 'class': 'alert-message warning' }, _('The wgpathd service is not running.')));
+					E('div', { 'class': 'alert-message warning' }, [ _('The wgpathd service is not running.') ]));
 
 			return node;
 		});
