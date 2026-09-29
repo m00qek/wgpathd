@@ -1,4 +1,4 @@
-# Versioned publishing with mike (see docs/how-to/developer/publish-docs.md).
+# Versioned publishing with mike (see docs/reference/docs-publishing.md).
 # mkdocs.yml stays mike-free, so plain mkdocs build and serve keep working.
 INHERIT: mkdocs.yml
 

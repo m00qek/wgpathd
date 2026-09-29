@@ -17,7 +17,7 @@ make -C docs test        # Test the publishing scripts
 
 ## Publishing
 
-The site is published per minor release with mike (`/X.Y/`, `/latest/`), from release tags and `docs/X.Y` branches, never from `main`. See [how-to/developer/publish-docs.md](how-to/developer/publish-docs.md).
+The site is published per minor release with mike (`/X.Y/`, `/latest/`), from release tags and `docs/X.Y` branches, never from `main`. See [reference/docs-publishing.md](reference/docs-publishing.md) for the machinery and the how-to guides in `how-to/developer/` for releasing and fixing the docs.
 
 ## Structure
 

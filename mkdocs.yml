@@ -68,7 +68,12 @@ nav:
           - Running Tests: how-to/developer/testing.md
           - Building the Package: how-to/developer/packaging.md
           - Writing Documentation: how-to/developer/documentation.md
-          - Publishing the Documentation: how-to/developer/publish-docs.md
+          - Publishing the Documentation:
+              - Setting Up Publishing: how-to/developer/setup-docs-publishing.md
+              - Publishing a New Minor Release: how-to/developer/publish-minor-docs.md
+              - Publishing a Patch Release: how-to/developer/publish-patch-docs.md
+              - Fixing the Released Docs: how-to/developer/fix-released-docs.md
+              - Republishing a Version: how-to/developer/republish-docs.md
   - Reference:
       - Overview: reference/index.md
       - UCI Configuration: reference/uci-config.md
@@ -82,6 +87,7 @@ nav:
       - Firewall Rules: reference/firewall.md
       - Files and Dependencies: reference/files.md
       - Make Targets: reference/make-targets.md
+      - Documentation Publishing: reference/docs-publishing.md
   - Explanation:
       - Overview: explanation/index.md
       - About wgpathd: explanation/about.md
@@ -89,6 +95,7 @@ nav:
       - About Discovery: explanation/discovery.md
       - Trust Model: explanation/trust-model.md
       - Architecture: explanation/architecture.md
+      - About Versioned Documentation: explanation/versioned-docs.md
   - Project:
       - Design Record: design.md
       - Substrate Build History: history.md

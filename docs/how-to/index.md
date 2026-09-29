@@ -23,4 +23,11 @@ Roughly in the order you will need them:
 - [Running Tests](developer/testing.md) - How to run all tests, one suite, one file or a filtered subset.
 - [Building the Package](developer/packaging.md) - How to build and check the `.apk`.
 - [Writing Documentation](developer/documentation.md) - How to preview, build and place documentation pages.
-- [Publishing the Documentation](developer/publish-docs.md) - How versioned docs get published, and how to release, fix and link them.
+
+### Publishing the Documentation
+
+- [Setting Up Publishing](developer/setup-docs-publishing.md) - How to make the first release publish the versioned site, once.
+- [Publishing a New Minor Release](developer/publish-minor-docs.md) - How to publish `/X.Y/`, move `latest` and start the docs branch.
+- [Publishing a Patch Release](developer/publish-patch-docs.md) - How to republish a minor from a patch tag and move its docs branch.
+- [Fixing the Released Docs](developer/fix-released-docs.md) - How to get a docs fix onto the published version, and what to do when the guard refuses.
+- [Republishing a Version](developer/republish-docs.md) - How to rerun a failed or lost publish by hand.

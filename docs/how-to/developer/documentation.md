@@ -22,7 +22,7 @@ make -C docs build
 
 The build runs `mkdocs build --strict`, so a broken link or any other warning fails it. CI runs the same strict build on pushes and pull requests to `main` that touch the docs, and a second one with the versioned config, `mkdocs.mike.yml` (`make -C docs build-mike` locally).
 
-Merging to `main` publishes nothing: the docs go online with the next release. See [How to publish the documentation](publish-docs.md), also for fixing the docs of the released version.
+Merging to `main` publishes nothing: the docs go online with the next release. To correct the docs already online, see [How to fix the docs of the released version](fix-released-docs.md); what publishes when is in [Documentation publishing](../../reference/docs-publishing.md).
 
 ## Where a page goes
 
@@ -54,7 +54,7 @@ Reference pages describe the code as it is. When you change an option, parameter
 | `files/etc/init.d/wgpathd`, `check.uc`, `status_view.uc`, daemon reload | [Service commands](../../reference/service-commands.md) |
 | `files/`, `openwrt/wgpathd/Makefile` | [Files and dependencies](../../reference/files.md), [Firewall rules](../../reference/firewall.md) |
 | root `Makefile` | [Make targets](../../reference/make-targets.md) |
-| `docs/Makefile`, `devenv/scripts/docs-*.sh`, `.github/workflows/docs.yml` | [Make targets](../../reference/make-targets.md), [Publishing the documentation](publish-docs.md) |
+| `docs/Makefile`, `devenv/scripts/docs-*.sh`, `.github/workflows/docs.yml`, `mkdocs.mike.yml`, `docs/overrides/`, `devenv/gh-pages/`, `devenv/services/docs/` | [Make targets](../../reference/make-targets.md), [Documentation publishing](../../reference/docs-publishing.md) |
 
 ## Diagrams and examples
 

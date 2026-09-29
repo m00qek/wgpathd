@@ -56,7 +56,7 @@ This runs all tests, then again each time a file under `src/`, `test/` or `files
 make lint
 ```
 
-This compiles every ucode file, including the scripts in `files/usr/libexec/wgpathd/`, runs `sh -n` on the init script and the devenv scripts, and checks pinned documentation links (see [Link to the documentation](publish-docs.md#link-to-the-documentation)). CI runs `make lint` and `make test` on every push.
+This compiles every ucode file, including the scripts in `files/usr/libexec/wgpathd/`, runs `sh -n` on the init script and the devenv scripts, and checks pinned documentation links (see [Link check](../../reference/docs-publishing.md#link-check)). CI runs `make lint` and `make test` on every push.
 
 ## Test the docs tooling
 

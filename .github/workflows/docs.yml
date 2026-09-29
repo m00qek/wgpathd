@@ -1,4 +1,4 @@
-# Versioned docs (docs/how-to/developer/publish-docs.md): release tags vX.Y.Z and
+# Versioned docs (docs/reference/docs-publishing.md): release tags vX.Y.Z and
 # docs/X.Y branches publish version X.Y to gh-pages; main and PRs only build.
 name: docs
 

@@ -12,7 +12,7 @@ All targets run in Docker. Nothing is installed on the host.
 | `unit` | Run the unit suite only. |
 | `integration` | Run the integration suite only. |
 | `watch` | Run all tests, then re-run whenever a file under `src/`, `test/` or `files/` changes. |
-| `lint` | Compile-check every ucode file, `sh -n` every shell script, and check that pinned documentation links (`<site_url><X.Y>/`) use the package's minor in shipped files and their section's minor in `CHANGELOG.md` (`devenv/scripts/docs-links.sh`; nothing to check while `site_url` is unset). |
+| `lint` | Compile-check every ucode file, `sh -n` every shell script, and check the pinned documentation links with `devenv/scripts/docs-links.sh` (see [Link check](docs-publishing.md#link-check)). |
 | `shell` | Open a throwaway shell in the development image. |
 | `image` | Rebuild the development image, pulling the base image again. |
 | `package` | Build `bin/wgpathd-<version>-r<release>.apk` in the OpenWrt SDK. |
