@@ -1,7 +1,7 @@
 'use strict';
 
 // deps.create(): the real fs, uci, ubus, uloop, socket, rtnl, http, clock, exec runner, ICMP prober and syslog;
-// deps.oneshot(): the subset a one-shot tool needs.
+// deps.oneshot(): the subset a one-shot tool needs; deps.plugin(): the subset the rpcd plugin needs.
 
 import * as fs from 'fs';
 import * as uci from 'uci';
@@ -107,6 +107,14 @@ export function oneshot() {
 	return {
 		uci: uci.cursor(),
 		ubus: ubus_channel(ubus.connect()),
+		route_get: route_get,
+	};
+};
+
+// No ubus: the rpcd plugin runs inside rpcd, which answers `wireguard status` itself.
+export function plugin() {
+	return {
+		uci_cursor: uci.cursor,
 		route_get: route_get,
 	};
 };

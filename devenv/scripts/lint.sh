@@ -8,8 +8,8 @@ check() {
 }
 
 # ucode -c compiles its input as a script, where `export` is a syntax error, so
-# modules are checked through a one-line importer. Proxies and the utest config
-# are require()d programs that `return` at top level, so they stay scripts.
+# modules are checked through a one-line importer. The utest config and the rpcd
+# plugin are programs that `return` at top level, so they stay scripts.
 importer=$(mktemp)
 for f in $(find src test -name '*.uc' ! -name utest.config.uc); do
 	echo "import * as _ from '$PWD/$f';" >"$importer"
@@ -17,7 +17,7 @@ for f in $(find src test -name '*.uc' ! -name utest.config.uc); do
 done
 rm -f "$importer"
 
-for f in test/utest.config.uc files/usr/libexec/wgpathd/*.uc; do
+for f in test/utest.config.uc files/usr/libexec/wgpathd/*.uc files/usr/share/rpcd/ucode/*.uc; do
 	check "$f" "$f"
 done
 

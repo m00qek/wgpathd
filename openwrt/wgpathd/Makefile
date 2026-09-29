@@ -13,7 +13,7 @@ define Package/wgpathd
   CATEGORY:=Network
   TITLE:=WireGuard path selection (hub/spoke direct-vs-relay failover)
   URL:=https://example.invalid/wgpathd
-  DEPENDS:=+ucode +ucode-mod-uloop +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-log +ucode-mod-socket +ucode-mod-rtnl +ucode-mod-uclient +rpcd-mod-wireguard +wireguard-tools +kmod-wireguard
+  DEPENDS:=+ucode +ucode-mod-uloop +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-log +ucode-mod-socket +ucode-mod-rtnl +ucode-mod-uclient +rpcd-mod-wireguard +rpcd-mod-ucode +wireguard-tools +kmod-wireguard
   PKGARCH:=all
 endef
 
@@ -30,10 +30,12 @@ endef
 define Build/Compile
 endef
 
-# fw4 picks up the nftables.d include on reload: on install, and once it is gone.
+# fw4 picks up the nftables.d include on reload, and rpcd the wgpathd.config plugin:
+# on install, and once they are gone. rpcd re-executes itself and keeps its sessions.
 define Package/wgpathd/postinst
 #!/bin/sh
 [ -n "$$IPKG_INSTROOT" ] || /etc/init.d/firewall reload || true
+[ -n "$$IPKG_INSTROOT" ] || /etc/init.d/rpcd reload || true
 # An upgrade replaces the code, but default_postinst leaves a running daemon on the old one.
 if [ -z "$$IPKG_INSTROOT" ] && [ "$$PKG_UPGRADE" = 1 ] && /etc/init.d/wgpathd running; then
 	/etc/init.d/wgpathd restart
@@ -43,6 +45,7 @@ endef
 define Package/wgpathd/postrm
 #!/bin/sh
 [ -n "$$IPKG_INSTROOT" ] || /etc/init.d/firewall reload || true
+[ -n "$$IPKG_INSTROOT" ] || /etc/init.d/rpcd reload || true
 endef
 
 define Package/wgpathd/install
@@ -56,6 +59,8 @@ define Package/wgpathd/install
 	$(INSTALL_BIN) ./files/usr/libexec/wgpathd/*.uc $(1)/usr/libexec/wgpathd/
 	$(INSTALL_DIR) $(1)/usr/share/nftables.d/chain-pre/input
 	$(INSTALL_DATA) ./files/usr/share/nftables.d/chain-pre/input/wgpathd.nft $(1)/usr/share/nftables.d/chain-pre/input/wgpathd.nft
+	$(INSTALL_DIR) $(1)/usr/share/rpcd/ucode
+	$(INSTALL_DATA) ./files/usr/share/rpcd/ucode/wgpathd.uc $(1)/usr/share/rpcd/ucode/wgpathd.uc
 endef
 
 $(eval $(call BuildPackage,wgpathd))

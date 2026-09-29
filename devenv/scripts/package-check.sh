@@ -1,7 +1,8 @@
 #!/bin/sh
 # Installs the built packages offline into a rootfs that already carries their
 # dependencies, with NET_ADMIN in an otherwise empty network namespace, so fw4
-# can load rules for real. Nothing here boots procd or ubusd.
+# can load rules for real. Nothing here boots procd; ubusd and rpcd run only
+# for the checks of the wgpathd.config plugin.
 set -u
 
 # The version openwrt/wgpathd/Makefile builds: bin/ keeps older builds too.
@@ -111,6 +112,39 @@ uci -q batch <<-EOF
 EOF
 check "full check passes a valid config without ubus" /usr/libexec/wgpathd/check.uc
 
+check "rpcd plugin 0644"      has_mode 644 /usr/share/rpcd/ucode/wgpathd.uc
+check "rpcd plugin compiles"  ucode -c -o /dev/null /usr/share/rpcd/ucode/wgpathd.uc
+
+# A real ubusd and rpcd, started by hand since nothing here runs procd; stopped
+# again before the checks below, which expect no ubus.
+start_rpcd() {
+	mkdir -p /var/run/ubus
+	ubusd >/dev/null 2>&1 &
+	for _ in 1 2 3 4 5; do [ -S /var/run/ubus/ubus.sock ] && break; sleep 1; done
+	rpcd >/dev/null 2>&1 &
+	ubus -t 5 wait_for wgpathd.config
+}
+stop_rpcd() { killall rpcd ubusd 2>/dev/null; }
+config_check() { ubus call wgpathd.config check "$@" 2>&1; }
+
+# The valid hub config above passes, and ubus being up adds no interface finding.
+answers_without_daemon() {
+	out=$(config_check) || return 1
+	echo "$out" | grep -q '"ok": true' && ! echo "$out" | grep -q '"subject": "wg_mesh"'
+}
+takes_candidate() {
+	config_check '{"candidate":{"main":{"serve_port":""}}}' | grep -q '"option": "serve_port"'
+}
+refuses_malformed_candidate() {
+	config_check '{"candidate":{"peers":{"nope":{}}}}' | grep -q '"error": "CHECK_INVALID_CANDIDATE"'
+}
+
+check "rpcd serves wgpathd.config" start_rpcd
+check "config check answers without the daemon" answers_without_daemon
+check "config check takes a candidate" takes_candidate
+check "config check refuses a malformed candidate" refuses_malformed_candidate
+stop_rpcd
+
 /etc/init.d/wgpathd disable
 check "init script enables" sh -c '/etc/init.d/wgpathd enable && [ -L /etc/rc.d/S95wgpathd ]'
 
@@ -120,6 +154,8 @@ check "install loads the four wgpathd rules" wgpathd_rules_are 4
 check "fw4 ruleset passes nft -c" sh -c 'fw4 print 2>/dev/null | nft -c -f -'
 check "install, upgrade and removal reload fw4" sh -c \
 	'[ "$(apk adbdump "$1" | grep -c "/etc/init.d/firewall reload")" = 3 ]' - "$APK"
+check "install, upgrade and removal reload rpcd" sh -c \
+	'[ "$(apk adbdump "$1" | grep -c "/etc/init.d/rpcd reload")" = 3 ]' - "$APK"
 check "upgrade restarts a running daemon" sh -c \
 	'[ "$(apk adbdump "$1" | grep -c "/etc/init.d/wgpathd restart")" = 2 ]' - "$APK"
 check "package scripts parse" scripts_parse "$APK"
@@ -144,7 +180,8 @@ check "app removes cleanly and keeps the daemon" sh -c \
 check "app removal clears the LuCI caches" luci_caches_cleared
 
 check "package removes cleanly" sh -c \
-	'apk del wgpathd >/dev/null 2>&1 && [ ! -e /usr/share/nftables.d/chain-pre/input/wgpathd.nft ]'
+	'apk del wgpathd >/dev/null 2>&1 && [ ! -e /usr/share/nftables.d/chain-pre/input/wgpathd.nft ] &&
+		[ ! -e /usr/share/rpcd/ucode/wgpathd.uc ]'
 check "removal unloads the wgpathd rules" wgpathd_rules_are 0
 
 [ "$failures" -eq 0 ] && echo "package-check: all passed" && exit 0
