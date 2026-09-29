@@ -74,7 +74,15 @@ wgpathd already damps this: each demotion doubles the backoff up to 15 minutes, 
 
 ## Endpoints change on every cycle
 
-`wg show wg_mesh endpoints` flips between the relay and a direct address while the status says RELAY. This is normal when the other side is DIRECT and this side is not yet: this side re-asserts the relay each cycle, and the other side's direct packets roam it back. This side trials on the first such roam, so it ends within a cycle or two, or stays like this while its backoff runs. Both directions keep working. While it lasts, this side's own traffic reaches the other side through the relay and can roam that side back as well; when it does so right when a probe is answered, that probe counts as failed there, so heavy traffic from this side can demote the other side too.
+`wg show wg_mesh endpoints` flips between the relay and a direct address while the status says RELAY. This is normal when the other side is DIRECT and this side is not yet: this side re-asserts the relay each cycle, and the other side's direct packets roam it back. This side trials on the first such roam, so it ends within a cycle or two, or stays like this while its backoff runs. Both directions keep working. While it lasts, this side's own traffic reaches the other side through the relay and roams that side back as well, which shows there as a growing `relayed_answers`.
+
+## Both sides are DIRECT but traffic still uses the relay
+
+Both peers show `DIRECT`, yet `wg show wg_mesh endpoints` keeps showing the relay on one side or both, and `relayed_answers` in `ubus call wgpathd status` grows every cycle. Site-to-site latency sits between the direct and the relay figures.
+
+This is WireGuard's roaming, not a wgpathd fault. Its endpoint follows the last authenticated packet, from whichever path. When both sides switch from the relay to direct while traffic flows steadily between them, packets already on their way through the relay arrive after the switch, since the relay is slower, and move the endpoint back. Each side then sends through the relay again, and moves the other one back in turn. wgpathd re-asserts the direct endpoint every cycle, but steady traffic with no pause longer than the relay's extra latency can keep the two bouncing for as long as it lasts. In the lab, with 20 ms added to the relay round trip and a steady 100 packets/s, it did not settle within two minutes.
+
+Nothing is lost: all traffic still arrives, part of it over the relay. It ends at the first pause in the traffic. If it persists, check that the direct path is really healthy: a direct path that died while the peer was DIRECT looks the same, since relayed answers still hold DIRECT (see [Relay traffic and the proof](../explanation/state-machine.md#relay-traffic-and-the-proof)). A short pause in the traffic, or `service wgpathd restart` on one side, tells the two apart: on a healthy path the endpoints settle on the direct addresses.
 
 ## The log shows an outage
 
@@ -83,4 +91,6 @@ Repeated failures are logged once, when they start, and again with `recovered` w
 - `discovery failed:`: the spoke cannot fetch from the hub. Fix discovery, or wait while the hub is down; direct paths that work are not affected.
 - `watchdog ping failed:`: procd does not know the service. This happens when the daemon is started by hand instead of through `service wgpathd start`.
 - `saving the discovery cache failed:`: `/var/run/wgpathd` cannot be written, usually because the tmpfs is full. The payload is used all the same.
-- `peer <section> (<key prefix>): setting endpoint failed:`: `wg set` itself fails for that peer. Check that `wg` is installed and the interface exists.
+- `setting endpoints on <iface> failed:`: the cycle's single `wg set` failed, so no endpoint was set and no tunnel probe was sent. Check that `wg` is installed and the interface exists.
+- `reading the MTU of <iface> failed:`: the mesh interface is missing, so no tunnel probe could be sized or sent.
+- `sending probes failed:`: a probe could not be sent, for example because the mesh interface was being recreated or a probe did not fit the route's MTU.
