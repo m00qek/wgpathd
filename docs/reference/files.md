@@ -1,6 +1,6 @@
 # Files and Dependencies
 
-The package is `wgpathd`, version `0.1.0`, release `3`, architecture `all`, license MIT. It is built as `wgpathd-0.1.0-r3.apk`.
+The package is `wgpathd`, version `0.1.0`, release `4`, architecture `all`, license MIT. It is built as `wgpathd-0.1.0-r4.apk`.
 
 ---
 
@@ -81,7 +81,7 @@ The probes need no command: the daemon sends them itself on raw sockets, which n
 
 ## `luci-app-wgpathd`
 
-The LuCI pages for wgpathd are a second package, `luci-app-wgpathd`, built from the same source with the same version and release, architecture `all`, license MIT: `luci-app-wgpathd-0.1.0-r3.apk`. It is optional; the daemon does not need it.
+The LuCI pages for wgpathd are a second package, `luci-app-wgpathd`, built from the same source with the same version and release, architecture `all`, license MIT: `luci-app-wgpathd-0.1.0-r4.apk`. It is optional; the daemon does not need it.
 
 ### Installed files
 
@@ -119,4 +119,4 @@ Both are skipped when the package is installed into a firmware image rather than
 | Package | Used for |
 | :--- | :--- |
 | `luci-base` | LuCI itself, and read access to UCI `system` |
-| `wgpathd`, exactly the same version and release (`wgpathd=0.1.0-r3`) | The ubus objects and the configuration the pages read and write. apk refuses to install the app next to any other wgpathd release, and keeps the daemon while the app is installed. |
+| `wgpathd`, exactly the same version and release (`wgpathd=0.1.0-r4`) | The ubus objects and the configuration the pages read and write. apk refuses to install the app next to any other wgpathd release, and keeps the daemon while the app is installed. |
