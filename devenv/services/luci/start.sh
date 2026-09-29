@@ -17,6 +17,24 @@ uci batch </fixtures/router.uci
 printf 'admin\nadmin\n' | passwd root >/dev/null 2>&1
 cp /opt/luci/acl.json /usr/share/rpcd/acl.d/wgpathd-browser-tests.json
 
+# A login granted luci-base and the app's ACL alone, as an administrator would grant
+# it: the tests prove the app works with that and reads nothing of network. Every
+# login also needs rpcd's own `unauthenticated` group, for `session access`.
+echo 'meshadmin:x:1000:1000:meshadmin:/var:/bin/false' >>/etc/passwd
+echo 'meshadmin:*:0:0:99999:7:::' >>/etc/shadow
+printf 'meshadmin\nmeshadmin\n' | passwd meshadmin >/dev/null 2>&1
+uci batch <<-'EOF'
+	add rpcd login
+	set rpcd.@login[-1].username='meshadmin'
+	set rpcd.@login[-1].password='$p$meshadmin'
+	add_list rpcd.@login[-1].read='unauthenticated'
+	add_list rpcd.@login[-1].read='luci-base'
+	add_list rpcd.@login[-1].read='luci-app-wgpathd'
+	add_list rpcd.@login[-1].write='luci-base'
+	add_list rpcd.@login[-1].write='luci-app-wgpathd'
+	commit rpcd
+EOF
+
 mkdir -p /var/run/ubus /var/lock
 ubusd &
 for _ in 1 2 3 4 5 6 7 8 9 10; do [ -S /var/run/ubus/ubus.sock ] && break; sleep 1; done

@@ -61,6 +61,8 @@ function lookup(table, key) {
 	return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : null;
 }
 
+// An argument may be a list of pieces itself, such as another fill(): E() takes no
+// nested lists.
 function fill(template, ...args) {
 	const parts = template.split('%s');
 	const out = [];
@@ -69,7 +71,7 @@ function fill(template, ...args) {
 		if (part !== '')
 			out.push(part);
 		if (i < parts.length - 1)
-			out.push(args[i] ?? '');
+			out.push(...[].concat(args[i] ?? ''));
 	});
 
 	return out;

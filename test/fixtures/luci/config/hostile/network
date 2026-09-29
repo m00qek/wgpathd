@@ -1,0 +1,41 @@
+
+config interface 'lan'
+	option proto 'static'
+	option ipaddr '192.168.10.1/24'
+
+config interface 'wg_mesh'
+	option proto 'wireguard'
+	option private_key 'cHJpdmF0ZSBrZXkgb2YgdGhlIG9mZmljZSBtZXNoISE='
+	option listen_port '51820'
+	list addresses '10.20.0.10/24'
+
+config interface 'wg_hub'
+	option proto 'wireguard'
+	option private_key 'cHJpdmF0ZSBrZXkgb2YgdGhlIG9mZmljZSBodWIhISE='
+	list addresses '10.10.0.10/24'
+
+config wireguard_wg_mesh 'home'
+	option public_key 'ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc='
+	option preshared_key 'cHJlc2hhcmVkIGtleSBvZiB0aGUgaG9tZSBwZWVyISE='
+	option description 'Home router'
+	list allowed_ips '10.20.0.12/32'
+
+config wireguard_wg_mesh 'beach'
+	option public_key 'O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4='
+	option description '<img src=x onerror=window.__xss=1>'
+	list allowed_ips '10.20.0.13/32'
+
+config wireguard_wg_mesh 'lab'
+	option public_key 'hQrcvDZE8wGkiQzp3/zDaTL3dY0PfbFTcQ4r3sG1UUk='
+	list allowed_ips '10.20.0.14/32'
+
+config wireguard_wg_mesh 'hub'
+	option public_key 'W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00='
+	option endpoint_host '2001:db8:4b::1'
+	option endpoint_port '51820'
+	list allowed_ips '10.20.0.1/32'
+
+config wireguard_wg_hub 'hub_transit'
+	option public_key 'W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00='
+	option endpoint_host '192.0.2.1'
+	list allowed_ips '10.10.0.0/24'

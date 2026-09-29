@@ -1,0 +1,8 @@
+
+config wgpathd 'main'
+	option enabled '1'
+	option role 'spoke'
+	option mode 'observe'
+	option mesh_iface 'wg_mesh'
+	option hub_iface 'wg_hub'
+	option discovery 'http://10.10.0.1:7780/peers'

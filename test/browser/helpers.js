@@ -37,17 +37,32 @@ async function useFixture(request, name) {
   expect(res.ok, `fixture ${name}`).toBe(true);
 }
 
+// Writes /etc/config/network and /etc/config/wgpathd from test/fixtures/luci/config/<name>/;
+// `default` puts back those the container started with.
+async function useConfig(request, name) {
+  const res = await ubus(request, 'wgpathd.fixture', 'config', { name });
+  expect(res.ok, `config ${name}`).toBe(true);
+}
+
+// The file as it is on disk: network or wgpathd.
+async function readConfig(request, name) {
+  return (await ubus(request, 'wgpathd.fixture', 'read', { config: name })).data;
+}
+
 // Themes are named after their directory under /luci-static.
 async function useTheme(request, theme) {
   await ubus(request, 'uci', 'set', { config: 'luci', section: 'main', values: { mediaurlbase: `/luci-static/${theme}` } });
   await ubus(request, 'uci', 'commit', { config: 'luci' });
 }
 
+// A login granted luci-base and the app's ACL alone (devenv/services/luci/start.sh).
+const APP_USER = { username: 'meshadmin', password: 'meshadmin' };
+
 // Posts LuCI's login form through the page's own request context, which shares the
-// browser's cookies, so the page then opens logged in.
-async function open(page, route) {
+// browser's cookies, so the page then opens logged in; as root unless `user` is given.
+async function open(page, route, user) {
   const login = await page.request.post('/cgi-bin/luci/', {
-    form: { luci_username: 'root', luci_password: PASSWORD },
+    form: { luci_username: user?.username ?? 'root', luci_password: user?.password ?? PASSWORD },
     maxRedirects: 0,
   });
   expect(login.status(), 'LuCI login').toBe(302);
@@ -59,6 +74,12 @@ async function open(page, route) {
 async function openStatus(page) {
   await open(page, 'admin/status/wgpathd');
   await expect(page.locator('#view h2', { hasText: 'Mesh paths' })).toBeVisible();
+}
+
+async function openSettings(page, user) {
+  await open(page, 'admin/network/wgpathd', user);
+  await expect(page.locator('#view h2', { hasText: 'Mesh paths' })).toBeVisible();
+  await expect(page.locator('#view .cbi-tabmenu')).toBeVisible();
 }
 
 async function openOverview(page) {
@@ -111,6 +132,6 @@ async function screenshot(target, name) {
 }
 
 module.exports = {
-  INTERNAL_NAMES, ubus, useFixture, useTheme, open, openStatus, openOverview, section, peerRow, detailsRow, strip,
-  expandAll, text, screenshot,
+  INTERNAL_NAMES, APP_USER, ubus, call, useFixture, useConfig, readConfig, useTheme, open, openStatus, openSettings,
+  openOverview, section, peerRow, detailsRow, strip, expandAll, text, screenshot,
 };

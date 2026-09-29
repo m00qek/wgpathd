@@ -1,0 +1,19 @@
+
+config wgpathd 'main'
+	option enabled '1'
+	option role 'spoke'
+	option mode 'observe'
+	option mesh_iface 'wg_mesh'
+	option hub_iface 'wg_hub'
+	option discovery 'http://10.10.0.1:7780/peers'
+	option n_up '3'
+
+config peer
+	option public_key 'ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc='
+	option relay '10.10.0.12:51820'
+	option tunnel '10.20.0.12'
+
+config peer
+	option public_key 'O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4='
+	option relay '10.10.0.13:51820'
+	option tunnel '10.20.0.13'

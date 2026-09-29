@@ -1,0 +1,7 @@
+
+config wgpathd 'main'
+	option enabled '1'
+	option role 'hub'
+	option read_iface 'wg_mesh'
+	option serve_addr '10.20.0.10'
+	option serve_port '7780'

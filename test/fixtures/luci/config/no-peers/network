@@ -1,0 +1,8 @@
+
+config interface 'wg_mesh'
+	option proto 'wireguard'
+	option private_key 'cHJpdmF0ZSBrZXkgb2YgdGhlIG9mZmljZSBtZXNoISE='
+
+config interface 'wg_hub'
+	option proto 'wireguard'
+	option private_key 'cHJpdmF0ZSBrZXkgb2YgdGhlIG9mZmljZSBodWIhISE='
