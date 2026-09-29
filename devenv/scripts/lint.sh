@@ -17,7 +17,7 @@ for f in $(find src test -name '*.uc' ! -name utest.config.uc); do
 done
 rm -f "$importer"
 
-for f in test/utest.config.uc files/usr/libexec/wgpathd/*.uc files/usr/share/rpcd/ucode/*.uc; do
+for f in test/utest.config.uc files/usr/libexec/wgpathd/*.uc files/usr/share/rpcd/ucode/*.uc devenv/services/luci/*.uc; do
 	check "$f" "$f"
 done
 

@@ -62,6 +62,7 @@ nav:
           - Moving a Spoke from Observe to Steer: how-to/enable-steering.md
           - Applying Configuration Changes: how-to/apply-changes.md
           - Tuning Timing Parameters: how-to/tune-timing.md
+          - Checking Mesh Paths in LuCI: how-to/check-paths-in-luci.md
           - Inspecting Status and Troubleshooting: how-to/troubleshoot.md
           - Removing wgpathd: how-to/uninstall.md
       - Developer:

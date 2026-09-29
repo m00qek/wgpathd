@@ -56,7 +56,7 @@ This runs all tests, then again each time a file under `src/`, `test/` or `files
 make lint
 ```
 
-This compiles every ucode file, including the scripts in `files/usr/libexec/wgpathd/`, runs `sh -n` on the init script and the devenv scripts, and checks pinned documentation links (see [Link check](../../reference/docs-publishing.md#link-check)). CI runs `make lint` and `make test` on every push.
+This compiles every ucode file, including the scripts in `files/usr/libexec/wgpathd/`, runs `sh -n` on the init script and the devenv scripts, parses the LuCI JSON and scripts, fails on LuCI code that could turn data into markup (`innerHTML` and the like, or `%s` in a `.format()` template), and checks pinned documentation links (see [Link check](../../reference/docs-publishing.md#link-check)). CI runs `make lint` and `make test` on every push.
 
 ## Test the docs tooling
 
@@ -65,6 +65,21 @@ make docs-test
 ```
 
 This runs `test/docs/` in the docs tools image, without network: the version, guard, publish and link-check scripts in `devenv/scripts/docs-*.sh`, with `docs-publish.sh` deploying three releases through mike to a throwaway local repository, and the redirect in `devenv/gh-pages/404.html` under Node. The first run builds the `wgpathd-docs` image. CI runs it on pull requests and pushes to `main` that touch the docs or their tooling.
+
+## Run the browser tests
+
+```bash
+make browser
+make browser FILTER='hub'
+```
+
+This builds both packages, then runs the Playwright tests in `test/browser/` against the LuCI pages: Status → Mesh paths, the Status → Overview section, hostile text in every free-text field, and the path strip in five themes. The first run builds the `wgpathd-luci` and `wgpathd-browser` images.
+
+LuCI runs in an OpenWrt rootfs container with the built packages, started by hand without procd. A fake `wgpathd` ubus object (`devenv/services/luci/fake-wgpathd.uc`) answers `ubus call wgpathd status` with a fixture from `test/fixtures/luci/`, which each test chooses; the fixture `none` withdraws the object, as when the daemon is not running. The fixtures freeze `now`, so every age and wait on the page is fixed. An integration test in `test/integration/daemon_test.uc` checks that each fixture has the fields and value types of the daemon's own reply, so a change to the reply fails `make test` until the fixtures follow it.
+
+The LuCI container runs with `--network none` and no capabilities, and uhttpd listens on `127.0.0.1`. The Playwright container joins its network namespace (`--network container:`), so the browser reaches LuCI over that loopback and neither container has any other network. Both are removed when the run ends, also on failure or Ctrl+C.
+
+Screenshots of the main states are in `bin/browser/screenshots/`; on failure, Playwright's screenshots and error context and the LuCI container's log are in `bin/browser/`.
 
 ## Test against another OpenWrt release
 
@@ -100,5 +115,6 @@ Results, timings, per-failure node logs and the guard's logs are in `bin/e2e/`.
 - `test/unit/` mirrors `src/`: one test file per module, with every I/O dependency replaced by a fake. The decision core is tested here, including property tests over random observation sequences.
 - `test/integration/` drives the daemon shell and the publisher through `daemon.create(...)` with fake `deps`, and runs the publisher on a real loopback socket.
 - `test/e2e/` holds one shell script per failover scenario, run on the host against the containers by `make e2e`.
+- `test/browser/` holds the Playwright tests of the LuCI pages, and `test/fixtures/luci/` the status replies they run against.
 
 For the reasoning behind the split, see [Architecture](../../explanation/architecture.md).

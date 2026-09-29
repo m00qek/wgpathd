@@ -15,6 +15,7 @@ Roughly in the order you will need them:
 - [Moving a Spoke from Observe to Steer](enable-steering.md) - How to let wgpathd move peers to direct paths.
 - [Applying Configuration Changes](apply-changes.md) - How to check and reload a changed configuration, and when to restart instead.
 - [Tuning Timing Parameters](tune-timing.md) - How to change how fast wgpathd falls back and returns.
+- [Checking Mesh Paths in LuCI](check-paths-in-luci.md) - How to see which path each peer uses, and why, on the LuCI status pages.
 - [Inspecting Status and Troubleshooting](troubleshoot.md) - How to go from a symptom to its cause.
 - [Removing wgpathd](uninstall.md) - How to uninstall and leave the mesh in a known state.
 

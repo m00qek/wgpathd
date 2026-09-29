@@ -89,6 +89,8 @@ The LuCI pages for wgpathd are a second package, `luci-app-wgpathd`, built from 
 | :--- | :--- | :--- |
 | `/www/luci-static/resources/view/wgpathd/status.js` | 0644 | The **Status → Mesh paths** page. |
 | `/www/luci-static/resources/view/wgpathd/settings.js` | 0644 | The **Network → Mesh paths** page. |
+| `/www/luci-static/resources/wgpathd.js` | 0644 | Shared by the pages and the Overview section (`'require wgpathd'`): the `status` call, the path strip, and the words for states, times and reasons. |
+| `/www/luci-static/resources/view/status/include/70_wgpathd.js` | 0644 | The **Mesh paths** section of **Status → Overview**. Hidden while the service is not running, on a hub, and when no peer is steered. |
 | `/usr/share/luci/menu.d/luci-app-wgpathd.json` | 0644 | The two menu entries, `admin/status/wgpathd` and `admin/network/wgpathd`. Each is shown only to a session granted the `luci-app-wgpathd` ACL, and only while `/etc/config/wgpathd` exists. |
 | `/usr/share/rpcd/acl.d/luci-app-wgpathd.json` | 0644 | The `luci-app-wgpathd` ACL; see below. |
 
@@ -100,6 +102,8 @@ The LuCI pages for wgpathd are a second package, `luci-app-wgpathd`, built from 
 | write | UCI `wgpathd` and `network` |
 
 `network` is included because a peer's wgpathd settings are the `wgpathd_relay` and `wgpathd_tunnel` options of its `wireguard_<mesh_iface>` section; see [Substrate annotations](substrate.md#options-read-per-peer).
+
+The pages also read the router's host name and time zone from UCI `system`, which the `luci-base` ACL already grants: the name labels this router in the path strip, and the time zone sets the clock times of recent changes, as in the system log. Without it they show "This router" and UTC.
 
 ### Package scripts
 
@@ -114,5 +118,5 @@ Both are skipped when the package is installed into a firmware image rather than
 
 | Package | Used for |
 | :--- | :--- |
-| `luci-base` | LuCI itself |
+| `luci-base` | LuCI itself, and read access to UCI `system` |
 | `wgpathd`, exactly the same version and release (`wgpathd=0.1.0-r3`) | The ubus objects and the configuration the pages read and write. apk refuses to install the app next to any other wgpathd release, and keeps the daemon while the app is installed. |
