@@ -17,7 +17,7 @@ tutorials, how-to guides, reference and explanation. Preview with `make docs-ser
 - `src/wgpathd/` — ucode modules (pure `decide` core + `deps`-injected shell).
 - `files/` — OpenWrt package payload (config, procd service, libexec scripts, the uci-defaults migration of peer settings, fw4 include, rpcd plugin).
 - `luci/` — `luci-app-wgpathd`, the LuCI pages (Status → Mesh paths with a Status → Overview
-  section, Network → Mesh paths),
+  section, Network → Mesh paths, a form over /etc/config/wgpathd),
   laid out like an openwrt/luci `applications/` directory; packaged alongside the daemon,
   pinned to its exact version.
 - `test/` — `unit` / `integration` (utest) + `e2e` (docker) + `browser` (Playwright, LuCI pages).
@@ -31,11 +31,12 @@ make test                      # unit + integration
 make unit FILTER='name' VERBOSE=1
 make unit MODULES=test/unit/wgpathd/decide_test.uc
 make watch                     # re-run on change
-make lint                      # ucode compile check + sh -n + LuCI JSON and scripts, no HTML sinks
+make lint                      # ucode compile check + sh -n + LuCI JSON and scripts, no HTML sinks, template up to date
 make shell                     # throwaway shell in the image
 make package                   # build bin/wgpathd-*.apk and bin/luci-app-wgpathd-*.apk in the OpenWrt SDK
 make package-check             # install both in a fresh rootfs and verify them
-make browser                   # Playwright tests of the LuCI pages against a fake wgpathd
+make browser                   # Playwright tests of the LuCI pages against a fake wgpathd and the real rpcd plugin
+make pot                       # regenerate the LuCI translation template with openwrt/luci's scanner
 ```
 `OPENWRT_VERSION` / `OPENWRT_ARCH` select the rootfs (default `25.12.5` / `x86_64`).
 

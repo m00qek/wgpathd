@@ -14,7 +14,7 @@ Then log in to LuCI again, so it shows the new menu entries.
 
 Go to **Status → Mesh paths**. The page refreshes by itself; there is no need to reload it.
 
-If it says **The wgpathd service is not running**, enable and check the service under **Network → Mesh paths**, or follow [The service is not running](troubleshoot.md#the-service-is-not-running).
+If it says **The wgpathd service is not running**, enable and check the service under **Network → Mesh paths** ([How to configure mesh paths in LuCI](configure-in-luci.md)), or follow [The service is not running](troubleshoot.md#the-service-is-not-running).
 
 ## Read the path of each peer
 

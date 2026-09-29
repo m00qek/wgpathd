@@ -73,13 +73,23 @@ make browser
 make browser FILTER='hub'
 ```
 
-This builds both packages, then runs the Playwright tests in `test/browser/` against the LuCI pages: Status → Mesh paths, the Status → Overview section, hostile text in every free-text field, and the path strip in five themes. The first run builds the `wgpathd-luci` and `wgpathd-browser` images.
+This builds both packages, then runs the Playwright tests in `test/browser/` against the LuCI pages: Status → Mesh paths, the Status → Overview section, Network → Mesh paths, hostile text in every free-text field, and the path strip in five themes. The first run builds the `wgpathd-luci` and `wgpathd-browser` images.
 
 LuCI runs in an OpenWrt rootfs container with the built packages, started by hand without procd. A fake `wgpathd` ubus object (`devenv/services/luci/fake-wgpathd.uc`) answers `ubus call wgpathd status` with a fixture from `test/fixtures/luci/`, which each test chooses; the fixture `none` withdraws the object, as when the daemon is not running. The fixtures freeze `now`, so every age and wait on the page is fixed. An integration test in `test/integration/daemon_test.uc` checks that each fixture has the fields and value types of the daemon's own reply, so a change to the reply fails `make test` until the fixtures follow it.
+
+`wgpathd.config` is not faked: rpcd serves it with the package's own plugin, so the settings page, its ACL and the plugin are tested together. The fake's `wgpathd.fixture config` writes `/etc/config/network` and `/etc/config/wgpathd` from a directory of `test/fixtures/luci/config/`, and `read` returns them as saved, which the tests compare after Save & Apply. The container also has the login `meshadmin` (password `meshadmin`), granted only rpcd's `unauthenticated` group, `luci-base` and `luci-app-wgpathd`: the tests use the settings page as that login, and check that it cannot read `network`.
 
 The LuCI container runs with `--network none` and no capabilities, and uhttpd listens on `127.0.0.1`. The Playwright container joins its network namespace (`--network container:`), so the browser reaches LuCI over that loopback and neither container has any other network. Both are removed when the run ends, also on failure or Ctrl+C.
 
 Screenshots of the main states are in `bin/browser/screenshots/`; on failure, Playwright's screenshots and error context and the LuCI container's log are in `bin/browser/`.
+
+## Update the translation template
+
+```bash
+make pot
+```
+
+Run it after adding or changing a string in `_()` or `N_()` in `luci/`, or a menu or ACL title, and commit `luci/po/templates/wgpathd.pot` with the change: `make lint` fails while the template is out of date. The template is written by openwrt/luci's own scanner, so it matches what upstream would generate. The scanner reads JavaScript with xgettext, which can lose its way on a regular expression literal with a quote or an unescaped `/` in a character class; it then warns, and `make pot` and `make lint` fail rather than drop strings. Write such a literal without them, for example `\/` inside the brackets.
 
 ## Test against another OpenWrt release
 
@@ -115,6 +125,6 @@ Results, timings, per-failure node logs and the guard's logs are in `bin/e2e/`.
 - `test/unit/` mirrors `src/`: one test file per module, with every I/O dependency replaced by a fake. The decision core is tested here, including property tests over random observation sequences.
 - `test/integration/` drives the daemon shell and the publisher through `daemon.create(...)` with fake `deps`, and runs the publisher on a real loopback socket.
 - `test/e2e/` holds one shell script per failover scenario, run on the host against the containers by `make e2e`.
-- `test/browser/` holds the Playwright tests of the LuCI pages, and `test/fixtures/luci/` the status replies they run against.
+- `test/browser/` holds the Playwright tests of the LuCI pages, `test/fixtures/luci/` the status replies they run against, and `test/fixtures/luci/config/` the configurations of the settings page tests.
 
 For the reasoning behind the split, see [Architecture](../../explanation/architecture.md).

@@ -1,6 +1,6 @@
 # How to Configure a Spoke
 
-On a spoke, wgpathd steers the endpoint of each `wg_mesh` peer you give a relay endpoint and a tunnel address. This guide starts it in observe mode, where every managed peer is held on its relay endpoint while wgpathd reports what it would do. Turning on steering is a separate step.
+On a spoke, wgpathd steers the endpoint of each `wg_mesh` peer you give a relay endpoint and a tunnel address. This guide starts it in observe mode, where every managed peer is held on its relay endpoint while wgpathd reports what it would do. Turning on steering is a separate step. To do it in the LuCI web interface instead, see [How to configure mesh paths in LuCI](configure-in-luci.md).
 
 ## Prerequisites
 

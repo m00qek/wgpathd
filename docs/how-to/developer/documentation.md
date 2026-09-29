@@ -56,6 +56,7 @@ Reference pages describe the code as it is. When you change an option, parameter
 | `migrate.uc`, `files/etc/uci-defaults/` | [Files and dependencies](../../reference/files.md), [How to upgrade peer settings](../upgrade-peer-settings.md) |
 | `files/`, `openwrt/wgpathd/Makefile` | [Files and dependencies](../../reference/files.md), [Firewall rules](../../reference/firewall.md) |
 | root `Makefile` | [Make targets](../../reference/make-targets.md) |
+| `luci/` pages, menu and ACL | [Files and dependencies](../../reference/files.md#luci-app-wgpathd), [How to check mesh paths in LuCI](../check-paths-in-luci.md), [How to configure mesh paths in LuCI](../configure-in-luci.md) |
 | `docs/Makefile`, `devenv/scripts/docs-*.sh`, `.github/workflows/docs.yml`, `mkdocs.mike.yml`, `docs/overrides/`, `devenv/gh-pages/`, `devenv/services/docs/` | [Make targets](../../reference/make-targets.md), [Documentation publishing](../../reference/docs-publishing.md) |
 
 ## Diagrams and examples
