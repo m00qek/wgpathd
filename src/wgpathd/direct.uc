@@ -6,7 +6,9 @@
 import * as endpoint from 'wgpathd.endpoint';
 
 // Returns why the candidate is refused, or null. A failed route lookup refuses
-// nothing: without a route, the probes cannot leave at all, let alone into the mesh.
+// nothing. It fails for every address behind a source-specific default route, the
+// usual IPv6 uplink on OpenWrt, because the lookup names no source; an own address
+// or a route into a tunnel is a specific route, which the lookup finds.
 export function refusal(route_get, cfg, peer, direct) {
 	let host = endpoint.host(direct);
 	if (host == endpoint.host(peer.relay))
