@@ -39,7 +39,7 @@ config wgpathd 'main'
 | :--- | :--- | :--- | :--- |
 | `mesh_iface` | Yes | — | The WireGuard interface whose peer endpoints are steered. Must be a name of letters, digits and `_`, and a `network` section of type `interface`, and must appear in the `ubus call wireguard status` reply at startup. Its peers are read from `wireguard_<mesh_iface>` sections. |
 | `hub_iface` | Yes | — | The hub tunnel interface. Must be a name of letters, digits and `_`, and a `network` section of type `interface`. Checked at startup only; wgpathd does not otherwise use it. |
-| `discovery` | Yes | — | URL of the hub's discovery endpoint, for example `http://10.10.0.1:7780/peers`. See [Discovery HTTP API](discovery-api.md). |
+| `discovery` | Yes | — | URL of the hub's discovery endpoint, for example `http://10.10.0.1:7780/peers`: `http://`, in lower case, a host, an optional port from `1` to `65535`, and a path. `https` is refused: the daemon has no TLS context to fetch it with. A host name is accepted, but `service wgpathd check` warns about it, because the fetch waits for its DNS lookup, and the full check warns when the host's route does not leave via `hub_iface`. See [Discovery HTTP API](discovery-api.md). |
 | `mode` | No | `observe` | `steer` lets wgpathd move peers to direct paths. `observe` keeps every managed peer on its relay endpoint. Any other value runs as `observe` and logs a warning at startup and on reload. |
 
 ## Hub options
@@ -72,7 +72,7 @@ The configuration is checked in this order, by the daemon at startup and on relo
 
 1. `role` is `spoke` or `hub` — else `CONFIG_INVALID_ROLE`.
 2. Every required option for the role is a non-empty string — else `CONFIG_MISSING_OPTION` naming the first missing option, in the order listed above.
-3. Every required option has the form it must have, in the order listed above — else `CONFIG_INVALID_OPTION`. An interface option is a name of letters, digits and `_`: UCI's other ways to address a section, such as `@interface[0]`, are refused, and the value is looked up only as a name. On a hub, `serve_addr` and `serve_port` are checked as described above.
+3. Every required option has the form it must have, in the order listed above — else `CONFIG_INVALID_OPTION`. An interface option is a name of letters, digits and `_`: UCI's other ways to address a section, such as `@interface[0]`, are refused, and the value is looked up only as a name. On a spoke, `discovery` is checked, and on a hub `serve_addr` and `serve_port`, as described above.
 4. Every interface option names a `network` section of type `interface` — else `INTERFACE_MISSING` naming the value.
 5. Every timing parameter present is within its bounds, in the order of [Timing parameters](parameters.md), and on a spoke the parameters agree — else `CONFIG_INVALID_OPTION`.
 

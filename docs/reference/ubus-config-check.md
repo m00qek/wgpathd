@@ -9,7 +9,7 @@ ubus call wgpathd.config check '{"candidate": {"main": {"mode": "steer"}}}'
 
 rpcd serves the object through the plugin `/usr/share/rpcd/ucode/wgpathd.uc`, so it answers whether or not the daemon runs, is enabled or has a valid configuration. rpcd loads the plugin when it starts or reloads; the package reloads rpcd when it is installed, upgraded or removed. Who may call it is up to rpcd's ACLs: the package ships none.
 
-Grant it as you would grant reading the configuration. A caller learns from the replies what the router holds: whether a section exists in `/etc/config/network` and is a WireGuard peer, how many peers an interface has and which are annotated, and, through the relay route check, by which interface the router would reach any address the caller puts in a candidate's `wgpathd_relay`.
+Grant it as you would grant reading the configuration. A caller learns from the replies what the router holds: whether a section exists in `/etc/config/network` and is a WireGuard peer, how many peers an interface has and which are annotated, and, through the relay and discovery route checks, whether the router would reach any address the caller puts in a candidate's `wgpathd_relay` or `discovery`, and by which interface.
 
 ---
 
@@ -26,7 +26,7 @@ Grant it as you would grant reading the configuration. A caller learns from the 
 
 The interface lines are left out because rpcd itself serves `wireguard status`, through `rpcd-mod-wireguard`, and cannot answer that call while it waits for it inside the plugin. For those lines, run `service wgpathd check` on the router.
 
-The relay route of each steered peer is looked up in the router's routing table, as the daemon does at startup.
+The relay route of each steered peer is looked up in the router's routing table, as the daemon does at startup, and so is the route to the discovery host when the URL gives an address.
 
 Each finding is described in [Service commands](service-commands.md#findings).
 

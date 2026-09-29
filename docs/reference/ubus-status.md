@@ -153,7 +153,7 @@ Apart from `discovery.last_ok`, these times are kept on the monotonic clock and 
 | :--- | :--- | :--- |
 | `fresh` | boolean | `true` if the most recent completed fetch succeeded. `false` before the first fetch completes and after any failed fetch. |
 | `last_ok` | integer or null | Unix time of the last successful fetch. `null` until one succeeds. Loading the cache at startup does not set it. |
-| `url` | string | The configured `discovery` URL, without any `user:password@` part. |
+| `url` | string | The configured `discovery` URL: the scheme, host, port and path only: never the `user:password@` part, the query or the fragment. A value that does not read as `scheme://host[:port]` shows as `(unreadable url)`. |
 
 ### `peers.<pubkey>`
 

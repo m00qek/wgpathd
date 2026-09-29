@@ -155,4 +155,4 @@ Each `failed:` line in this table marks the start of an outage; the matching `re
 
 `watchdog ping failed` without a recovery usually means procd does not know the service `wgpathd`, for example when the daemon was started by hand or in a container without procd.
 
-A URL in a message never shows the `user:password@` part it may have been configured with.
+A URL in a message shows the scheme, host, port and path only: never the `user:password@` part, the query or the fragment. A value that does not read as `scheme://host[:port]` shows as `(unreadable url)`.

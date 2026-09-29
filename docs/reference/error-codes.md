@@ -14,7 +14,7 @@ These stop startup, fail the config check that `service wgpathd start` and `relo
 | :--- | :--- | :--- |
 | `CONFIG_INVALID_ROLE` | the configured role, or `unset` | `role` is not `spoke` or `hub`. |
 | `CONFIG_MISSING_OPTION` | option name | A required option for the role is missing or empty. |
-| `CONFIG_INVALID_OPTION` | the option's name, then what it must be: `<name> must be …` | An option has a value it cannot take: an interface option that is not a name of letters, digits and `_`, a `serve_addr` that is not an address the hub can listen on, a `serve_port` that is not a decimal port number, or a timing parameter out of its bounds or, on a spoke, in conflict with another. |
+| `CONFIG_INVALID_OPTION` | the option's name, then what it must be: `<name> must be …` | An option has a value it cannot take: an interface option that is not a name of letters, digits and `_`, a `discovery` that is not an `http://` URL, a `serve_addr` that is not an address the hub can listen on, a `serve_port` that is not a decimal port number, or a timing parameter out of its bounds or, on a spoke, in conflict with another. |
 | `INTERFACE_MISSING` | interface name | From configuration: an interface option names no `network` section of type `interface`. At startup: the interface is not in the `wireguard status` reply; the detail is `<iface>: <cause>`. |
 
 ## Check
@@ -29,7 +29,7 @@ These make a spoke's discovery fetch fail. The spoke keeps its previous map.
 
 | Code | Detail | Trigger |
 | :--- | :--- | :--- |
-| `DISCOVERY_FETCH_FAILED` | `invalid url <url>` (without any `user:password@` part), `cannot connect`, `uclient error <n>`, `timeout`, `response too large`, `HTTP <status>` | The HTTP fetch did not produce a 200 response of at most 65536 bytes within 5 seconds. |
+| `DISCOVERY_FETCH_FAILED` | `invalid url <url>` (shown as described in [Log messages](log-messages.md)), `cannot connect`, `uclient error <n>`, `timeout`, `response too large`, `HTTP <status>` | The HTTP fetch did not produce a 200 response of at most 65536 bytes within 5 seconds. |
 | `DISCOVERY_INVALID_JSON` | — | The body is not a JSON object. |
 | `DISCOVERY_INVALID_PEERS` | `too many peers`, `invalid public key`, or the key of the bad entry | The object has more than 64 entries, a key that is not a public key, or an invalid entry. |
 | `CACHE_SAVE_FAILED` | the cache path | A valid payload could not be written to the discovery cache. The payload is used all the same. |

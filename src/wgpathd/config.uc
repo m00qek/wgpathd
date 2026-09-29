@@ -6,6 +6,7 @@ import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
 import * as endpoint from 'wgpathd.endpoint';
 import * as address from 'wgpathd.address';
+import { parse_url } from 'wgpathd.discovery';
 import { is_pubkey } from 'wgpathd.wg';
 import * as parameters from 'wgpathd.params';
 
@@ -43,11 +44,19 @@ function is_port(s) {
 	return match(s, /^[1-9][0-9]{0,4}$/) != null && +s <= 65535;
 }
 
+// uclient reads the scheme case-sensitively, and https would need a TLS context the
+// daemon does not set up.
+function is_discovery_url(s) {
+	let u = parse_url(s);
+	return u != null && u.scheme == 'http' && (u.port == null || is_port(u.port));
+}
+
 // What a required option must look like, before anything reads it: [ test, what it must be ].
 const FORMATS = {
 	mesh_iface: [ is_name, INTERFACE_NAME ],
 	hub_iface:  [ is_name, INTERFACE_NAME ],
 	read_iface: [ is_name, INTERFACE_NAME ],
+	discovery:  [ is_discovery_url, 'must be a URL of the form http://<host>[:<port>]/<path>' ],
 	serve_addr: [ address.can_listen, 'must be an IP address of the router, not unspecified or multicast' ],
 	serve_port: [ is_port, 'must be a port number from 1 to 65535' ],
 };

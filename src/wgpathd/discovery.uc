@@ -10,9 +10,27 @@ import { is_pubkey } from 'wgpathd.wg';
 export const MAX_BYTES = 65536;
 const MAX_ENTRIES = 64;
 
-// A url shown in a log line or the status must not carry the credentials of its user:pass@ part.
+export const UNREADABLE_URL = '(unreadable url)';
+
+// Reads scheme://[userinfo@]host[:port][path][?query][#fragment] into what may be shown:
+// { scheme, authority: host[:port], host, port, path }, or null for anything else. The
+// authority ends at the first /, ? or #, and its userinfo at the last @ within it.
+export function parse_url(url) {
+	let m = (type(url) == 'string') ? match(url, /^([A-Za-z][A-Za-z0-9+.-]*):\/\/([^\/?#]*)([^?#]*)/) : null;
+	if (m == null || match(m[3], /^[!-~]*$/) == null)
+		return null;
+	let authority = replace(m[2], /^.*@/, '');
+	let h = match(authority, /^(\[([0-9A-Fa-f:.]+)\]|[A-Za-z0-9.-]+)(:([0-9]+))?$/);
+	if (h == null || (h[2] != null && length(iptoarr(h[2]) ?? []) != 16))
+		return null;
+	return { scheme: m[1], authority: authority, host: h[2] ?? h[1], port: h[4], path: m[3] };
+};
+
+// A url shown in a log line or the status keeps neither its credentials nor its query
+// and fragment, and what does not read as a url is not shown at all.
 export function redact(url) {
-	return (type(url) == 'string') ? replace(url, /^([a-z][a-z0-9+.-]*:\/\/)[^\/@]*@/i, '$1') : url;
+	let u = parse_url(url);
+	return u ? `${u.scheme}://${u.authority}${u.path}` : UNREADABLE_URL;
 };
 
 function decode(stdout) {

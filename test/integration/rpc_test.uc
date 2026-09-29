@@ -61,7 +61,7 @@ describe('rpc: wgpathd.config check, committed config', () => {
 			{ level: 'skip', subject: 'peer', section: 'hub', option: 'wgpathd_relay',
 				message: 'peer hub: not steered (missing wgpathd_relay)' },
 		] }, call(p));
-		assert.match([ '10.10.0.12' ], p.lookups);
+		assert.match([ '10.10.0.12', '10.10.0.1' ], p.lookups, 'the relay host, then the discovery host');
 	});
 
 	it('words each finding as service wgpathd check does', () => {

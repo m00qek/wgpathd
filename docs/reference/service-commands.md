@@ -129,12 +129,16 @@ FAIL  peer spoke_c: not steered (invalid wgpathd_relay)
 | `FAIL` | `config: missing option <name>` | A required option is missing or empty. |
 | `FAIL` | `config: no interface <name> in /etc/config/network` | An interface option names no `interface` section. |
 | `FAIL` | `config: option <name> must be an interface name of letters, digits and _` | `mesh_iface`, `hub_iface` or `read_iface` is not a plain section name. |
+| `FAIL` | `config: option discovery must be a URL of the form http://<host>[:<port>]/<path>` | `discovery` is not an `http://` URL with a host, see [UCI configuration](uci-config.md#spoke-options). |
 | `FAIL` | `config: option serve_addr must be an IP address of the router, not unspecified or multicast` | `serve_addr` is not one literal address a listener can bind, see [UCI configuration](uci-config.md#hub-options). |
 | `FAIL` | `config: option serve_port must be a port number from 1 to 65535` | `serve_port` is not a decimal port number. |
 | `FAIL` | `config: option <name> must be a number from <min> to <max>`, `config: option <name> must be a whole number from <min> to <max>` | A timing parameter is not a decimal number within its [bounds](parameters.md#bounds). |
 | `FAIL` | `config: option backoff_max must be at least backoff_min (<value>)`, `config: option trial_window must be longer than cycle + tunnel_timeout (<sum>)` | On a spoke, two timing parameters disagree. |
 | `warn` | `config: unknown mode '<mode>' runs as observe` | `mode` is neither `steer` nor `observe`. |
 | `warn` | `service disabled (option enabled '<value>'): it will not start` | `enabled` is off. |
+| `warn` | `config: discovery host <name> is a name, not an address: every fetch waits for DNS` | The `discovery` URL names its host. The fetch looks it up without letting the daemon run meanwhile. |
+| `warn` | `config: discovery host <addr> routes via <oif>, not <hub_iface>` | The route to the discovery host does not leave via `hub_iface`, so discovery would stop with the path it goes over. Not checked with `--config`. |
+| `warn` | `config: discovery host <addr>: route lookup failed: <CODE> (<detail>)` | No route to the discovery host. Not checked with `--config`. |
 | `warn` | `config: serve_addr <addr> is no address of a WireGuard interface in /etc/config/network` | On a hub, no `interface` section with `proto 'wireguard'` lists `serve_addr` in its `addresses`. The discovery server then answers on whatever network holds that address, as far as the firewall lets it; see [Firewall rules](firewall.md). Not checked with `--config`. |
 | `skip` | `ubus unavailable: interfaces not checked` | ubus cannot be reached. The interface lines are left out; the peer lines still appear. |
 | `ok` | `<iface>: up, <n> peer(s)` | The interface is in the `wireguard status` reply. |

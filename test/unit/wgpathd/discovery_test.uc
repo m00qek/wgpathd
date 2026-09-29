@@ -159,19 +159,50 @@ describe('discovery: cache', () => {
 });
 
 describe('discovery: redact', () => {
-	it('drops the user:pass@ part of a url and leaves any other url alone', () => {
-		assert.match([
-			'http://10.10.0.1:7780/peers',
-			'https://[2001:db8::1]:7780/peers',
-			'http://10.10.0.1:7780/peers',
-			'http://10.10.0.1:7780/a@b',
-			null,
-		], map([
-			'http://wgpathd:secret@10.10.0.1:7780/peers',
-			'https://user@[2001:db8::1]:7780/peers',
-			'http://10.10.0.1:7780/peers',
-			'http://10.10.0.1:7780/a@b',
-			null,
-		], (url) => discovery.redact(url)));
+	it('drops the user:pass@ part of a url and leaves the rest of a plain url alone', () => {
+		let cases = {
+			'http://wgpathd:secret@10.10.0.1:7780/peers': 'http://10.10.0.1:7780/peers',
+			'https://user@[2001:db8::1]:7780/peers': 'https://[2001:db8::1]:7780/peers',
+			'http://10.10.0.1:7780/peers': 'http://10.10.0.1:7780/peers',
+			'http://10.10.0.1:7780/a@b': 'http://10.10.0.1:7780/a@b',
+			'http://[2001:db8::1]:7780/peers': 'http://[2001:db8::1]:7780/peers',
+			'http://hub.example.org': 'http://hub.example.org',
+		};
+		for (let url, shown in cases)
+			assert.match(shown, discovery.redact(url), url);
+	});
+
+	// The cases of the 2026-09-29 audit.
+	it('keeps no part of the credentials, a query or a fragment', () => {
+		let cases = {
+			'http://user:p@ss@h/peers': 'http://h/peers',
+			'http://u:p@ss@[2001:db8::1]:7780/peers': 'http://[2001:db8::1]:7780/peers',
+			'HTTP://u:p@h/': 'HTTP://h/',
+			'hTtP://a:b@c': 'hTtP://c',
+			'http://h/peers?token=secret': 'http://h/peers',
+			'http://host/peers?u=a@b': 'http://host/peers',
+			'http://h/peers#secret': 'http://h/peers',
+			'http://user:p%40ss@host/x': 'http://host/x',
+			'http://u:p@h/a@b': 'http://h/a@b',
+		};
+		for (let url, shown in cases)
+			assert.match(shown, discovery.redact(url), url);
+	});
+
+	it('shows a placeholder for what does not read as scheme://host', () => {
+		for (let url in [ ' http://u:p@h/', 'u:p@h/peers', '//u:p@h/x', 'http://u:p/a@h/peers', 'http://user:pa?ss@host/x',
+			'http://user:pa#ss@host/x', 'http://user:pass@host/peers\nhttp://u2:p2@h', 'http://[10.0.0.1]/', 'http://[fe80::1%eth0]/',
+			'http://h:p/', 'http://', 'http:///peers', 'secret', '', null, 7 ])
+			assert.match('(unreadable url)', discovery.redact(url), url);
+	});
+});
+
+describe('discovery: parse_url', () => {
+	it('splits a url into what may be shown', () => {
+		assert.match({ scheme: 'http', authority: '10.10.0.1:7780', host: '10.10.0.1', port: '7780', path: '/peers' },
+			discovery.parse_url('http://u:p@10.10.0.1:7780/peers?x#y'));
+		assert.match({ scheme: 'http', authority: '[2001:db8::1]', host: '2001:db8::1', port: null, path: '' },
+			discovery.parse_url('http://[2001:db8::1]'));
+		assert.match(contains({ host: 'hub.example.org', port: null, path: '/' }), discovery.parse_url('http://hub.example.org/'));
 	});
 });

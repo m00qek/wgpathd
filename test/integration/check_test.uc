@@ -153,6 +153,36 @@ describe('check: full, spoke', () => {
 	});
 });
 
+describe('check: discovery host', () => {
+	let warnings = (res) => filter(res.findings, (f) => f.option == 'discovery');
+
+	it('is quiet about an address routed through hub_iface', () => {
+		assert.match([], warnings(run(SPOKE)));
+	});
+
+	it('warns about a host name, even for the config alone', () => {
+		let expected = [ { level: 'warn', subject: 'config', option: 'discovery',
+			message: 'config: discovery host hub.example.org is a name, not an address: every fetch waits for DNS' } ];
+		let named = { ...SPOKE, discovery: 'http://hub.example.org:7780/peers' };
+		assert.match(expected, warnings(run(named, null, { config_only: true })));
+		assert.match(expected, warnings(run(named)));
+	});
+
+	it('warns about an address routed elsewhere than hub_iface, or not at all', () => {
+		assert.match([ { level: 'warn', subject: 'config', option: 'discovery',
+			message: 'config: discovery host 192.0.2.1 routes via eth0, not wg_hub' } ],
+			warnings(run(SPOKE, null, { routes: { '192.0.2.1': 'eth0' } })));
+		assert.match([ { level: 'warn', subject: 'config', option: 'discovery',
+			message: 'config: discovery host 192.0.2.1: route lookup failed: ROUTE_LOOKUP_FAILED (192.0.2.1: Network unreachable)' } ],
+			warnings(run(SPOKE, null, { routes: { '192.0.2.1': false } })));
+		assert.match(true, run(SPOKE, null, { routes: { '192.0.2.1': 'eth0' } }).ok);
+	});
+
+	it('looks the host up in its canonical form', () => {
+		assert.match([], warnings(run({ ...SPOKE, discovery: 'http://[FD00:0::1]:7780/peers' }, null, { routes: { 'FD00:0::1': 'eth0' } })));
+	});
+});
+
 describe('check: full, hub', () => {
 	it('checks the read interface', () => {
 		let res = run(HUB_MAIN);

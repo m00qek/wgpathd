@@ -142,6 +142,24 @@ describe('config: interface names', () => {
 	});
 });
 
+describe('config: discovery url', () => {
+	it('takes an http url to an address or a name, credentials included', () => {
+		for (let url in [ 'http://10.10.0.1:7780/peers', 'http://[fd00::1]:7780/peers', 'http://hub.example.org/peers',
+			'http://u:p@10.10.0.1:7780/peers', 'http://10.10.0.1/peers?x=1' ])
+			assert.match(url, load({ ...SPOKE, discovery: url }).data?.discovery, url);
+	});
+
+	// uclient refuses a scheme in capitals, and has no TLS context for https.
+	it('refuses anything else, before any interface is looked up', () => {
+		for (let url in [ 'https://10.10.0.1:7780/peers', 'HTTP://10.10.0.1:7780/peers', 'ftp://10.10.0.1/peers',
+			'10.10.0.1:7780/peers', ' http://10.10.0.1:7780/peers', 'http://10.10.0.1:0/peers',
+			'http://10.10.0.1:65536/peers', 'http://u:p/a@10.10.0.1/peers', 'http://[10.10.0.1]/peers', 'http:///peers' ])
+			assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION',
+				details: 'discovery must be a URL of the form http://<host>[:<port>]/<path>' }),
+				load({ ...SPOKE, discovery: url }, {}), url);
+	});
+});
+
 describe('config: hub', () => {
 	it('loads the role file without peers or mode', () => {
 		assert.match({ role: 'hub', read_iface: 'wg_mesh', serve_addr: '10.10.0.1', serve_port: '7780',
