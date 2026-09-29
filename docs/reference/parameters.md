@@ -1,6 +1,6 @@
 # Timing Parameters
 
-Each parameter can be overridden by an option of the same name in the `main` section of `/etc/config/wgpathd`, for example `option n_up '3'`. Values are in seconds unless noted. For the accepted number format, see [UCI configuration](uci-config.md#timing-parameters). A running daemon picks up changed values on `service wgpathd reload`, from its next cycle.
+Each parameter can be overridden by an option of the same name in the `main` section of `/etc/config/wgpathd`, for example `option n_up '3'`. Values are in seconds unless noted. Each has bounds, described [below](#bounds). A running daemon picks up changed values on `service wgpathd reload`, from its next cycle.
 
 ---
 
@@ -17,6 +17,31 @@ Each parameter can be overridden by an option of the same name in the `main` sec
 | `discovery_interval` | `60` | s | spoke | Interval between regular discovery fetches. |
 
 The hub uses only `cycle`, as the interval between snapshots of `read_iface`. It accepts and validates the other parameters but does not use them.
+
+## Bounds
+
+A value must be a decimal number within its bounds, both included; `n_up` and `m_down` must be whole numbers. A value outside them stops startup, fails `service wgpathd check`, and is refused on reload, which keeps the running values; the error is `CONFIG_INVALID_OPTION` with the detail `<name> must be a number from <min> to <max>`, or `a whole number` for the counts.
+
+| Parameter | Minimum | Maximum | Why |
+| :--- | :--- | :--- | :--- |
+| `cycle` | `1` | `10` | Every spoke cycle runs `wg set` and reads `wireguard status`: a shorter pause mostly starts processes. The maximum keeps the watchdog fed, see below. |
+| `n_up` | `1` | `100` | A count of cycles. |
+| `m_down` | `1` | `100` | A count of cycles. |
+| `tunnel_timeout` | `0.1` | `5` | Shorter than any real round trip it is meant to wait for, the probes would all count as lost. The maximum keeps the watchdog fed. |
+| `trial_window` | `1` | `60` | A trial sends the peer's traffic over an unproven path, so a failing one should not last longer than a minute. |
+| `backoff_min`, `backoff_max`, `backoff_reset` | `1` | `86400` | Up to a day. |
+| `discovery_interval` | `5` | `86400` | Every spoke fetches from the hub at this interval. |
+
+procd restarts the daemon when 30 seconds pass without a watchdog ping, and the daemon pings once per cycle, when the cycle completes. Between two pings a spoke waits `cycle`, up to `tunnel_timeout` for the underlay probes, up to 2 s for `wg set`, and up to `tunnel_timeout` for the tunnel probes: at the maxima 10 + 5 + 2 + 5 = 22 seconds, which leaves 8 for the `wireguard status` reads.
+
+On a spoke, two combinations are refused as well, with the effective values, defaults included:
+
+| Rule | Detail |
+| :--- | :--- |
+| `backoff_max` ≥ `backoff_min` | `backoff_max must be at least backoff_min (<value>)` |
+| `trial_window` > `cycle` + `tunnel_timeout` | `trial_window must be longer than cycle + tunnel_timeout (<sum>)` |
+
+The first answer to a trial's probe is read a cycle, and a probe wait, after the trial starts, so a shorter window fails every trial. A hub is held to the bounds alone.
 
 ## Behavior details
 

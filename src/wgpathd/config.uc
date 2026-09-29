@@ -7,7 +7,7 @@ import * as errors from 'wgpathd.errors';
 import * as endpoint from 'wgpathd.endpoint';
 import * as address from 'wgpathd.address';
 import { is_pubkey } from 'wgpathd.wg';
-import { DEFAULTS } from 'wgpathd.params';
+import * as parameters from 'wgpathd.params';
 
 const REQUIRED = {
 	spoke: [ 'mesh_iface', 'hub_iface', 'discovery' ],
@@ -66,20 +66,19 @@ function missing_interface(uci, main, role) {
 	return null;
 }
 
-function positive_number(v) {
-	return type(v) == 'string' && match(v, /^[0-9]+(\.[0-9]+)?$/) != null && +v > 0;
-}
-
-function parse_overrides(main) {
+// Only a spoke uses the parameters that could conflict.
+function parse_overrides(main, role) {
 	let overrides = {};
-	for (let name in keys(DEFAULTS)) {
+	for (let name in keys(parameters.DEFAULTS)) {
 		if (main[name] == null)
 			continue;
-		if (!positive_number(main[name]))
-			return invalid(name, 'must be a positive number');
-		overrides[name] = +main[name];
+		let value = parameters.parse(name, main[name]);
+		if (value == null)
+			return invalid(name, parameters.bounds_text(name));
+		overrides[name] = value;
 	}
-	return Result.ok(overrides);
+	let conflict = (role == 'spoke') ? parameters.conflict({ ...parameters.DEFAULTS, ...overrides }) : null;
+	return conflict ? invalid(conflict[0], conflict[1]) : Result.ok(overrides);
 }
 
 function unmanaged_reason(s) {
@@ -135,7 +134,7 @@ export function load(deps) {
 	if (iface != null)
 		return Result.err(errors.INTERFACE_MISSING, iface);
 
-	let overrides = parse_overrides(main);
+	let overrides = parse_overrides(main, role);
 	if (!overrides.ok)
 		return overrides;
 

@@ -59,7 +59,7 @@ describe('check: config only', () => {
 		let cases = [
 			[ { '.type': 'wgpathd', enabled: '0' }, "option role must be 'spoke' or 'hub' (is unset)" ],
 			[ { ...SPOKE, discovery: null }, 'missing option discovery' ],
-			[ { ...SPOKE, cycle: 'fast' }, 'option cycle must be a positive number' ],
+			[ { ...SPOKE, cycle: 'fast' }, 'option cycle must be a number from 1 to 10' ],
 			[ { ...SPOKE, hub_iface: 'wg_nope' }, 'no interface wg_nope in /etc/config/network' ],
 			[ { ...SPOKE, mesh_iface: '@interface[0]' }, 'option mesh_iface must be an interface name of letters, digits and _' ],
 			[ { ...HUB_MAIN, serve_addr: '0.0.0.0' }, 'option serve_addr must be an IP address of the router, not unspecified or multicast' ],

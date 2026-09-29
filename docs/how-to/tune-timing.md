@@ -24,7 +24,7 @@ uci commit wgpathd
 service wgpathd reload
 ```
 
-A value that is not a positive decimal number is refused: the reload prints `FAIL  config: option <name> must be a positive number` and the daemon keeps its current values. `service wgpathd check` shows the same line before you reload. All names, defaults and exact semantics are in [Timing parameters](../reference/parameters.md).
+Each parameter has bounds, and a spoke's parameters must agree with each other (see below). A value outside them is refused: the reload prints a line such as `FAIL  config: option cycle must be a number from 1 to 10` and the daemon keeps its current values. `service wgpathd check` shows the same line before you reload. All names, defaults and exact semantics are in [Timing parameters](../reference/parameters.md).
 
 ## Common adjustments
 
@@ -52,11 +52,14 @@ config wgpathd 'main'
 
 ## Keep these relationships
 
-wgpathd does not cross-check parameters, so keep them consistent yourself:
+On a spoke, wgpathd refuses two combinations, whichever of the values you set:
 
-- `trial_window` should be longer than one cycle plus `tunnel_timeout`, or even a good path can fail its trial. The tunnel probe answer is read one cycle after it is sent, and the deadline is checked first. A second attempt fits only if two cycles, including their probe waits, end before the deadline. With the defaults they usually do not, so a trial normally stands or falls on its first probe.
+- `trial_window` must be longer than `cycle` plus `tunnel_timeout`, or even a good path would fail its trial. So raising `cycle` or `tunnel_timeout` may mean raising `trial_window` too: `cycle 8` needs a `trial_window` above 9. The tunnel probe answer is read one cycle after it is sent, and the deadline is checked first. A second attempt fits only if two cycles, including their probe waits, end before the deadline. With the defaults they usually do not, so a trial normally stands or falls on its first probe.
+- `backoff_max` must be at least `backoff_min`. Raising `backoff_min` above 900 therefore means raising `backoff_max` with it.
+
+Keep the others in mind yourself:
+
 - `tunnel_timeout` must exceed the round-trip time of the slowest direct path, or answers arrive too late and count as lost. Fractions work: `0.5` waits half a second. Raise it only for a path whose replies are slow: a cycle waits for its probes, so while a path is dead each cycle takes up to `tunnel_timeout` longer, or twice that when some peers are in RELAY (their underlay probes) and others trialing or DIRECT (their tunnel probes).
-- `backoff_min` should not exceed `backoff_max`. Otherwise the second failure lowers the backoff to `backoff_max`.
-- procd restarts the daemon if 30 seconds pass without a watchdog ping, and the daemon pings once per cycle. Keep `cycle` well below 30.
+- procd restarts the daemon if 30 seconds pass without a watchdog ping, and the daemon pings once per cycle. The upper bounds of `cycle` (10) and `tunnel_timeout` (5) keep the longest cycle within that; see [Timing parameters](../reference/parameters.md#bounds).
 
 The hub uses only `cycle`, as its snapshot interval.

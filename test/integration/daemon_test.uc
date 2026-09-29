@@ -1054,7 +1054,7 @@ describe('daemon: hub', () => {
 });
 
 const MAIN = { '.type': 'wgpathd', role: 'spoke', mesh_iface: 'wg_mesh', hub_iface: 'wg_hub', discovery: URL,
-	mode: 'steer', cycle: '0.5' };
+	mode: 'steer', cycle: '1.5' };
 
 function network(...peers) {
 	let net = {
@@ -1092,10 +1092,10 @@ describe('daemon: run', () => {
 		assert.match(true, r.loop.ran);
 		assert.match(contains({ role: 'spoke', mode: 'steer' }), r.status());
 		assert.match(1, w.ubus.watchdog_pings());
-		assert.match([ 0, 500 ], map(r.loop.timers, (t) => t.ms));
+		assert.match([ 0, 1500 ], map(r.loop.timers, (t) => t.ms));
 		tick(r);
 		assert.match(2, w.ubus.watchdog_pings());
-		assert.match([ 0, 500, 500 ], map(r.loop.timers, (t) => t.ms));
+		assert.match([ 0, 1500, 1500 ], map(r.loop.timers, (t) => t.ms));
 	});
 
 	it('accepts the ubus_rpc_session argument uhttpd adds to calls from LuCI', () => {
@@ -1240,7 +1240,17 @@ describe('daemon: reload on SIGHUP', () => {
 			w.logs.matching(/^reload/));
 		tick(r);
 		assert.match(contains({ role: 'spoke', mode: 'steer' }), r.status());
-		assert.match(500, r.loop.timers[-1].ms);
+		assert.match(1500, r.loop.timers[-1].ms);
+	});
+
+	it('keeps the running parameters when a new one is out of bounds', () => {
+		let w = reachable_world();
+		let r = run(w, MAIN);
+		reload(r, { ...MAIN, cycle: '0.0001', mode: 'observe' }, network(SPOKE_B_PEER));
+		assert.match([ [ 'err', 'reload: invalid configuration, keeping the running one: CONFIG_INVALID_OPTION (cycle must be a number from 1 to 10)' ] ],
+			w.logs.matching(/^reload/));
+		tick(r);
+		assert.match([ 1500, 'steer' ], [ r.loop.timers[-1].ms, r.status().mode ]);
 	});
 
 	it('defers a SIGHUP that arrives before startup completes', () => {

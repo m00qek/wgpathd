@@ -190,17 +190,78 @@ describe('config: parameter overrides', () => {
 	it('reads positive numbers for any parameter, in both roles', () => {
 		assert.match({ cycle: 1, trial_window: 2.5, discovery_interval: 10 },
 			load({ ...SPOKE, cycle: '1', trial_window: '2.5', discovery_interval: '10' }).data.overrides);
-		assert.match({ cycle: 0.5 }, load({ ...HUB_ROLE, cycle: '0.5' }).data.overrides);
+		assert.match({ cycle: 1.5 }, load({ ...HUB_ROLE, cycle: '1.5' }).data.overrides);
+	});
+
+	// The fast parameters of the e2e lab (devenv/services/e2e/node.sh) and its mixed scenario.
+	it('takes the parameters the lab runs with', () => {
+		let lab = { cycle: '1', n_up: '3', m_down: '2', tunnel_timeout: '1', trial_window: '4', backoff_min: '4',
+			backoff_max: '16', backoff_reset: '30', discovery_interval: '5' };
+		assert.match({ cycle: 1, n_up: 3, m_down: 2, tunnel_timeout: 1, trial_window: 4, backoff_min: 4, backoff_max: 16,
+			backoff_reset: 30, discovery_interval: 5 }, load({ ...SPOKE, ...lab }).data.overrides);
+		for (let over in [ { backoff_min: '2', backoff_max: '4' }, { backoff_min: '300', backoff_max: '300' } ])
+			assert.match(contains({ ok: true }), load({ ...SPOKE, ...lab, ...over }), over);
+		assert.match(contains({ ok: true }), load({ ...HUB_ROLE, cycle: '1' }));
+	});
+
+	it('takes each bound itself, and refuses what lies beyond it', () => {
+		let cases = {
+			cycle: [ '1', '10', '0.9', '10.5', 'cycle must be a number from 1 to 10' ],
+			n_up: [ '1', '100', '0', '101', 'n_up must be a whole number from 1 to 100' ],
+			m_down: [ '1', '100', '0', '101', 'm_down must be a whole number from 1 to 100' ],
+			tunnel_timeout: [ '0.1', '5', '0.09', '5.01', 'tunnel_timeout must be a number from 0.1 to 5' ],
+			trial_window: [ '60', '60', '0.5', '61', 'trial_window must be a number from 1 to 60' ],
+			backoff_min: [ '1', '900', '0.5', '86401', 'backoff_min must be a number from 1 to 86400' ],
+			backoff_max: [ '30', '86400', '0.5', '86401', 'backoff_max must be a number from 1 to 86400' ],
+			backoff_reset: [ '1', '86400', '0.5', '86401', 'backoff_reset must be a number from 1 to 86400' ],
+			discovery_interval: [ '5', '86400', '4.9', '86401', 'discovery_interval must be a number from 5 to 86400' ],
+		};
+		let roomy = { ...SPOKE, trial_window: '60' };
+		for (let name, c in cases) {
+			for (let good in [ c[0], c[1] ])
+				assert.match(+good, load({ ...roomy, [name]: good }).data?.overrides[name], `${name} ${good}`);
+			for (let bad in [ c[2], c[3] ])
+				assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION', details: c[4] }),
+					load({ ...roomy, [name]: bad }), `${name} ${bad}`);
+		}
+	});
+
+	// int(cycle * 1000) was a 0 ms timer for 0.0001, and NaN for a number too large to hold.
+	it('refuses the values that ran the loop without pause or past the watchdog', () => {
+		for (let c in [ [ 'cycle', '0.0001' ], [ 'cycle', '99999999999999999999999' ], [ 'cycle', '3600' ],
+			[ 'tunnel_timeout', '600' ], [ 'n_up', '0.1' ], [ 'm_down', '2.5' ], [ 'n_up', '1.0' ] ])
+			assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION' }), load({ ...SPOKE, [c[0]]: c[1] }), c);
 	});
 
 	it('ignores options that are not parameters', () => {
 		assert.match({}, load({ ...SPOKE, foo: '3' }).data.overrides);
 	});
 
-	it('rejects a value that is not a positive number, naming the option', () => {
-		for (let bad in [ '0', '0.0', '-1', 'abc', '', '1e3', ' 3', '3s', [ '3' ] ])
-			assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION', details: 'n_up must be a positive number' }),
-				load({ ...SPOKE, n_up: bad }), bad);
+	it('rejects a value that is not a decimal number, naming the option', () => {
+		for (let bad in [ '0', '0.0', '-1', 'abc', '', '1e3', ' 3', '3s', '0x10', '3\n', [ '3' ] ])
+			assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION', details: 'cycle must be a number from 1 to 10' }),
+				load({ ...SPOKE, cycle: bad }), bad);
+	});
+
+	it('refuses a backoff_max below backoff_min, the default included', () => {
+		assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION', details: 'backoff_max must be at least backoff_min (900)' }),
+			load({ ...SPOKE, backoff_min: '900', backoff_max: '30' }));
+		assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION', details: 'backoff_max must be at least backoff_min (30)' }),
+			load({ ...SPOKE, backoff_max: '20' }));
+		assert.match(contains({ ok: true }), load({ ...SPOKE, backoff_min: '60', backoff_max: '60' }));
+	});
+
+	it('refuses a trial_window that no answer can come back within', () => {
+		assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION', details: 'trial_window must be longer than cycle + tunnel_timeout (4)' }),
+			load({ ...SPOKE, trial_window: '4' }));
+		assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION', details: 'trial_window must be longer than cycle + tunnel_timeout (11.5)' }),
+			load({ ...SPOKE, cycle: '10', tunnel_timeout: '1.5' }));
+		assert.match(contains({ ok: true }), load({ ...SPOKE, trial_window: '4.5' }));
+	});
+
+	it('holds a hub, which uses only cycle, to the bounds alone', () => {
+		assert.match(contains({ ok: true }), load({ ...HUB_ROLE, cycle: '10', backoff_max: '1' }));
+		assert.match(contains({ ok: false, details: 'cycle must be a number from 1 to 10' }), load({ ...HUB_ROLE, cycle: '0.5' }));
 	});
 });
 

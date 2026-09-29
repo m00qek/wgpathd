@@ -131,7 +131,8 @@ FAIL  peer spoke_c: not steered (invalid wgpathd_relay)
 | `FAIL` | `config: option <name> must be an interface name of letters, digits and _` | `mesh_iface`, `hub_iface` or `read_iface` is not a plain section name. |
 | `FAIL` | `config: option serve_addr must be an IP address of the router, not unspecified or multicast` | `serve_addr` is not one literal address a listener can bind, see [UCI configuration](uci-config.md#hub-options). |
 | `FAIL` | `config: option serve_port must be a port number from 1 to 65535` | `serve_port` is not a decimal port number. |
-| `FAIL` | `config: option <name> must be a positive number` | A timing parameter is invalid. |
+| `FAIL` | `config: option <name> must be a number from <min> to <max>`, `config: option <name> must be a whole number from <min> to <max>` | A timing parameter is not a decimal number within its [bounds](parameters.md#bounds). |
+| `FAIL` | `config: option backoff_max must be at least backoff_min (<value>)`, `config: option trial_window must be longer than cycle + tunnel_timeout (<sum>)` | On a spoke, two timing parameters disagree. |
 | `warn` | `config: unknown mode '<mode>' runs as observe` | `mode` is neither `steer` nor `observe`. |
 | `warn` | `service disabled (option enabled '<value>'): it will not start` | `enabled` is off. |
 | `warn` | `config: serve_addr <addr> is no address of a WireGuard interface in /etc/config/network` | On a hub, no `interface` section with `proto 'wireguard'` lists `serve_addr` in its `addresses`. The discovery server then answers on whatever network holds that address, as far as the firewall lets it; see [Firewall rules](firewall.md). Not checked with `--config`. |

@@ -77,7 +77,7 @@ describe('rpc: wgpathd.config check, committed config', () => {
 	it('fails with the loader reason and the option it names', () => {
 		let p = plugin_deps({ ...MAIN, cycle: 'fast' });
 		assert.match({ ok: false, findings: [
-			{ level: 'fail', subject: 'config', option: 'cycle', message: 'config: option cycle must be a positive number' },
+			{ level: 'fail', subject: 'config', option: 'cycle', message: 'config: option cycle must be a number from 1 to 10' },
 		] }, call(p));
 	});
 
