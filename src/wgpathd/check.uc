@@ -2,7 +2,7 @@
 
 // `service wgpathd check` and the `wgpathd.config` check: validate the config with the
 // daemon's own loader and, unless config_only, the substrate it needs (interfaces,
-// peer annotations, relay routes). findings() is pure; run() gathers what it reads.
+// peer settings, relay routes). findings() is pure; run() gathers what it reads.
 
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
@@ -14,6 +14,18 @@ import { parse_url } from 'wgpathd.discovery';
 
 const LABELS = { ok: 'ok  ', skip: 'skip', warn: 'warn', fail: 'FAIL' };
 const DISABLED = [ '0', 'no', 'off', 'false', 'disabled' ];
+
+// Each reason a mesh peer is not steered, and the option it is about. A peer without
+// settings is simply not steered; settings half given or malformed are a mistake.
+const UNMANAGED = {
+	'invalid public_key':        { level: 'fail', option: 'public_key' },
+	'not configured':            { level: 'skip' },
+	'configured more than once': { level: 'fail' },
+	'missing relay':             { level: 'fail', option: 'relay' },
+	'invalid relay':             { level: 'fail', option: 'relay' },
+	'missing tunnel':            { level: 'fail', option: 'tunnel' },
+	'invalid tunnel':            { level: 'fail', option: 'tunnel' },
+};
 
 function explain(res) {
 	switch (res.error) {
@@ -60,6 +72,22 @@ function discovery_host(cfg) {
 	return (host != null) ? { name: host, address: endpoint.canonical_ip(host) } : null;
 }
 
+function check_leftovers(cfg, add) {
+	for (let l in cfg.leftovers)
+		add('warn', 'config', `config: network section ${l.section}: ${join(' and ', l.options)} left over from an earlier ` +
+			`version, ignored; run service wgpathd migrate or remove ${length(l.options) == 1 ? 'it' : 'them'}`,
+			{ section: l.section });
+}
+
+function check_stale(cfg, add) {
+	for (let s in cfg.peers.stale)
+		if (s.pubkey == null)
+			add('warn', 'peer', 'peer settings without a public_key: ignored');
+		else
+			add('warn', 'peer', `peer settings for ${s.pubkey}: no such peer in ${cfg.mesh_iface}, ignored`,
+				{ public_key: s.pubkey });
+}
+
 // uclient resolves a name with a blocking lookup, which holds up the daemon's loop.
 function check_config(cfg, add) {
 	add('ok', 'config', `config: ${summary(cfg)}`);
@@ -69,6 +97,9 @@ function check_config(cfg, add) {
 	if (host != null && host.address == null)
 		add('warn', 'config', `config: discovery host ${host.name} is a name, not an address: every fetch waits for DNS`,
 			{ option: 'discovery' });
+	check_leftovers(cfg, add);
+	if (cfg.role == 'spoke')
+		check_stale(cfg, add);
 }
 
 // Discovery must keep working while the mesh is down, so it goes through the hub tunnel.
@@ -107,11 +138,16 @@ function check_interface(status, iface, required, add) {
 	return peers.data;
 }
 
+// A peer finding names the network section and, when it is one, the public key.
+function peer_about(peer) {
+	return wg.is_pubkey(peer.pubkey) ? { section: peer.section, public_key: peer.pubkey } : { section: peer.section };
+}
+
 function check_managed(cfg, peer, verdict, kernel, add) {
 	let name = `peer ${peer.section}`;
-	let about = { section: peer.section };
+	let about = peer_about(peer);
 	if (verdict.verdict == relay.REJECTED)
-		return add('fail', 'peer', `${name}: ${verdict.reason}`, { ...about, option: 'wgpathd_relay' });
+		return add('fail', 'peer', `${name}: ${verdict.reason}`, { ...about, option: 'relay' });
 	if (verdict.verdict == relay.PENDING)
 		return add('warn', 'peer', `${name}: ${verdict.reason} (retried every cycle)`, about);
 	add('ok', 'peer', `${name}: relay ${peer.relay} via ${verdict.oif}, probes ${peer.tunnel}`, about);
@@ -119,11 +155,12 @@ function check_managed(cfg, peer, verdict, kernel, add) {
 		add('warn', 'peer', `${name}: not in ${cfg.mesh_iface} yet, skipped until it appears`, about);
 }
 
-// A peer without annotations is simply not steered; a malformed annotation is a mistake.
 function check_unmanaged(u, add) {
-	let words = split(u.reason, ' ');
-	let level = (words[0] == 'missing') ? 'skip' : 'fail';
-	add(level, 'peer', `peer ${u.section}: not steered (${u.reason})`, { section: u.section, option: words[1] });
+	let why = UNMANAGED[u.reason];
+	let about = peer_about(u);
+	if (why.option != null)
+		about.option = why.option;
+	add(why.level, 'peer', `peer ${u.section}: not steered (${u.reason})`, about);
 }
 
 // Interfaces are checked only when `wireguard status` was read, and skipped when ubus

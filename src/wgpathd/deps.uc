@@ -112,6 +112,7 @@ export function oneshot() {
 		uci: uci.cursor(),
 		ubus: ubus_channel(ubus.connect()),
 		route_get: route_get,
+		log: syslog_channel(log, stderr_echo()),
 	};
 };
 

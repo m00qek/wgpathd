@@ -37,6 +37,7 @@ define Package/wgpathd/postinst
 [ -n "$$IPKG_INSTROOT" ] || /etc/init.d/firewall reload || true
 [ -n "$$IPKG_INSTROOT" ] || /etc/init.d/rpcd reload || true
 # An upgrade replaces the code, but default_postinst leaves a running daemon on the old one.
+# default_postinst has run the package's uci-defaults, so the new one reads migrated settings.
 if [ -z "$$IPKG_INSTROOT" ] && [ "$$PKG_UPGRADE" = 1 ] && /etc/init.d/wgpathd running; then
 	/etc/init.d/wgpathd restart
 fi
@@ -55,6 +56,8 @@ define Package/wgpathd/install
 	$(INSTALL_CONF) ./files/etc/config/wgpathd $(1)/etc/config/wgpathd
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/etc/init.d/wgpathd $(1)/etc/init.d/wgpathd
+	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/etc/uci-defaults/50-wgpathd-peers $(1)/etc/uci-defaults/50-wgpathd-peers
 	$(INSTALL_DIR) $(1)/usr/libexec/wgpathd
 	$(INSTALL_BIN) ./files/usr/libexec/wgpathd/*.uc $(1)/usr/libexec/wgpathd/
 	$(INSTALL_DIR) $(1)/usr/share/nftables.d/chain-pre/input

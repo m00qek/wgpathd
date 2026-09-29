@@ -7,6 +7,7 @@ STOP=10
 LIBEXEC=/usr/libexec/wgpathd
 
 extra_command "check" "Validate configuration and substrate"
+extra_command "migrate" "Move peer settings left in /etc/config/network to /etc/config/wgpathd"
 
 service_enabled() {
 	local enabled
@@ -70,4 +71,8 @@ status_service() {
 
 check() {
 	"$LIBEXEC/check.uc"
+}
+
+migrate() {
+	"$LIBEXEC/migrate.uc"
 }

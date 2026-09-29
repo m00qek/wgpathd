@@ -10,6 +10,10 @@ export const INTERFACE_MISSING       = "INTERFACE_MISSING";
 
 // Check
 export const CHECK_INVALID_CANDIDATE = "CHECK_INVALID_CANDIDATE";
+export const PEERS_INVALID_IFACE     = "PEERS_INVALID_IFACE";
+
+// Migration
+export const MIGRATE_FAILED          = "MIGRATE_FAILED";
 
 // Discovery
 export const DISCOVERY_FETCH_FAILED  = "DISCOVERY_FETCH_FAILED";

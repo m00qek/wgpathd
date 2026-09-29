@@ -7,14 +7,16 @@ import * as h from 'lib.helpers';
 const SPOKE_B = 'O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=';
 const HUB  = 'W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=';
 
+
 const SPOKE_B_PEER = { section: 'spoke_b', pubkey: SPOKE_B, relay: '10.10.0.12:51820', tunnel: '10.20.0.12' };
 
-function spoke(unmanaged) {
-	return Result.ok({ role: 'spoke', mesh_iface: 'wg_mesh', hub_iface: 'wg_hub', mode: 'steer', overrides: {},
-		peers: { managed: [ SPOKE_B_PEER ], unmanaged: unmanaged ?? [] } });
+function spoke(unmanaged, extra) {
+	return Result.ok({ role: 'spoke', mesh_iface: 'wg_mesh', hub_iface: 'wg_hub', mode: 'steer', overrides: {}, leftovers: [],
+		peers: { managed: [ SPOKE_B_PEER ], unmanaged: unmanaged ?? [], stale: [] }, ...(extra ?? {}) });
 }
 
-const HUB_CFG = Result.ok({ role: 'hub', read_iface: 'wg_mesh', serve_addr: '192.0.2.1', serve_port: '7780', overrides: {} });
+const HUB_CFG = Result.ok({ role: 'hub', read_iface: 'wg_mesh', serve_addr: '192.0.2.1', serve_port: '7780', overrides: {},
+	leftovers: [] });
 
 const WG_UP = Result.ok({ ...h.status_reply('wg_mesh', { [SPOKE_B]: { hs: 0 } }), ...h.status_reply('wg_hub', {}) });
 
@@ -49,33 +51,68 @@ describe('check: findings for the config alone', () => {
 			{ level: 'warn', subject: 'config', option: 'enabled', message: "service disabled (option enabled 'off'): it will not start" },
 		], slice(list, 1, 3));
 	});
+
+	it('warns about each network section left with the options of an earlier version, in both roles', () => {
+		let leftovers = [ { section: 'spoke_b', options: [ 'wgpathd_relay', 'wgpathd_tunnel' ] },
+			{ section: 'hub', options: [ 'wgpathd_tunnel' ] } ];
+		let expected = [
+			{ level: 'warn', subject: 'config', section: 'spoke_b', message: 'config: network section spoke_b: wgpathd_relay and ' +
+				'wgpathd_tunnel left over from an earlier version, ignored; run service wgpathd migrate or remove them' },
+			{ level: 'warn', subject: 'config', section: 'hub', message: 'config: network section hub: wgpathd_tunnel left over ' +
+				'from an earlier version, ignored; run service wgpathd migrate or remove it' },
+		];
+		assert.match(expected, slice(check.findings(spoke(null, { leftovers: leftovers }), null), 1));
+		assert.match(expected, slice(check.findings(Result.ok({ ...HUB_CFG.data, leftovers: leftovers }), null), 1));
+	});
+
+	it('warns about peer settings that match no mesh peer, by key', () => {
+		let loaded = spoke(null, { peers: { managed: [ SPOKE_B_PEER ], unmanaged: [], stale: [ { pubkey: HUB }, { pubkey: null } ] } });
+		assert.match([
+			{ level: 'warn', subject: 'peer', public_key: HUB, message: `peer settings for ${HUB}: no such peer in wg_mesh, ignored` },
+			{ level: 'warn', subject: 'peer', message: 'peer settings without a public_key: ignored' },
+		], slice(check.findings(loaded, null), 1));
+	});
 });
 
 describe('check: findings for the peers', () => {
-	it('marks every peer finding with its section, and a bad annotation with its option', () => {
+	it('marks every peer finding with its section and key, and a bad setting with its option', () => {
 		let loaded = spoke([
-			{ section: 'hub', pubkey: HUB, reason: 'missing wgpathd_relay' },
+			{ section: 'hub', pubkey: HUB, reason: 'not configured' },
 			{ section: 'spoke_c', pubkey: null, reason: 'invalid public_key' },
 		]);
 		assert.match([
-			{ level: 'ok', subject: 'peer', section: 'spoke_b',
+			{ level: 'ok', subject: 'peer', section: 'spoke_b', public_key: SPOKE_B,
 				message: 'peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12' },
-			{ level: 'skip', subject: 'peer', section: 'hub', option: 'wgpathd_relay',
-				message: 'peer hub: not steered (missing wgpathd_relay)' },
+			{ level: 'skip', subject: 'peer', section: 'hub', public_key: HUB,
+				message: 'peer hub: not steered (not configured)' },
 			{ level: 'fail', subject: 'peer', section: 'spoke_c', option: 'public_key',
 				message: 'peer spoke_c: not steered (invalid public_key)' },
 		], slice(check.findings(loaded, obs()), 1));
 	});
 
-	it('marks a relay routed into the mesh on wgpathd_relay, and a pending lookup on no option', () => {
+	it('fails settings half given, malformed or given twice, marking the option when there is one', () => {
+		let cases = {
+			'missing relay': 'relay', 'invalid relay': 'relay', 'missing tunnel': 'tunnel', 'invalid tunnel': 'tunnel',
+			'configured more than once': null,
+		};
+		for (let reason, option in cases) {
+			let finding = check.findings(spoke([ { section: 'hub', pubkey: HUB, reason: reason } ]), obs())[-1];
+			let about = (option != null) ? { option: option } : {};
+			assert.match({ level: 'fail', subject: 'peer', section: 'hub', public_key: HUB, ...about,
+				message: `peer hub: not steered (${reason})` }, finding, reason);
+		}
+	});
+
+	it('marks a relay routed into the mesh on relay, and a pending lookup on no option', () => {
 		let rejected = check.findings(spoke(), obs({ routes: { spoke_b: { verdict: relay.REJECTED, reason: 'relay routes into wg_mesh' } } }));
-		assert.match({ level: 'fail', subject: 'peer', section: 'spoke_b', option: 'wgpathd_relay',
+		assert.match({ level: 'fail', subject: 'peer', section: 'spoke_b', public_key: SPOKE_B, option: 'relay',
 			message: 'peer spoke_b: relay routes into wg_mesh' }, rejected[1]);
 		let pending = check.findings(spoke(), obs({ routes: { spoke_b: { verdict: relay.PENDING, reason: 'relay route lookup failed: X' } } }));
-		assert.match({ level: 'warn', subject: 'peer', section: 'spoke_b',
+		assert.match({ level: 'warn', subject: 'peer', section: 'spoke_b', public_key: SPOKE_B,
 			message: 'peer spoke_b: relay route lookup failed: X (retried every cycle)' }, pending[1]);
 	});
 });
+
 
 describe('check: findings for the interfaces', () => {
 	it('leaves the interfaces out, and whether a peer is in the kernel, when wireguard status was not read', () => {

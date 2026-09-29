@@ -4,12 +4,12 @@
 		"read": {
 			"ubus": {
 				"wgpathd": [ "status" ],
-				"wgpathd.config": [ "check" ]
+				"wgpathd.config": [ "check", "peers", "schema" ]
 			},
-			"uci": [ "wgpathd", "network" ]
+			"uci": [ "wgpathd" ]
 		},
 		"write": {
-			"uci": [ "wgpathd", "network" ]
+			"uci": [ "wgpathd" ]
 		}
 	}
 }

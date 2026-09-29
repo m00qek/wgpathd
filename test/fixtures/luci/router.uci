@@ -11,6 +11,8 @@ set network.beach=wireguard_wg_mesh
 set network.beach.public_key='O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4='
 set network.lab=wireguard_wg_mesh
 set network.lab.public_key='hQrcvDZE8wGkiQzp3/zDaTL3dY0PfbFTcQ4r3sG1UUk='
+set wgpathd.main.role='hub'
+set wgpathd.main.read_iface='wg_mesh'
 set wgpathd.main.serve_addr='10.10.0.1'
 set wgpathd.main.serve_port='7780'
 set luci.main.mediaurlbase='/luci-static/bootstrap'

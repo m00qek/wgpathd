@@ -27,7 +27,7 @@ describe('status_view: spoke', () => {
 					last_change: { ts: NOW - 190, from: 'TRIALING', to: 'DIRECT', reason: 'trial_ok' } }),
 				[SPOKE_A]: peer({ section: 'spoke_a', endpoint: '10.10.0.11:51820', switches: 1 }),
 			},
-			unmanaged: [ { section: 'hub', pubkey: HUB, reason: 'missing wgpathd_relay' } ],
+			unmanaged: [ { section: 'hub', pubkey: HUB, reason: 'not configured' } ],
 		};
 		assert.match(
 			'role: spoke (mode steer)\n' +
@@ -36,7 +36,7 @@ describe('status_view: spoke', () => {
 			'  spoke_a  ckRTxoRC  RELAY   10.10.0.11:51820      no change yet      1 switch\n' +
 			'  spoke_b  O0LYRo/R  DIRECT  [2001:db8::12]:51820  3m ago (trial_ok)  2 switches\n' +
 			'unmanaged:\n' +
-			'  hub  W+1CXUTT  missing wgpathd_relay\n',
+			'  hub  W+1CXUTT  not configured\n',
 			view.render(status, NOW));
 	});
 

@@ -16,11 +16,18 @@ function network(extra) {
 	return {
 		wg_mesh: { '.type': 'interface', proto: 'wireguard' },
 		wg_hub:  { '.type': 'interface', proto: 'wireguard', addresses: [ '192.0.2.1/24' ] },
-		spoke_b: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_B, wgpathd_relay: '10.10.0.12:51820',
-			wgpathd_tunnel: '10.20.0.12' },
+		spoke_b: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_B },
 		hub:  { '.type': 'wireguard_wg_mesh', public_key: HUB },
 		...(extra ?? {}),
 	};
+}
+
+// The `peer` sections of /etc/config/wgpathd: spoke_b's, and any extra ones.
+function peers(...extra) {
+	let out = { cfg01a2b3: { '.type': 'peer', public_key: SPOKE_B, relay: '10.10.0.12:51820', tunnel: '10.20.0.12' } };
+	for (let i = 0; i < length(extra); i++)
+		out[`cfg1${i}a2b3`] = { '.type': 'peer', ...extra[i] };
+	return out;
 }
 
 function kernel_of(keys_) {
@@ -30,7 +37,8 @@ function kernel_of(keys_) {
 	return k;
 }
 
-// status: the `wireguard status` answer (a reply object or a Result error); routes: host -> oif or false.
+// status: the `wireguard status` answer (a reply object or a Result error); routes: host -> oif or false;
+// peers: the `peer` sections.
 function run(main, net, opts) {
 	opts ??= {};
 	let status = opts.status ?? Result.ok({
@@ -39,7 +47,7 @@ function run(main, net, opts) {
 	});
 	let routes = opts.routes ?? {};
 	let deps = {
-		uci: h.uci({ wgpathd: { main: main }, network: net ?? network() }).cursor(),
+		uci: h.uci({ wgpathd: { main: main, ...(opts.peers ?? peers()) }, network: net ?? network() }).cursor(),
 		ubus: h.ubus((obj, method) => (obj == 'wireguard' && method == 'status') ? status : die('unexpected')),
 		route_get: (host) => (routes[host] === false)
 			? Result.err('ROUTE_LOOKUP_FAILED', `${host}: Network unreachable`)
@@ -87,7 +95,7 @@ describe('check: config only', () => {
 });
 
 describe('check: full, spoke', () => {
-	it('checks interfaces, relay routes and annotations', () => {
+	it('checks interfaces, relay routes and peer settings', () => {
 		let res = run(SPOKE);
 		assert.match(true, res.ok);
 		assert.match(
@@ -95,19 +103,34 @@ describe('check: full, spoke', () => {
 			'ok    wg_mesh: up, 2 peers\n' +
 			'ok    wg_hub: up, 1 peer\n' +
 			'ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12\n' +
-			'skip  peer hub: not steered (missing wgpathd_relay)\n',
+			'skip  peer hub: not steered (not configured)\n',
 			res.report);
 	});
 
-	it('fails on a relay routed into the mesh and on a malformed annotation', () => {
-		let net = network({ spoke_a: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_A,
-			wgpathd_relay: 'not-an-endpoint', wgpathd_tunnel: '10.20.0.11' } });
-		let res = run(SPOKE, net, { routes: { '10.10.0.12': 'wg_mesh' } });
+	it('fails on a relay routed into the mesh, on malformed settings and on settings given twice', () => {
+		let net = network({ spoke_a: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_A } });
+		let extra = [ { public_key: SPOKE_A, relay: 'not-an-endpoint', tunnel: '10.20.0.11' },
+			{ public_key: HUB, relay: '10.10.0.1:51820', tunnel: '10.20.0.1' },
+			{ public_key: HUB, relay: '10.10.0.1:51820', tunnel: '10.20.0.1' } ];
+		let res = run(SPOKE, net, { routes: { '10.10.0.12': 'wg_mesh' }, peers: peers(...extra) });
 		assert.match(false, res.ok);
 		assert.match([
 			[ 'fail', 'peer spoke_b: relay routes into wg_mesh' ],
-			[ 'fail', 'peer spoke_a: not steered (invalid wgpathd_relay)' ],
+			[ 'fail', 'peer hub: not steered (configured more than once)' ],
+			[ 'fail', 'peer spoke_a: not steered (invalid relay)' ],
 		], map(filter(res.findings, (f) => f.level == 'fail'), (f) => [ f.level, f.message ]));
+	});
+
+	it('warns about settings for no mesh peer and about options left in network, and still passes', () => {
+		let net = network({ hub: { '.type': 'wireguard_wg_mesh', public_key: HUB, wgpathd_relay: '10.10.0.1:51820' } });
+		let res = run(SPOKE, net, { peers: peers({ public_key: SPOKE_A, relay: '10.10.0.11:51820', tunnel: '10.20.0.11' }) });
+		assert.match(true, res.ok);
+		assert.match([
+			'config: network section hub: wgpathd_relay left over from an earlier version, ignored; ' +
+				'run service wgpathd migrate or remove it',
+			`peer settings for ${SPOKE_A}: no such peer in wg_mesh, ignored`,
+		], map(filter(res.findings, (f) => f.level == 'warn'), (f) => f.message));
+		assert.match('skip  peer hub: not steered (not configured)', split(trim(res.report), '\n')[-1]);
 	});
 
 	it('warns about a pending route lookup and a peer missing from the kernel', () => {

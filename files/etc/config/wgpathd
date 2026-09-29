@@ -2,14 +2,12 @@
 # then check with `service wgpathd check` and start with `service wgpathd start`.
 # See the wgpathd documentation: Reference → UCI configuration.
 # The WireGuard interfaces and peers live in /etc/config/network and must exist.
-# On a spoke, each steered mesh peer there carries two extra options:
-#	option wgpathd_relay  '10.10.0.12:51820'   # its endpoint through the hub
-#	option wgpathd_tunnel '10.20.0.12'         # its address inside the tunnel, probed
+# On a spoke, each mesh peer to steer also gets a `peer` section here, below.
 
 config wgpathd 'main'
 	option enabled '0'
 
-	# --- spoke: steers each annotated mesh peer between direct and relay ---
+	# --- spoke: steers each configured mesh peer between direct and relay ---
 	#option role       'spoke'
 	#option mesh_iface 'wg_mesh'                       # steer endpoints of this interface
 	#option hub_iface  'wg_hub'                        # reach the hub over this one
@@ -24,3 +22,9 @@ config wgpathd 'main'
 
 	# Optional timing overrides (seconds or counts), e.g.:
 	#option cycle '3'
+
+# --- spoke: one section per steered mesh peer ---
+#config peer
+#	option public_key '<the peer's public key in /etc/config/network>'
+#	option relay      '10.10.0.12:51820'   # its endpoint through the hub
+#	option tunnel     '10.20.0.12'         # its address inside the tunnel, probed

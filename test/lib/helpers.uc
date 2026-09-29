@@ -1,9 +1,11 @@
 'use strict';
 
 // Hand-built fakes for driving the daemon: exec by argv, ICMP probes, ubus, http, fs, clock, log,
-// uloop, and a fake kernel and network ("world") that answers all of them consistently.
+// uloop, and a fake kernel and network ("world") that answers all of them consistently; and
+// real UCI files for the uci module.
 
 import * as Result from 'wgpathd.result';
+import { mkdtemp, writefile } from 'fs';
 
 export const WATCHDOG_PING = { obj: 'service', method: 'watchdog', args: { name: 'wgpathd', instance: 'wgpathd' } };
 
@@ -186,7 +188,7 @@ export function logger() {
 };
 
 // A uci cursor over `fake.data` ({ package: { section: { '.type', options } } }), which a
-// test may change between loads.
+// test may change between loads. A null type visits every section, as in uci.
 export function uci(data) {
 	let fake = { data: data };
 	let section = (pkg, sec) => fake.data[pkg]?.[sec];
@@ -195,11 +197,35 @@ export function uci(data) {
 		get_all: (pkg, sec) => section(pkg, sec) ? { ...section(pkg, sec), '.name': sec } : null,
 		foreach: function(pkg, stype, cb) {
 			for (let name, s in fake.data[pkg] ?? {})
-				if (s['.type'] == stype)
+				if (stype == null || s['.type'] == stype)
 					cb({ ...s, '.name': name });
 		},
 	});
 	return fake;
+};
+
+function uci_value(v) {
+	return "'" + replace(`${v}`, "'", "'\\''") + "'";
+}
+
+// Writes `data`, as uci() takes it, as UCI files into a new directory for the real uci
+// module (uci.cursor(dir)), and returns the directory. A section with '.anonymous' set
+// gets no name.
+export function uci_dir(data) {
+	let dir = mkdtemp('/tmp/wgpathd-uci-XXXXXX');
+	for (let pkg, sections in data) {
+		let text = '';
+		for (let name, s in sections) {
+			text += `config ${s['.type']}` + (s['.anonymous'] ? '' : ` ${uci_value(name)}`) + '\n';
+			for (let opt, v in s)
+				if (substr(opt, 0, 1) != '.' && v != null)
+					for (let item in (type(v) == 'array') ? v : [ v ])
+						text += `\t${(type(v) == 'array') ? 'list' : 'option'} ${opt} ${uci_value(item)}\n`;
+			text += '\n';
+		}
+		writefile(`${dir}/${pkg}`, text);
+	}
+	return dir;
 };
 
 export function uloop() {

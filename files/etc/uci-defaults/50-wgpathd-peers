@@ -1,0 +1,5 @@
+#!/bin/sh
+# Moves the peer settings that releases up to 4 kept in /etc/config/network into
+# /etc/config/wgpathd. Sourced once, at boot or by the package's postinst before it
+# restarts the daemon; a failure keeps this file, so it runs again at the next boot.
+/usr/libexec/wgpathd/migrate.uc

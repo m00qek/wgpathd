@@ -1,14 +1,18 @@
 import { describe, it, assert } from 'utest';
+import * as uci from 'uci';
 import * as h from 'lib.helpers';
 import * as check from 'wgpathd.check';
 import * as config from 'wgpathd.config';
 import * as daemon from 'wgpathd.daemon';
+import * as migrate from 'wgpathd.migrate';
 import * as params from 'wgpathd.params';
 import * as Result from 'wgpathd.result';
 
 // The configuration of the first real deployment, one hub and two spokes, with
 // documentation addresses in place of the public IPv6 ones: every check added since
-// must take it as it is, with the default timing.
+// must take it as it is, with the default timing. Each spoke is tried both as written
+// afresh, the peer settings in /etc/config/wgpathd, and as releases up to 4 left it,
+// the settings in /etc/config/network, once the migration has moved them.
 
 const SPOKE_A      = 'ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc=';
 const SPOKE_B = 'O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=';
@@ -29,22 +33,43 @@ function spoke_main(name) {
 const HUB_MAIN = { '.type': 'wgpathd', enabled: '1', role: 'hub', read_iface: 'wg_mesh',
 	serve_addr: '10.10.0.1', serve_port: '7780' };
 
-// A spoke's network: its two tunnels, the other spoke annotated, and the hub as a
-// mesh peer without annotations.
+function other_spoke(name) {
+	return (name == 'spoke_a') ? SPOKES.spoke_b : SPOKES.spoke_a;
+}
+
+// A spoke's network: its two tunnels, the other spoke, and the hub as a mesh peer.
 function spoke_network(name) {
 	let self = SPOKES[name];
-	let net = {
+	let other = (name == 'spoke_a') ? 'spoke_b' : 'spoke_a';
+	return {
 		wg_mesh: { '.type': 'interface', proto: 'wireguard', addresses: [ `${self.tunnel}/24` ] },
 		[self.hub_iface]: { '.type': 'interface', proto: 'wireguard', addresses: [ `${self.relay}/24` ] },
 		wgmesh_hub: { '.type': 'wireguard_wg_mesh', public_key: HUB, endpoint_host: '2001:db8:4b::1',
 			endpoint_port: '51820' },
+		[`wgmesh_${other}`]: { '.type': 'wireguard_wg_mesh', public_key: SPOKES[other].key },
 	};
-	for (let other, peer in SPOKES)
-		if (other != name)
-			net[`wgmesh_${other}`] = { '.type': 'wireguard_wg_mesh', public_key: peer.key,
-				wgpathd_relay: `${peer.relay}:51820`, wgpathd_tunnel: peer.tunnel };
-	return net;
 }
+
+// A spoke configured afresh: the other spoke's settings in a `peer` section.
+function fresh_spoke(name) {
+	let other = other_spoke(name);
+	let peer = { '.type': 'peer', public_key: other.key, relay: `${other.relay}:51820`, tunnel: other.tunnel };
+	return h.uci({ wgpathd: { main: spoke_main(name), cfg01a2b3: peer }, network: spoke_network(name) }).cursor;
+}
+
+// A spoke as releases up to 4 left it, its settings options of the peer's network
+// section, in real UCI files the migration then rewrites.
+function migrated_spoke(name) {
+	let other = other_spoke(name);
+	let network = spoke_network(name);
+	let section = (name == 'spoke_a') ? 'wgmesh_spoke_b' : 'wgmesh_spoke_a';
+	network[section] = { ...network[section], wgpathd_relay: `${other.relay}:51820`, wgpathd_tunnel: other.tunnel };
+	let dir = h.uci_dir({ wgpathd: { main: spoke_main(name) }, network: network });
+	assert.match(Result.ok(1), { ...migrate.run(uci.cursor(dir), h.logger().log) }, name);
+	return () => uci.cursor(dir);
+}
+
+const LAYOUTS = { fresh: fresh_spoke, migrated: migrated_spoke };
 
 const HUB_NETWORK = {
 	wg_mesh: { '.type': 'interface', proto: 'wireguard', addresses: [ '10.20.0.1/24' ] },
@@ -65,33 +90,35 @@ function route_via(hub_iface) {
 	return (host) => Result.ok({ oif: (index(host, '10.10.0.') == 0) ? hub_iface : 'pppoe-wan', local: false });
 }
 
-function run_check(main, net, status) {
+function run_check(cursor, hub_iface, status) {
 	let deps = {
-		uci: h.uci({ wgpathd: { main: main }, network: net }).cursor(),
+		uci: cursor(),
 		ubus: h.ubus((obj, method) => (obj == 'wireguard' && method == 'status') ? Result.ok(status) : die('unexpected')),
-		route_get: route_via(main.hub_iface ?? 'wg_hub'),
+		route_get: route_via(hub_iface),
 	};
 	return check.run(deps);
 }
 
 describe('deployment: service wgpathd check', () => {
-	it('passes both spokes without a warning', () => {
-		for (let name, self in SPOKES) {
-			let other = (name == 'spoke_a') ? SPOKES.spoke_b : SPOKES.spoke_a;
-			let res = run_check(spoke_main(name), spoke_network(name), {
-				...h.status_reply('wg_mesh', kernel_of(other.key, HUB)),
-				...h.status_reply(self.hub_iface, kernel_of(HUB)),
-			});
-			assert.match(true, res.ok, name);
-			assert.match([ 'ok', 'ok', 'ok', 'ok', 'skip' ], map(res.findings, (f) => f.level), res.report);
-			let peer = (name == 'spoke_a') ? 'wgmesh_spoke_b' : 'wgmesh_spoke_a';
-			assert.match(`ok    peer ${peer}: relay ${other.relay}:51820 via ${self.hub_iface}, probes ${other.tunnel}`,
-				split(res.report, '\n')[3], name);
-		}
-	});
+	for (let layout, make in LAYOUTS)
+		it(`passes both spokes without a warning (${layout})`, () => {
+			for (let name, self in SPOKES) {
+				let other = other_spoke(name);
+				let res = run_check(make(name), self.hub_iface, {
+					...h.status_reply('wg_mesh', kernel_of(other.key, HUB)),
+					...h.status_reply(self.hub_iface, kernel_of(HUB)),
+				});
+				assert.match(true, res.ok, name);
+				assert.match([ 'ok', 'ok', 'ok', 'ok', 'skip' ], map(res.findings, (f) => f.level), res.report);
+				let peer = (name == 'spoke_a') ? 'wgmesh_spoke_b' : 'wgmesh_spoke_a';
+				assert.match(`ok    peer ${peer}: relay ${other.relay}:51820 via ${self.hub_iface}, probes ${other.tunnel}`,
+					split(res.report, '\n')[3], name);
+			}
+		});
 
 	it('passes the hub without a warning', () => {
-		let res = run_check(HUB_MAIN, HUB_NETWORK, h.status_reply('wg_mesh', kernel_of(SPOKE_A, SPOKE_B)));
+		let res = run_check(h.uci({ wgpathd: { main: HUB_MAIN }, network: HUB_NETWORK }).cursor, 'wg_hub',
+			h.status_reply('wg_mesh', kernel_of(SPOKE_A, SPOKE_B)));
 		assert.match(true, res.ok);
 		assert.match([ 'ok', 'ok' ], map(res.findings, (f) => f.level), res.report);
 	});
@@ -106,10 +133,10 @@ describe('deployment: the daemon', () => {
 		return d;
 	}
 
-	function spoke(name) {
+	function spoke(name, cursor) {
 		let self = SPOKES[name];
-		let other = (name == 'spoke_a') ? SPOKES.spoke_b : SPOKES.spoke_a;
-		let loaded = config.load({ uci: h.uci({ wgpathd: { main: spoke_main(name) }, network: spoke_network(name) }).cursor() });
+		let other = other_spoke(name);
+		let loaded = config.load({ uci: cursor() });
 		assert.match(true, loaded.ok, name);
 		let w = h.world({ [other.key]: { endpoint: null, hs: 0 }, [HUB]: { endpoint: '[2001:db8:4b::1]:51820', hs: 0 } });
 		w.deps.route_get = route_via(self.hub_iface);
@@ -120,18 +147,19 @@ describe('deployment: the daemon', () => {
 		return { w: w, d: start(w, loaded.data), key: other.key };
 	}
 
-	it('takes each spoke\'s candidate and brings the other spoke to DIRECT with the default timing', () => {
-		for (let name in keys(SPOKES)) {
-			let s = spoke(name);
-			for (let i = 0; i < 10; i++) {
-				s.d.cycle(() => null);
-				s.w.clock.advance(3);
+	for (let layout, make in LAYOUTS)
+		it(`takes each spoke's candidate and brings the other spoke to DIRECT with the default timing (${layout})`, () => {
+			for (let name in keys(SPOKES)) {
+				let s = spoke(name, make(name));
+				for (let i = 0; i < 10; i++) {
+					s.d.cycle(() => null);
+					s.w.clock.advance(3);
+				}
+				let peer = s.d.status().peers[s.key];
+				assert.match([ 'DIRECT', DIRECT[s.key], null ], [ peer.state, s.w.kernel[s.key].endpoint, peer.candidate_refused ], name);
+				assert.match([], s.w.logs.matching(/refused|failed/), name);
 			}
-			let peer = s.d.status().peers[s.key];
-			assert.match([ 'DIRECT', DIRECT[s.key], null ], [ peer.state, s.w.kernel[s.key].endpoint, peer.candidate_refused ], name);
-			assert.match([], s.w.logs.matching(/refused|failed/), name);
-		}
-	});
+		});
 
 	it('publishes both spokes from the hub', () => {
 		let loaded = config.load({ uci: h.uci({ wgpathd: { main: HUB_MAIN }, network: HUB_NETWORK }).cursor() });

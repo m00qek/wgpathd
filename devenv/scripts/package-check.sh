@@ -50,6 +50,7 @@ MODULE=/www/luci-static/resources/wgpathd.js
 INCLUDE=/www/luci-static/resources/view/status/include/70_wgpathd.js
 MENU=/usr/share/luci/menu.d/luci-app-wgpathd.json
 ACL=/usr/share/rpcd/acl.d/luci-app-wgpathd.json
+MIGRATION=/etc/uci-defaults/50-wgpathd-peers
 
 apk_version() { apk adbdump "$1" | sed -n 's/^  version: //p'; }
 pins_daemon_version() { apk adbdump "$APP" | grep -qx "    - wgpathd=$(apk_version "$APK")"; }
@@ -85,14 +86,15 @@ check "install start is inert" sh -c '! grep -qE "not starting|Runtime error" /t
 
 check "config 0600"         has_mode 600 /etc/config/wgpathd
 check "init script 0755"    has_mode 755 /etc/init.d/wgpathd
-for f in daemon status check; do
+for f in daemon status check migrate; do
 	check "libexec $f.uc 0755" has_mode 755 /usr/libexec/wgpathd/$f.uc
 done
 check "nothing on the PATH" test ! -e /usr/sbin/wgpathd
 check "fw4 include 0644"    has_mode 644 /usr/share/nftables.d/chain-pre/input/wgpathd.nft
 check "modules 0644"        has_mode 644 /usr/share/ucode/wgpathd/daemon.uc
 check "components shipped"  test -f /usr/share/ucode/wgpathd/components/exec.uc -a -f /usr/share/ucode/wgpathd/components/icmp.uc
-check "no uci-defaults" sh -c '! grep -q uci-defaults /lib/apk/packages/wgpathd.list'
+check "uci-defaults shipped" grep -qx "$MIGRATION" /lib/apk/packages/wgpathd.list
+check "uci-defaults consumed on install" test ! -e "$MIGRATION"
 check "config is a conffile" grep -qx /etc/config/wgpathd /lib/apk/packages/wgpathd.conffiles
 
 check "modules on default search path" ucode -e 'import * as d from "wgpathd.daemon"; exit(type(d.run) == "function" ? 0 : 1);'
@@ -103,10 +105,18 @@ check "config check fails cleanly on the example" fails_cleanly /usr/libexec/wgp
 check "status without a daemon fails cleanly" fails_cleanly /usr/libexec/wgpathd/status.uc
 
 # Without ubus the full check skips the interfaces, so a valid hub config passes.
+PRIVATE_KEY=aGVsbG8gdGhpcyBpcyBub3QgYSByZWFsIGtleSEhISE=
+PRESHARED_KEY=cHJlc2hhcmVkIGtleSBub3QgZm9yIGFueSBleWVzISE=
+SPOKE_B_KEY=O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=
 touch /etc/config/network
 uci -q batch <<-EOF
 	set network.wg_mesh=interface
 	set network.wg_mesh.proto=wireguard
+	set network.wg_mesh.private_key=$PRIVATE_KEY
+	set network.spoke_b=wireguard_wg_mesh
+	set network.spoke_b.public_key=$SPOKE_B_KEY
+	set network.spoke_b.preshared_key=$PRESHARED_KEY
+	set network.spoke_b.endpoint_host=2001:db8::12
 	set wgpathd.main.role=hub
 	set wgpathd.main.read_iface=wg_mesh
 	set wgpathd.main.serve_addr=192.0.2.1
@@ -140,12 +150,82 @@ takes_candidate() {
 refuses_malformed_candidate() {
 	config_check '{"candidate":{"peers":{"nope":{}}}}' | grep -q '"error": "CHECK_INVALID_CANDIDATE"'
 }
+# The hub's read interface is the default; network holds its private key and a preshared key.
+lists_peers_without_secrets() {
+	out=$(ubus call wgpathd.config peers 2>&1) || return 1
+	echo "$out" | grep -q '"section": "spoke_b"' && echo "$out" | grep -q '"iface": "wg_mesh"' &&
+		! echo "$out" | grep -q -e "$PRIVATE_KEY" -e "$PRESHARED_KEY" -e 2001:db8::12
+}
+gives_parameter_bounds() {
+	ubus call wgpathd.config schema | grep -q '"name": "cycle"'
+}
 
 check "rpcd serves wgpathd.config" start_rpcd
 check "config check answers without the daemon" answers_without_daemon
 check "config check takes a candidate" takes_candidate
 check "config check refuses a malformed candidate" refuses_malformed_candidate
+check "peers lists a peer without its keys or endpoint" lists_peers_without_secrets
+check "schema gives the parameter bounds" gives_parameter_bounds
 stop_rpcd
+
+# An upgrade from a release that kept the peer settings in /etc/config/network. There is
+# no such build here, so the package is reinstalled over that config: apk runs its
+# post-upgrade script for a reinstall as for an upgrade, and extracts every file again.
+cat >/etc/config/network <<-EOF
+	config interface 'wg_mesh'
+		option proto 'wireguard'
+		option private_key '$PRIVATE_KEY'
+
+	config interface 'wg_hub'
+		option proto 'wireguard'
+
+	config wireguard_wg_mesh 'spoke_b'
+		option public_key '$SPOKE_B_KEY'
+		option preshared_key '$PRESHARED_KEY'
+		option wgpathd_relay '10.10.0.12:51820'
+		option wgpathd_tunnel '10.20.0.12'
+EOF
+uci -q batch <<-EOF
+	delete wgpathd.main.read_iface
+	delete wgpathd.main.serve_addr
+	delete wgpathd.main.serve_port
+	set wgpathd.main.role=spoke
+	set wgpathd.main.mesh_iface=wg_mesh
+	set wgpathd.main.hub_iface=wg_hub
+	set wgpathd.main.discovery=http://10.10.0.1:7780/peers
+	commit wgpathd
+EOF
+upgrade_from_older_release() {
+	apk add --allow-untrusted --no-network --force-reinstall "$APK" >/tmp/upgrade.log 2>&1 &&
+		grep -q 'Executing wgpathd-.*\.post-upgrade' /tmp/upgrade.log || { sed 's/^/     -> /' /tmp/upgrade.log >&3; return 1; }
+}
+settings_moved() {
+	[ "$(uci -q get wgpathd.@peer[0].public_key)" = "$SPOKE_B_KEY" ] &&
+		[ "$(uci -q get wgpathd.@peer[0].relay)" = 10.10.0.12:51820 ] &&
+		[ "$(uci -q get wgpathd.@peer[0].tunnel)" = 10.20.0.12 ] && [ -z "$(uci -q get wgpathd.@peer[1])" ]
+}
+# No copy of network, which holds the private keys, is left behind.
+network_kept_but_settings() {
+	! grep -q wgpathd_ /etc/config/network && [ "$(uci -q get network.spoke_b.preshared_key)" = "$PRESHARED_KEY" ] &&
+		[ "$(uci -q get network.wg_mesh.private_key)" = "$PRIVATE_KEY" ] && [ "$(ls -A /etc/config | grep network)" = network ]
+}
+# default_postinst runs the package's uci-defaults; the restart comes after it.
+migrates_before_restart() {
+	scripts_parse "$APK" || return 1
+	script=$(ls /tmp/script.post-upgrade*)
+	runs=$(grep -n -x 'default_postinst' "$script" | cut -d: -f1)
+	restarts=$(grep -n 'init.d/wgpathd restart$' "$script" | cut -d: -f1)
+	[ -n "$runs" ] && [ -n "$restarts" ] && [ "$runs" -lt "$restarts" ] &&
+		sed -n '/^default_postinst()/,/^}/p' /lib/functions.sh | grep -q '/etc/uci-defaults/'
+}
+check "upgrade from a release with peer settings in network" upgrade_from_older_release
+check "upgrade consumed the uci-defaults" test ! -e "$MIGRATION"
+check "upgrade moved the peer settings to wgpathd" settings_moved
+check "config still 0600" has_mode 600 /etc/config/wgpathd
+check "upgrade left network as it was, but for the settings" network_kept_but_settings
+check "config check passes with the peer steered" sh -c '/usr/libexec/wgpathd/check.uc --config | grep -q "1 steered peer, 0 not steered"'
+check "migration runs before the upgrade restarts the daemon" migrates_before_restart
+check "migrate command has nothing left to move" sh -c '/etc/init.d/wgpathd migrate && /usr/libexec/wgpathd/check.uc --config'
 
 /etc/init.d/wgpathd disable
 check "init script enables" sh -c '/etc/init.d/wgpathd enable && [ -L /etc/rc.d/S95wgpathd ]'

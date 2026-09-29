@@ -109,8 +109,6 @@ spoke_network() {
 		list allowed_ips '$(site_net "$peer").0.0/16'
 		list allowed_ips '$(mesh_addr "$peer")/32'
 		option route_allowed_ips '1'
-		option wgpathd_relay '$(hub_addr "$peer"):$MESH_PORT'
-		option wgpathd_tunnel '$(mesh_addr "$peer")'
 	EOF
 }
 
@@ -216,8 +214,10 @@ hub_wgpathd() {
 	EOF
 }
 
-# Fast parameters, so a failover completes in seconds (design "Running it").
+# Fast parameters, so a failover completes in seconds (design "Running it"), and the
+# other spoke's relay endpoint and tunnel address.
 spoke_wgpathd() {
+	peer=$(other_spoke "$node")
 	cat <<-EOF
 		config wgpathd 'main'
 		option enabled '1'
@@ -235,6 +235,11 @@ spoke_wgpathd() {
 		option backoff_max '16'
 		option backoff_reset '30'
 		option discovery_interval '5'
+
+		config peer
+		option public_key '$(pub "$peer" wg_mesh)'
+		option relay '$(hub_addr "$peer"):$MESH_PORT'
+		option tunnel '$(mesh_addr "$peer")'
 	EOF
 }
 

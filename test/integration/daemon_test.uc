@@ -29,7 +29,7 @@ const HUB_NAME = 'peer hub (W+1CXUTT)';
 const SPOKE_B_PEER = { section: 'spoke_b', pubkey: SPOKE_B, relay: SPOKE_B_RELAY, tunnel: SPOKE_B_TUNNEL };
 const SPOKE_A_PEER = { section: 'spoke_a', pubkey: SPOKE_A, relay: SPOKE_A_RELAY, tunnel: SPOKE_A_TUNNEL };
 const SPOKE_C_PEER = { section: 'spoke_c', pubkey: SPOKE_C, relay: SPOKE_C_RELAY, tunnel: SPOKE_C_TUNNEL };
-const HUB_UNMANAGED = { section: 'hub', pubkey: HUB, reason: 'missing wgpathd_relay' };
+const HUB_UNMANAGED = { section: 'hub', pubkey: HUB, reason: 'not configured' };
 
 function spoke_cfg(extra) {
 	return { role: 'spoke', mesh_iface: 'wg_mesh', hub_iface: 'wg_hub', discovery: URL, mode: 'steer',
@@ -201,7 +201,7 @@ describe('daemon: spoke startup', () => {
 		let d = start(w, spoke_cfg({ peers: { managed: [ SPOKE_B_PEER, SPOKE_A_PEER ], unmanaged: [ HUB_UNMANAGED ] } }));
 		cycles(w, d, 3);
 		assert.match([
-			[ 'warning', `${HUB_NAME}: unmanaged reason=missing wgpathd_relay` ],
+			[ 'warning', `${HUB_NAME}: unmanaged reason=not configured` ],
 			[ 'warning', `${A}: unmanaged reason=relay routes into wg_mesh` ],
 		], w.logs.matching(/unmanaged/));
 	});
@@ -1250,19 +1250,25 @@ describe('daemon: hub', () => {
 const MAIN = { '.type': 'wgpathd', role: 'spoke', mesh_iface: 'wg_mesh', hub_iface: 'wg_hub', discovery: URL,
 	mode: 'steer', cycle: '1.5' };
 
-function network(...peers) {
-	let net = {
-		wg_mesh: { '.type': 'interface', proto: 'wireguard' },
-		wg_hub:  { '.type': 'interface', proto: 'wireguard' },
-	};
-	for (let p in peers)
-		net[p.section] = { '.type': 'wireguard_wg_mesh', public_key: p.pubkey, wgpathd_relay: p.relay,
-			wgpathd_tunnel: p.tunnel };
-	return net;
+// Each peer in /etc/config/network, with its settings in a `peer` section of
+// /etc/config/wgpathd; `extra`: more network sections.
+function substrate(peers, extra) {
+	let conf = { network: { wg_mesh: { '.type': 'interface', proto: 'wireguard' },
+		wg_hub: { '.type': 'interface', proto: 'wireguard' }, ...(extra ?? {}) }, peers: {} };
+	for (let i = 0; i < length(peers); i++) {
+		let p = peers[i];
+		conf.network[p.section] = { '.type': 'wireguard_wg_mesh', public_key: p.pubkey };
+		conf.peers[`cfg0${i}a2b3`] = { '.type': 'peer', public_key: p.pubkey, relay: p.relay, tunnel: p.tunnel };
+	}
+	return conf;
 }
 
-function run(w, main, net, loop) {
-	let uci = h.uci({ wgpathd: { main: main }, network: net ?? network(SPOKE_B_PEER) });
+function uci_data(main, conf) {
+	return { wgpathd: { main: main, ...conf.peers }, network: conf.network };
+}
+
+function run(w, main, conf, loop) {
+	let uci = h.uci(uci_data(main, conf ?? substrate([ SPOKE_B_PEER ])));
 	loop ??= h.uloop();
 	let code = daemon.run({ ...w.deps, uci_cursor: uci.cursor, uloop: loop });
 	return { code: code, loop: loop, uci: uci, status: () => w.ubus.published.wgpathd.status.call() };
@@ -1273,8 +1279,8 @@ function tick(r) {
 	r.loop.timers[-1].cb();
 }
 
-function reload(r, main, net) {
-	r.uci.data = { wgpathd: { main: main }, network: net };
+function reload(r, main, conf) {
+	r.uci.data = uci_data(main, conf);
 	r.loop.signals.SIGHUP();
 }
 
@@ -1300,11 +1306,22 @@ describe('daemon: run', () => {
 
 	it('logs the start with the role, mode and peer counts, and the stop', () => {
 		let w = h.world(kernel_of(SPOKE_B));
-		run(w, MAIN, { ...network(SPOKE_B_PEER), hub: { '.type': 'wireguard_wg_mesh', public_key: HUB } });
+		run(w, MAIN, substrate([ SPOKE_B_PEER ], { hub: { '.type': 'wireguard_wg_mesh', public_key: HUB } }));
 		assert.match([
 			[ 'notice', 'started role=spoke mode=steer managed=1 unmanaged=1' ],
 			[ 'notice', 'stopped' ],
 		], w.logs.matching(/^(started|stopped)/));
+	});
+
+	it('logs the network sections left with the options of an earlier version once, at start', () => {
+		let w = h.world(kernel_of(SPOKE_B));
+		let legacy = { hub: { '.type': 'wireguard_wg_mesh', public_key: HUB, wgpathd_relay: '10.10.0.1:51820',
+			wgpathd_tunnel: '10.20.0.1' } };
+		let r = run(w, MAIN, substrate([ SPOKE_B_PEER ], legacy));
+		reload(r, { ...MAIN, cycle: '1' }, substrate([ SPOKE_B_PEER ], legacy));
+		assert.match([ [ 'warning', 'network section hub: ignoring wgpathd_relay and wgpathd_tunnel, left over from an ' +
+			'earlier version; run service wgpathd migrate' ] ], w.logs.matching(/left over/));
+		assert.match([ HUB_UNMANAGED ], r.status().unmanaged);
 	});
 
 	it('exits 1 with a logged reason on an invalid configuration', () => {
@@ -1340,7 +1357,7 @@ describe('daemon: reload on SIGHUP', () => {
 		tick(r);
 		assert.match(2, r.status().peers[SPOKE_B].up_streak);
 
-		reload(r, MAIN, network(SPOKE_B_PEER, SPOKE_A_PEER));
+		reload(r, MAIN, substrate([ SPOKE_B_PEER, SPOKE_A_PEER ]));
 		assert.match(2, r.status().peers[SPOKE_B].up_streak);
 		assert.match(contains({ state: 'RELAY', up_streak: 0, section: 'spoke_a' }), r.status().peers[SPOKE_A]);
 		tick(r);
@@ -1352,8 +1369,8 @@ describe('daemon: reload on SIGHUP', () => {
 
 	it('drops a removed peer from steering and status', () => {
 		let w = reachable_world();
-		let r = run(w, MAIN, network(SPOKE_B_PEER, SPOKE_A_PEER));
-		reload(r, MAIN, network(SPOKE_B_PEER));
+		let r = run(w, MAIN, substrate([ SPOKE_B_PEER, SPOKE_A_PEER ]));
+		reload(r, MAIN, substrate([ SPOKE_B_PEER ]));
 		let seen = length(w.exec.commands());
 		let probed = length(w.icmp.sent);
 		tick(r);
@@ -1364,11 +1381,11 @@ describe('daemon: reload on SIGHUP', () => {
 		assert.match([ [ 'info', `${A}: removed` ] ], w.logs.matching(/: (added|removed|changed)$/));
 	});
 
-	it('starts a peer afresh when its annotations change, and guards its new relay', () => {
+	it('starts a peer afresh when its settings change, and guards its new relay', () => {
 		let w = reachable_world();
 		let r = run(w, MAIN);
 		tick(r);
-		reload(r, MAIN, network({ ...SPOKE_B_PEER, relay: '10.10.0.99:51820' }));
+		reload(r, MAIN, substrate([ { ...SPOKE_B_PEER, relay: '10.10.0.99:51820' } ]));
 		assert.match(contains({ up_streak: 0, endpoint: null }), r.status().peers[SPOKE_B]);
 		tick(r);
 		assert.match(set_all(SPOKE_B, '10.10.0.99:51820'),
@@ -1377,7 +1394,7 @@ describe('daemon: reload on SIGHUP', () => {
 		assert.match(1, length(w.logs.matching(/peers_kept=0 added=1 removed=1/)));
 
 		w.routes['10.10.0.98'] = 'wg_mesh';
-		reload(r, MAIN, network({ ...SPOKE_B_PEER, relay: '10.10.0.98:51820' }));
+		reload(r, MAIN, substrate([ { ...SPOKE_B_PEER, relay: '10.10.0.98:51820' } ]));
 		assert.match({}, r.status().peers);
 		assert.match([ { section: 'spoke_b', pubkey: SPOKE_B, reason: 'relay routes into wg_mesh' } ], r.status().unmanaged);
 	});
@@ -1387,7 +1404,7 @@ describe('daemon: reload on SIGHUP', () => {
 		w.routes['10.10.0.12'] = 'wg_mesh';
 		let r = run(w, MAIN);
 		delete w.routes['10.10.0.12'];
-		reload(r, MAIN, network(SPOKE_B_PEER));
+		reload(r, MAIN, substrate([ SPOKE_B_PEER ]));
 		assert.match([], r.status().unmanaged);
 		assert.match(contains({ state: 'RELAY', section: 'spoke_b' }), r.status().peers[SPOKE_B]);
 		assert.match([ [ 'notice', `${B}: relay route found, now managed` ] ], w.logs.matching(/route found/));
@@ -1397,7 +1414,7 @@ describe('daemon: reload on SIGHUP', () => {
 		let w = reachable_world();
 		w.routes['10.10.0.12'] = 'wg_mesh';
 		let r = run(w, MAIN);
-		reload(r, { ...MAIN, cycle: '1' }, network(SPOKE_B_PEER));
+		reload(r, { ...MAIN, cycle: '1' }, substrate([ SPOKE_B_PEER ]));
 		assert.match([ { section: 'spoke_b', pubkey: SPOKE_B, reason: 'relay routes into wg_mesh' } ], r.status().unmanaged);
 		assert.match(1, length(w.logs.matching(/^peer spoke_b .*unmanaged/)));
 	});
@@ -1406,7 +1423,7 @@ describe('daemon: reload on SIGHUP', () => {
 		let w = reachable_world();
 		let r = run(w, MAIN);
 		let other = 'http://10.10.0.1:7781/peers';
-		reload(r, { ...MAIN, cycle: '2', mode: 'observe', discovery: other }, network(SPOKE_B_PEER));
+		reload(r, { ...MAIN, cycle: '2', mode: 'observe', discovery: other }, substrate([ SPOKE_B_PEER ]));
 		tick(r);
 		assert.match(2000, r.loop.timers[-1].ms);
 		assert.match('observe', r.status().mode);
@@ -1418,8 +1435,7 @@ describe('daemon: reload on SIGHUP', () => {
 	it('ends the loop on a structural change, for procd to respawn', () => {
 		let w = reachable_world();
 		let r = run(w, MAIN);
-		let net = { ...network(SPOKE_B_PEER), wg_mesh2: { '.type': 'interface', proto: 'wireguard' } };
-		reload(r, { ...MAIN, mesh_iface: 'wg_mesh2' }, net);
+		reload(r, { ...MAIN, mesh_iface: 'wg_mesh2' }, substrate([ SPOKE_B_PEER ], { wg_mesh2: { '.type': 'interface', proto: 'wireguard' } }));
 		assert.match(true, r.loop.ended);
 		assert.match([ [ 'notice', 'reload: exiting for procd to start afresh changed=mesh_iface' ] ],
 			w.logs.matching(/^reload/));
@@ -1428,7 +1444,7 @@ describe('daemon: reload on SIGHUP', () => {
 	it('keeps the running configuration when the new one is invalid', () => {
 		let w = reachable_world();
 		let r = run(w, MAIN);
-		reload(r, { ...MAIN, role: 'relay' }, network(SPOKE_B_PEER));
+		reload(r, { ...MAIN, role: 'relay' }, substrate([ SPOKE_B_PEER ]));
 		assert.match(false, r.loop.ended);
 		assert.match([ [ 'err', 'reload: invalid configuration, keeping the running one: CONFIG_INVALID_ROLE (relay)' ] ],
 			w.logs.matching(/^reload/));
@@ -1440,7 +1456,7 @@ describe('daemon: reload on SIGHUP', () => {
 	it('keeps the running parameters when a new one is out of bounds', () => {
 		let w = reachable_world();
 		let r = run(w, MAIN);
-		reload(r, { ...MAIN, cycle: '0.0001', mode: 'observe' }, network(SPOKE_B_PEER));
+		reload(r, { ...MAIN, cycle: '0.0001', mode: 'observe' }, substrate([ SPOKE_B_PEER ]));
 		assert.match([ [ 'err', 'reload: invalid configuration, keeping the running one: CONFIG_INVALID_OPTION (cycle must be a number from 1 to 10)' ] ],
 			w.logs.matching(/^reload/));
 		tick(r);

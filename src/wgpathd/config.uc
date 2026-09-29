@@ -1,6 +1,8 @@
 'use strict';
 
-// Load /etc/config/wgpathd and the steered wg peers from /etc/config/network via deps.uci.
+// Load /etc/config/wgpathd via deps.uci. On a spoke, its `peer` sections give each
+// steered peer a relay and a tunnel address, matched by public key to the WireGuard
+// peers of mesh_iface in /etc/config/network.
 
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
@@ -90,32 +92,73 @@ function parse_overrides(main, role) {
 	return conflict ? invalid(conflict[0], conflict[1]) : Result.ok(overrides);
 }
 
-function unmanaged_reason(s) {
+// Where releases up to 4 kept a peer's settings: options of its network section.
+export const LEGACY_OPTIONS = { relay: 'wgpathd_relay', tunnel: 'wgpathd_tunnel' };
+
+// The `peer` sections by public key; a section without one is counted apart.
+function peer_settings(uci) {
+	let settings = { by_key: {}, unkeyed: 0 };
+	uci.foreach('wgpathd', 'peer', (s) => {
+		if (type(s.public_key) != 'string')
+			return settings.unkeyed++;
+		settings.by_key[s.public_key] ??= [];
+		push(settings.by_key[s.public_key], s);
+	});
+	return settings;
+}
+
+function unmanaged_reason(s, settings) {
 	if (!is_pubkey(s.public_key))
 		return 'invalid public_key';
-	if (s.wgpathd_relay == null)
-		return 'missing wgpathd_relay';
-	if (endpoint.canonical(s.wgpathd_relay) == null)
-		return 'invalid wgpathd_relay';
-	if (s.wgpathd_tunnel == null)
-		return 'missing wgpathd_tunnel';
-	if (endpoint.canonical_ip(s.wgpathd_tunnel) == null)
-		return 'invalid wgpathd_tunnel';
+	let found = settings.by_key[s.public_key] ?? [];
+	if (length(found) == 0)
+		return 'not configured';
+	if (length(found) > 1)
+		return 'configured more than once';
+	let p = found[0];
+	if (p.relay == null)
+		return 'missing relay';
+	if (endpoint.canonical(p.relay) == null)
+		return 'invalid relay';
+	if (p.tunnel == null)
+		return 'missing tunnel';
+	if (endpoint.canonical_ip(p.tunnel) == null)
+		return 'invalid tunnel';
 	return null;
 }
 
 // One bad peer is left alone and reported, never a reason to refuse the whole config.
+// Settings whose key is no peer of mesh_iface are stale: listed apart, and ignored.
 function load_peers(uci, mesh_iface) {
-	let peers = { managed: [], unmanaged: [] };
+	let settings = peer_settings(uci);
+	let peers = { managed: [], unmanaged: [], stale: [] };
+	let mesh_keys = {};
 	uci.foreach('network', `wireguard_${mesh_iface}`, (s) => {
-		let reason = unmanaged_reason(s);
+		mesh_keys[s.public_key] = true;
+		let reason = unmanaged_reason(s, settings);
 		if (reason != null)
-			push(peers.unmanaged, { section: s['.name'], pubkey: s.public_key, reason: reason });
-		else
-			push(peers.managed, { section: s['.name'], pubkey: s.public_key,
-				relay: endpoint.canonical(s.wgpathd_relay), tunnel: endpoint.canonical_ip(s.wgpathd_tunnel) });
+			return push(peers.unmanaged, { section: s['.name'], pubkey: s.public_key, reason: reason });
+		let p = settings.by_key[s.public_key][0];
+		push(peers.managed, { section: s['.name'], pubkey: s.public_key,
+			relay: endpoint.canonical(p.relay), tunnel: endpoint.canonical_ip(p.tunnel) });
 	});
+	for (let key in keys(settings.by_key))
+		if (!mesh_keys[key])
+			push(peers.stale, { pubkey: key });
+	for (let i = 0; i < settings.unkeyed; i++)
+		push(peers.stale, { pubkey: null });
 	return peers;
+}
+
+// Network sections that still carry the options of releases up to 4, which nothing reads.
+function leftovers(uci) {
+	let out = [];
+	uci.foreach('network', null, (s) => {
+		let options = filter(values(LEGACY_OPTIONS), (opt) => s[opt] != null);
+		if (length(options) > 0)
+			push(out, { section: s['.name'], options: options });
+	});
+	return out;
 }
 
 function pick(main, opts) {
@@ -147,7 +190,7 @@ export function load(deps) {
 	if (!overrides.ok)
 		return overrides;
 
-	let cfg = { role: role, ...pick(main, REQUIRED[role]), overrides: overrides.data };
+	let cfg = { role: role, ...pick(main, REQUIRED[role]), overrides: overrides.data, leftovers: leftovers(deps.uci) };
 	if (role == 'hub')
 		return Result.ok({ ...cfg, serve_addr: endpoint.canonical_ip(main.serve_addr) });
 

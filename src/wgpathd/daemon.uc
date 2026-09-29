@@ -246,7 +246,7 @@ function create_spoke(deps, cfg, params) {
 				log_peer('info', peer, 'removed');
 	};
 
-	// A peer keeps its ctl only while its annotations are unchanged. A rejected peer
+	// A peer keeps its ctl only while its settings are unchanged. A rejected peer
 	// is guarded again, since the route it was rejected for may have been fixed.
 	let reconcile = function(peers) {
 		let take = (list, peer) => filter(list, (x) => same(x.peer, peer))[0];
@@ -683,6 +683,9 @@ export function run(deps) {
 		return 1;
 	}
 	let cfg = loaded.data;
+	for (let l in cfg.leftovers)
+		deps.log('warning', `network section ${l.section}: ignoring ${join(' and ', l.options)}, left over from an earlier version; ` +
+			'run service wgpathd migrate');
 	let params = parameters.build(cfg);
 	let daemon = create(deps, cfg, params);
 	let code = 0;

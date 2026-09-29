@@ -109,7 +109,7 @@
 		{
 			"section": "hub",
 			"pubkey": "W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=",
-			"reason": "missing wgpathd_relay"
+			"reason": "not configured"
 		}
 	],
 	"history": [

@@ -58,15 +58,21 @@ describe('luci-app-wgpathd: menu', () => {
 });
 
 describe('luci-app-wgpathd: ACL', () => {
-	it('grants the daemon status, the config check and the two UCI configs', () => {
+	// /etc/config/network holds every WireGuard private key of the router: the peers
+	// method lists what the pages need of it.
+	it('grants the daemon status, the config methods and wgpathd\'s own UCI config, never network', () => {
 		assert.match([ 'luci-app-wgpathd' ], keys(ACL));
 		assert.match({
 			read: {
-				ubus: { wgpathd: [ 'status' ], 'wgpathd.config': [ 'check' ] },
-				uci: [ 'wgpathd', 'network' ],
+				ubus: { wgpathd: [ 'status' ], 'wgpathd.config': [ 'check', 'peers', 'schema' ] },
+				uci: [ 'wgpathd' ],
 			},
-			write: { uci: [ 'wgpathd', 'network' ] },
+			write: { uci: [ 'wgpathd' ] },
 		}, { read: ACL['luci-app-wgpathd'].read, write: ACL['luci-app-wgpathd'].write });
+	});
+
+	it('grants no network, file, exec or wildcard access', () => {
+		assert.match(null, match(readfile(LUCI + '/root/usr/share/rpcd/acl.d/luci-app-wgpathd.json'), /network|file|exec|\*/));
 	});
 
 	it('covers every ubus call a script declares', () => {

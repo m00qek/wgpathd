@@ -15,6 +15,14 @@ const callStatus = rpc.declare({
 	method: 'status'
 });
 
+// The WireGuard interfaces and the peers of one, without their keys; served by rpcd
+// whether or not the daemon runs.
+const callPeers = rpc.declare({
+	object: 'wgpathd.config',
+	method: 'peers',
+	params: [ 'iface' ]
+});
+
 const STATES = {
 	DIRECT:   { text: _('Direct'),         label: 'label success', segment: 'border-top:3px solid' },
 	RELAY:    { text: _('Via hub'),        label: 'label warning', segment: 'border-top:2px dashed' },
@@ -22,11 +30,13 @@ const STATES = {
 };
 
 const UNMANAGED = {
-	'invalid public_key':     _('No valid public key'),
-	'missing wgpathd_relay':  _('No relay endpoint set'),
-	'invalid wgpathd_relay':  _('The relay endpoint is not valid'),
-	'missing wgpathd_tunnel': _('No tunnel address to check set'),
-	'invalid wgpathd_tunnel': _('The tunnel address is not valid')
+	'invalid public_key':        _('No valid public key'),
+	'not configured':            _('No relay endpoint or tunnel address set'),
+	'configured more than once': _('Its settings are given more than once'),
+	'missing relay':             _('No relay endpoint set'),
+	'invalid relay':             _('The relay endpoint is not valid'),
+	'missing tunnel':            _('No tunnel address to check set'),
+	'invalid tunnel':            _('The tunnel address is not valid')
 };
 
 // Why this router does not try the address the hub publishes for a peer.
@@ -105,13 +115,23 @@ return baseclass.extend({
 		return L.resolveDefault(callStatus(), null);
 	},
 
+	// { iface, interfaces, peers: [ { section, public_key, description? } ] } for `iface`,
+	// or for the interface of the committed role when it is left out; null when unreadable.
+	meshPeers(iface) {
+		return L.resolveDefault(callPeers(iface), null);
+	},
+
 	// The reply, with the router's name and time zone from the system config (readable
-	// through luci-base's ACL) and the peer names from network, which the hub's reply lacks.
+	// through luci-base's ACL) and the names of the peers, which the hub's reply lacks.
 	load() {
 		return Promise.all([
 			this.status(),
-			L.resolveDefault(uci.load([ 'system', 'network', 'wgpathd' ]), null)
-		]).then(([ status ]) => status);
+			L.resolveDefault(uci.load([ 'system', 'wgpathd' ]), null),
+			this.meshPeers()
+		]).then(([ status, , peers ]) => {
+			this.named = peers?.peers ?? [];
+			return status;
+		});
 	},
 
 	isRunning(status) {
@@ -137,10 +157,10 @@ return baseclass.extend({
 		return uci.get('system', '@system[0]', 'hostname') || _('This router');
 	},
 
-	// A network section whose public_key is `pubkey`, as the hub reply is keyed by keys.
+	// The network section of the peer whose key is `pubkey`, as the hub reply is keyed by keys.
 	sectionOf(pubkey) {
-		const s = (uci.sections('network') || []).find((s) => s.public_key === pubkey && /^wireguard_/.test(s['.type']));
-		return s ? s['.name'] : null;
+		const peer = (this.named ?? []).find((p) => p.public_key === pubkey);
+		return peer ? peer.section : null;
 	},
 
 	// Where the spokes fetch the hub's list, from the hub's own config.

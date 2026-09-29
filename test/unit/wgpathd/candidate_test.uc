@@ -9,16 +9,17 @@ const HUB  = 'W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=';
 const MAIN = { '.type': 'wgpathd', role: 'spoke', mesh_iface: 'wg_mesh', hub_iface: 'wg_hub',
 	discovery: 'http://10.10.0.1:7780/peers', mode: 'observe', cycle: '2' };
 
+const SPOKE_B_SETTINGS = { '.type': 'peer', public_key: SPOKE_B, relay: '10.10.0.12:51820', tunnel: '10.20.0.12' };
+
 const NETWORK = {
 	wg_mesh: { '.type': 'interface', proto: 'wireguard' },
 	wg_hub:  { '.type': 'interface', proto: 'wireguard' },
-	spoke_b: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_B, wgpathd_relay: '10.10.0.12:51820',
-		wgpathd_tunnel: '10.20.0.12' },
+	spoke_b: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_B },
 	hub: { '.type': 'wireguard_wg_mesh', public_key: HUB },
 };
 
 function cursor(data) {
-	return h.uci(data ?? { wgpathd: { main: MAIN }, network: NETWORK }).cursor();
+	return h.uci(data ?? { wgpathd: { main: MAIN, cfg01a2b3: SPOKE_B_SETTINGS }, network: NETWORK }).cursor();
 }
 
 function view(cand, data) {
@@ -27,9 +28,10 @@ function view(cand, data) {
 	return res.data;
 }
 
-function sections(v, pkg, stype) {
+// The `peer` sections the view shows, by public key.
+function settings(v) {
 	let out = {};
-	v.foreach(pkg, stype, (s) => { out[s['.name']] = s; });
+	v.foreach('wgpathd', 'peer', (s) => { out[s.public_key] = { relay: s.relay, tunnel: s.tunnel }; });
 	return out;
 }
 
@@ -60,71 +62,64 @@ describe('candidate: main', () => {
 
 	it('leaves the committed config alone', () => {
 		let uci = cursor();
-		candidate.overlay(uci, { main: { mode: 'steer' }, peers: { spoke_b: { wgpathd_relay: '' } } });
+		candidate.overlay(uci, { main: { mode: 'steer' }, peers: { [SPOKE_B]: { relay: '' } } });
 		assert.match('observe', uci.get('wgpathd', 'main', 'mode'));
-		assert.match('10.10.0.12:51820', uci.get('network', 'spoke_b', 'wgpathd_relay'));
+		assert.match('10.10.0.12:51820', uci.get('wgpathd', 'cfg01a2b3', 'relay'));
 	});
 });
 
 describe('candidate: peers', () => {
-	it('lays the annotations over the committed peer section, which keeps its other options', () => {
-		let v = view({ peers: { hub: { wgpathd_relay: '10.10.0.1:51820', wgpathd_tunnel: '10.20.0.1' } } });
-		assert.match({ '.type': 'wireguard_wg_mesh', '.name': 'hub', public_key: HUB, wgpathd_relay: '10.10.0.1:51820',
-			wgpathd_tunnel: '10.20.0.1' }, sections(v, 'network', 'wireguard_wg_mesh').hub);
-		assert.match('10.20.0.1', v.get('network', 'hub', 'wgpathd_tunnel'));
+	it('adds the settings of a peer that has none', () => {
+		let v = view({ peers: { [HUB]: { relay: '10.10.0.1:51820', tunnel: '10.20.0.1' } } });
+		assert.match({ [SPOKE_B]: { relay: '10.10.0.12:51820', tunnel: '10.20.0.12' },
+			[HUB]: { relay: '10.10.0.1:51820', tunnel: '10.20.0.1' } }, settings(v));
 	});
 
-	it('removes an annotation given as an empty string, and leaves the peers it does not name', () => {
-		let v = view({ peers: { spoke_b: { wgpathd_tunnel: '' } } });
-		let peers = sections(v, 'network', 'wireguard_wg_mesh');
-		assert.match([ false, '10.10.0.12:51820' ], [ exists(peers.spoke_b, 'wgpathd_tunnel'), peers.spoke_b.wgpathd_relay ]);
-		assert.match({ ...NETWORK.hub, '.name': 'hub' }, peers.hub);
+	it('lays the options it gives over the committed settings, keeping the others', () => {
+		let v = view({ peers: { [SPOKE_B]: { tunnel: '10.20.0.99' } } });
+		assert.match({ [SPOKE_B]: { relay: '10.10.0.12:51820', tunnel: '10.20.0.99' } }, settings(v));
 	});
 
-	it('passes section types through: interfaces are never candidates', () => {
-		let v = view({ peers: { spoke_b: { wgpathd_relay: '' } } });
-		assert.match([ 'interface', 'wireguard_wg_mesh' ], [ v.get('network', 'wg_mesh'), v.get('network', 'spoke_b') ]);
+	it('removes an option given as an empty string', () => {
+		let v = view({ peers: { [SPOKE_B]: { tunnel: '' } } });
+		assert.match({ [SPOKE_B]: { relay: '10.10.0.12:51820', tunnel: null } }, settings(v));
+	});
+
+	it('drops the settings of a peer left with neither option, as the form removes them', () => {
+		assert.match({}, settings(view({ peers: { [SPOKE_B]: { relay: '', tunnel: '' } } })));
+		assert.match({ [SPOKE_B]: { relay: '10.10.0.12:51820', tunnel: '10.20.0.12' } },
+			settings(view({ peers: { [HUB]: { relay: '' } } })));
+	});
+
+	it('changes every section of a key given twice, keeping them twice', () => {
+		let data = { wgpathd: { main: MAIN, a: SPOKE_B_SETTINGS, b: SPOKE_B_SETTINGS }, network: NETWORK };
+		let tunnels = [];
+		view({ peers: { [SPOKE_B]: { tunnel: '10.20.0.99' } } }, data).foreach('wgpathd', 'peer', (s) => push(tunnels, s.tunnel));
+		assert.match([ '10.20.0.99', '10.20.0.99' ], tunnels);
+	});
+
+	it('passes every other package and section type through', () => {
+		let v = view({ peers: { [SPOKE_B]: { relay: '' } } });
+		let types = [];
+		v.foreach('network', null, (s) => push(types, s['.type']));
+		assert.match([ 'interface', 'interface', 'wireguard_wg_mesh', 'wireguard_wg_mesh' ], types);
 	});
 });
 
 describe('candidate: what config.load makes of it', () => {
 	it('loads the candidate as if it were committed', () => {
-		let v = view({ main: { mode: 'steer' }, peers: { hub: { wgpathd_relay: 'bad' }, spoke_b: { wgpathd_tunnel: '' } } });
+		let v = view({ main: { mode: 'steer' }, peers: { [HUB]: { relay: 'bad' }, [SPOKE_B]: { tunnel: '' } } });
 		let res = config.load({ uci: v });
 		assert.match(contains({ mode: 'steer', overrides: { cycle: 2 },
-			peers: { managed: [], unmanaged: [
-				{ section: 'spoke_b', pubkey: SPOKE_B, reason: 'missing wgpathd_tunnel' },
-				{ section: 'hub', pubkey: HUB, reason: 'invalid wgpathd_relay' },
+			peers: { managed: [], stale: [], unmanaged: [
+				{ section: 'spoke_b', pubkey: SPOKE_B, reason: 'missing tunnel' },
+				{ section: 'hub', pubkey: HUB, reason: 'invalid relay' },
 			] } }), res.data);
 	});
 
 	it('fails the way a committed config would', () => {
 		assert.match(contains({ ok: false, error: 'CONFIG_MISSING_OPTION', details: 'discovery' }),
 			config.load({ uci: view({ main: { discovery: '' } }) }));
-	});
-});
-
-describe('candidate: section names', () => {
-	// A cursor as the real one reads names: `@type[n]` is the n-th section of that type.
-	function extended_cursor(looked_up) {
-		let uci = cursor();
-		return { ...uci, get: function(pkg, name, opt) {
-			push(looked_up, name);
-			let m = match(name, /^@([a-z_]+)\[0\]$/);
-			return (m && opt == null) ? m[1] : uci.get(pkg, name, opt);
-		} };
-	}
-
-	it('never hands uci a name in its extended syntax', () => {
-		let looked_up = [];
-		let res = candidate.overlay(extended_cursor(looked_up), { peers: { '@wireguard_wg_mesh[0]': { wgpathd_relay: '10.0.0.1:1' } } });
-		assert.match([ false, [] ], [ res.ok, looked_up ]);
-	});
-
-	it('lays a candidate over a peer in an anonymous section, by its id', () => {
-		let data = { wgpathd: { main: MAIN }, network: { ...NETWORK, cfg09cdcd: { ...NETWORK.spoke_b } } };
-		let v = view({ peers: { cfg09cdcd: { wgpathd_tunnel: '10.20.0.99' } } }, data);
-		assert.match('10.20.0.99', sections(v, 'network', 'wireguard_wg_mesh').cfg09cdcd.wgpathd_tunnel);
 	});
 });
 
@@ -138,14 +133,12 @@ describe('candidate: refused', () => {
 		[ { main: { enabled: true } }, 'main.enabled must be a string or a number' ],
 		[ { main: { mode: [ 'steer' ] } }, 'main.mode must be a string or a number' ],
 		[ { peers: [] }, 'peers must be an object' ],
-		[ { peers: { spoke_z: { wgpathd_relay: '10.0.0.1:1' } } }, "no wireguard peer section 'spoke_z' in /etc/config/network" ],
-		[ { peers: { wg_mesh: { wgpathd_relay: '10.0.0.1:1' } } }, "no wireguard peer section 'wg_mesh' in /etc/config/network" ],
-		[ { peers: { spoke_b: { public_key: 'x' } } }, "peers.spoke_b: unknown option 'public_key'" ],
-		[ { peers: { spoke_b: 'x' } }, 'peers.spoke_b must be an object' ],
-		[ { peers: { '@wireguard_wg_mesh[0]': { wgpathd_relay: '10.0.0.1:1' } } },
-			"no wireguard peer section '@wireguard_wg_mesh[0]' in /etc/config/network" ],
-		[ { peers: { '@wireguard_wg_mesh[-1]': {} } }, "no wireguard peer section '@wireguard_wg_mesh[-1]' in /etc/config/network" ],
-		[ { peers: { 'spoke_b.public_key': {} } }, "no wireguard peer section 'spoke_b.public_key' in /etc/config/network" ],
+		[ { peers: { spoke_b: { relay: '10.0.0.1:1' } } }, "peers: 'spoke_b' is not a WireGuard public key" ],
+		[ { peers: { '@peer[0]': { relay: '10.0.0.1:1' } } }, "peers: '@peer[0]' is not a WireGuard public key" ],
+		[ { peers: { [SPOKE_B]: { public_key: HUB } } }, `peers.${SPOKE_B}: unknown option 'public_key'` ],
+		[ { peers: { [SPOKE_B]: { wgpathd_relay: '10.0.0.1:1' } } }, `peers.${SPOKE_B}: unknown option 'wgpathd_relay'` ],
+		[ { peers: { [SPOKE_B]: { relay: true } } }, `peers.${SPOKE_B}.relay must be a string or a number` ],
+		[ { peers: { [SPOKE_B]: 'x' } }, `peers.${SPOKE_B} must be an object` ],
 	];
 	for (let c in cases)
 		it(`refuses ${c[1]}`, () => {

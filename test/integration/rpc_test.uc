@@ -2,29 +2,39 @@ import { describe, it, assert, contains } from 'utest';
 import * as h from 'lib.helpers';
 import * as rpc from 'wgpathd.rpc';
 import * as check from 'wgpathd.check';
+import * as params from 'wgpathd.params';
 import * as Result from 'wgpathd.result';
 
 const SPOKE_B = 'O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=';
 const HUB  = 'W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=';
+const PRIVATE = 'aGVsbG8gdGhpcyBpcyBub3QgYSByZWFsIGtleSEhISE=';
+const PRESHARED = 'cHJlc2hhcmVkIGtleSBub3QgZm9yIGFueSBleWVzISE=';
 
 const PLUGIN = 'files/usr/share/rpcd/ucode/wgpathd.uc';
 
 const MAIN = { '.type': 'wgpathd', enabled: '0', role: 'spoke', mesh_iface: 'wg_mesh', hub_iface: 'wg_hub',
 	discovery: 'http://10.10.0.1:7780/peers', mode: 'observe' };
 
+const SPOKE_B_SETTINGS = { '.type': 'peer', public_key: SPOKE_B, relay: '10.10.0.12:51820', tunnel: '10.20.0.12' };
+
+// Every secret and address a WireGuard setup keeps in /etc/config/network.
 function network() {
 	return {
-		wg_mesh: { '.type': 'interface', proto: 'wireguard' },
-		wg_hub:  { '.type': 'interface', proto: 'wireguard' },
-		spoke_b: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_B, wgpathd_relay: '10.10.0.12:51820',
-			wgpathd_tunnel: '10.20.0.12' },
-		hub: { '.type': 'wireguard_wg_mesh', public_key: HUB },
+		lan:     { '.type': 'interface', proto: 'static', ipaddr: '192.168.1.1' },
+		wg_mesh: { '.type': 'interface', proto: 'wireguard', private_key: PRIVATE, listen_port: '51820',
+			addresses: [ '10.20.0.11/24' ] },
+		wg_hub:  { '.type': 'interface', proto: 'wireguard', private_key: PRIVATE, addresses: [ '10.10.0.11/24' ] },
+		spoke_b: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_B, preshared_key: PRESHARED, description: 'beach',
+			allowed_ips: [ '10.20.0.12/32' ], route_allowed_ips: '1', persistent_keepalive: '25' },
+		hub: { '.type': 'wireguard_wg_mesh', public_key: HUB, preshared_key: PRESHARED, endpoint_host: '2001:db8::1',
+			endpoint_port: '51820', allowed_ips: [ '10.20.0.1/32' ] },
+		hub_transit: { '.type': 'wireguard_wg_hub', public_key: HUB, private_key: PRIVATE, endpoint_host: '192.0.2.1' },
 	};
 }
 
 // The plugin's deps over a committed config the test may change between calls; routes: host -> oif.
 function plugin_deps(main, routes) {
-	let uci = h.uci({ wgpathd: { main: main ?? MAIN }, network: network() });
+	let uci = h.uci({ wgpathd: { main: main ?? MAIN, cfg01a2b3: SPOKE_B_SETTINGS }, network: network() });
 	let lookups = [];
 	return {
 		uci: uci,
@@ -39,27 +49,29 @@ function plugin_deps(main, routes) {
 	};
 }
 
-// Calls `check` the way rpcd does: through the method table, with the request's args.
-function call(p, args) {
-	return rpc.methods(p.deps).check.call({ args: args ?? {} });
+// Calls a method the way rpcd does: through the method table, with the request's args.
+function call(p, args, method) {
+	return rpc.methods(p.deps)[method ?? 'check'].call({ args: args ?? {} });
 }
 
-describe('rpc: wgpathd.config check, committed config', () => {
-	it('declares one method, check, with an optional object argument candidate', () => {
+describe('rpc: wgpathd.config methods', () => {
+	it('declares check with an optional candidate, peers with an optional iface, and schema', () => {
 		let methods = rpc.methods(plugin_deps().deps);
-		assert.match([ 'check' ], keys(methods));
-		assert.match({ candidate: {} }, methods.check.args);
+		assert.match([ 'check', 'peers', 'schema' ], keys(methods));
+		assert.match([ { candidate: {} }, { iface: '' }, {} ], [ methods.check.args, methods.peers.args, methods.schema.args ]);
 	});
+});
 
+describe('rpc: wgpathd.config check, committed config', () => {
 	it('answers the full check without the interfaces, with machine-usable findings', () => {
 		let p = plugin_deps();
 		assert.match({ ok: true, findings: [
 			{ level: 'ok', subject: 'config', message: 'config: spoke, mode observe, 1 steered peer, 1 not steered' },
 			{ level: 'warn', subject: 'config', option: 'enabled', message: "service disabled (option enabled '0'): it will not start" },
-			{ level: 'ok', subject: 'peer', section: 'spoke_b',
+			{ level: 'ok', subject: 'peer', section: 'spoke_b', public_key: SPOKE_B,
 				message: 'peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12' },
-			{ level: 'skip', subject: 'peer', section: 'hub', option: 'wgpathd_relay',
-				message: 'peer hub: not steered (missing wgpathd_relay)' },
+			{ level: 'skip', subject: 'peer', section: 'hub', public_key: HUB,
+				message: 'peer hub: not steered (not configured)' },
 		] }, call(p));
 		assert.match([ '10.10.0.12', '10.10.0.1' ], p.lookups, 'the relay host, then the discovery host');
 	});
@@ -101,41 +113,48 @@ describe('rpc: wgpathd.config check, candidate', () => {
 	it('checks unsaved values over the committed config', () => {
 		let p = plugin_deps();
 		let res = call(p, { candidate: { main: { enabled: '1', mode: 'steer' },
-			peers: { hub: { wgpathd_relay: 'hub:51820', wgpathd_tunnel: '10.20.0.1' } } } });
+			peers: { [HUB]: { relay: 'hub:51820', tunnel: '10.20.0.1' } } } });
 		assert.match({ ok: false, findings: [
 			{ level: 'ok', subject: 'config', message: 'config: spoke, mode steer, 1 steered peer, 1 not steered' },
-			{ level: 'ok', subject: 'peer', section: 'spoke_b',
+			{ level: 'ok', subject: 'peer', section: 'spoke_b', public_key: SPOKE_B,
 				message: 'peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12' },
-			{ level: 'fail', subject: 'peer', section: 'hub', option: 'wgpathd_relay',
-				message: 'peer hub: not steered (invalid wgpathd_relay)' },
+			{ level: 'fail', subject: 'peer', section: 'hub', public_key: HUB, option: 'relay',
+				message: 'peer hub: not steered (invalid relay)' },
 		] }, res);
 	});
 
-	it('guards the relay route of a peer the candidate annotates', () => {
+	it('guards the relay route of a peer the candidate configures', () => {
 		let p = plugin_deps(null, { '10.10.0.1': 'wg_mesh' });
-		let res = call(p, { candidate: { peers: { hub: { wgpathd_relay: '10.10.0.1:51820', wgpathd_tunnel: '10.20.0.1' } } } });
-		assert.match(contains({ level: 'fail', section: 'hub', option: 'wgpathd_relay', message: 'peer hub: relay routes into wg_mesh' }),
-			res.findings[-1]);
+		let res = call(p, { candidate: { peers: { [HUB]: { relay: '10.10.0.1:51820', tunnel: '10.20.0.1' } } } });
+		assert.match(contains({ level: 'fail', section: 'hub', public_key: HUB, option: 'relay',
+			message: 'peer hub: relay routes into wg_mesh' }), res.findings[-1]);
+	});
+
+	it('takes a peer cleared of both settings as not configured', () => {
+		let p = plugin_deps();
+		let res = call(p, { candidate: { peers: { [SPOKE_B]: { relay: '', tunnel: '' } } } });
+		assert.match(contains({ level: 'skip', section: 'spoke_b', message: 'peer spoke_b: not steered (not configured)' }),
+			res.findings[2]);
 	});
 
 	it('writes nothing: the next call without a candidate sees the committed config', () => {
 		let p = plugin_deps();
-		call(p, { candidate: { main: { role: 'hub' } } });
-		assert.match({ main: MAIN }, p.uci.data.wgpathd);
+		call(p, { candidate: { main: { role: 'hub' }, peers: { [SPOKE_B]: { relay: '' } } } });
+		assert.match({ main: MAIN, cfg01a2b3: SPOKE_B_SETTINGS }, p.uci.data.wgpathd);
 		assert.match(contains({ ok: true }), call(p));
 	});
 
 	it('answers a malformed candidate with an error and checks nothing', () => {
 		let p = plugin_deps();
-		assert.match({ error: 'CHECK_INVALID_CANDIDATE', message: "no wireguard peer section 'spoke_z' in /etc/config/network" },
-			call(p, { candidate: { peers: { spoke_z: { wgpathd_relay: '' } } } }));
+		assert.match({ error: 'CHECK_INVALID_CANDIDATE', message: "peers: 'spoke_b' is not a WireGuard public key" },
+			call(p, { candidate: { peers: { spoke_b: { relay: '' } } } }));
+		assert.match({ error: 'CHECK_INVALID_CANDIDATE', message: `peers.${SPOKE_B}: unknown option 'wgpathd_relay'` },
+			call(p, { candidate: { peers: { [SPOKE_B]: { wgpathd_relay: '' } } } }));
 		assert.match([], p.lookups);
 	});
 
-	it('refuses a peer named in the extended syntax of uci, instead of ignoring it', () => {
+	it('fails an interface option in the extended syntax of uci, instead of looking it up', () => {
 		let p = plugin_deps();
-		assert.match({ error: 'CHECK_INVALID_CANDIDATE', message: "no wireguard peer section '@wireguard_wg_mesh[0]' in /etc/config/network" },
-			call(p, { candidate: { peers: { '@wireguard_wg_mesh[0]': { wgpathd_relay: '10.0.0.1:1' } } } }));
 		assert.match({ ok: false, findings: [
 			{ level: 'fail', subject: 'config', option: 'hub_iface',
 				message: 'config: option hub_iface must be an interface name of letters, digits and _' },
@@ -143,11 +162,69 @@ describe('rpc: wgpathd.config check, candidate', () => {
 	});
 });
 
+describe('rpc: wgpathd.config peers', () => {
+	const ALLOWED = [ 'section', 'public_key', 'description' ];
+
+	it('lists the peers of the committed mesh interface, and the WireGuard interfaces', () => {
+		assert.match({ iface: 'wg_mesh', interfaces: [ 'wg_hub', 'wg_mesh' ], peers: [
+			{ section: 'spoke_b', public_key: SPOKE_B, description: 'beach' },
+			{ section: 'hub', public_key: HUB },
+		] }, call(plugin_deps(), {}, 'peers'));
+	});
+
+	it('gives a peer\'s name, key and description only: no key, endpoint or address of network leaves', () => {
+		for (let args in [ {}, { iface: 'wg_mesh' }, { iface: 'wg_hub' } ]) {
+			let reply = call(plugin_deps(), args, 'peers');
+			assert.match([ 'iface', 'interfaces', 'peers' ], keys(reply));
+			for (let peer in reply.peers)
+				assert.match([], filter(keys(peer), (k) => !(k in ALLOWED)), args);
+			for (let secret in [ PRIVATE, PRESHARED, '2001:db8::1', '192.0.2.1', '10.20.0', '51820' ])
+				assert.match(-1, index(sprintf('%J', reply), secret), secret);
+		}
+	});
+
+	it('lists the peers of another WireGuard interface when asked', () => {
+		assert.match({ iface: 'wg_hub', interfaces: [ 'wg_hub', 'wg_mesh' ], peers: [ { section: 'hub_transit', public_key: HUB } ] },
+			call(plugin_deps(), { iface: 'wg_hub' }, 'peers'));
+	});
+
+	it('takes the read interface of a hub', () => {
+		let hub = { '.type': 'wgpathd', role: 'hub', read_iface: 'wg_hub', serve_addr: '10.10.0.1', serve_port: '7780' };
+		assert.match('wg_hub', call(plugin_deps(hub), {}, 'peers').iface);
+	});
+
+	it('lists no peers while no role names a WireGuard interface', () => {
+		for (let main in [ { '.type': 'wgpathd' }, { ...MAIN, mesh_iface: 'lan' }, { ...MAIN, mesh_iface: 'wg_nope' } ])
+			assert.match({ iface: null, interfaces: [ 'wg_hub', 'wg_mesh' ], peers: [] }, call(plugin_deps(main), {}, 'peers'), main);
+	});
+
+	it('refuses an iface that is not a WireGuard interface of network, before any peer is read', () => {
+		for (let iface in [ 'lan', 'wg_nope', '@interface[0]', 'wg_mesh.private_key', '' ]) {
+			let p = plugin_deps();
+			assert.match({ error: 'PEERS_INVALID_IFACE', message: 'iface must name a WireGuard interface of /etc/config/network' },
+				call(p, { iface: iface }, 'peers'), iface);
+		}
+	});
+});
+
+describe('rpc: wgpathd.config schema', () => {
+	it('gives every timing parameter with its default and bounds, in order', () => {
+		let reply = rpc.methods(plugin_deps().deps).schema.call({ args: {} });
+		assert.match(keys(params.DEFAULTS), map(reply.parameters, (p) => p.name));
+		assert.match({ name: 'cycle', default: 3, min: 1, max: 10, whole: false }, reply.parameters[0]);
+		assert.match({ name: 'n_up', default: 5, min: 1, max: 100, whole: true }, reply.parameters[1]);
+		for (let p in reply.parameters)
+			assert.match([ params.DEFAULTS[p.name], params.BOUNDS[p.name].min, params.BOUNDS[p.name].max ],
+				[ p.default, p.min, p.max ], p.name);
+	});
+});
+
 describe('rpc: the rpcd plugin file', () => {
-	it('registers wgpathd.config with the check method', () => {
+	it('registers wgpathd.config with its three methods', () => {
 		let objects = loadfile(PLUGIN)();
 		assert.match([ 'wgpathd.config' ], keys(objects));
-		assert.match(contains({ args: { candidate: {} } }), objects['wgpathd.config'].check);
-		assert.match('function', type(objects['wgpathd.config'].check.call));
+		assert.match([ 'check', 'peers', 'schema' ], keys(objects['wgpathd.config']));
+		for (let name, method in objects['wgpathd.config'])
+			assert.match('function', type(method.call), name);
 	});
 });

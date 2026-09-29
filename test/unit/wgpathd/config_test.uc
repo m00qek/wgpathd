@@ -16,27 +16,37 @@ const IFACES = {
 	wg_hub:  { '.type': 'interface', proto: 'wireguard' },
 };
 
-function steered(pubkey, relay, tunnel) {
-	return { '.type': 'wireguard_wg_mesh', public_key: pubkey, allowed_ips: [ '10.12.0.0/16' ],
-		wgpathd_relay: relay, wgpathd_tunnel: tunnel };
+function mesh_peer(pubkey) {
+	return { '.type': 'wireguard_wg_mesh', public_key: pubkey, allowed_ips: [ '10.12.0.0/16' ] };
 }
 
-const SPOKE_B_PEER = steered(SPOKE_B, '10.10.0.12:51820', '10.20.0.12');
+// A `peer` section of /etc/config/wgpathd.
+function settings(pubkey, relay, tunnel) {
+	return { '.type': 'peer', public_key: pubkey, relay: relay, tunnel: tunnel };
+}
+
+const SPOKE_B_PEER = mesh_peer(SPOKE_B);
+const SPOKE_B_SETTINGS = settings(SPOKE_B, '10.10.0.12:51820', '10.20.0.12');
 const HUB_PEER  = { '.type': 'wireguard_wg_mesh', public_key: HUB, endpoint_host: '2001:db8:100::1' };
 
-function load(main, network) {
+// The `peer` sections take anonymous ids, as the ones UCI gives.
+function load(main, network, peers) {
+	let wgpathd = { main: main };
+	for (let i = 0; i < length(peers ?? []); i++)
+		wgpathd[`cfg0${i}a1b2`] = peers[i];
 	let res;
-	with_context({ uci: { data: { wgpathd: { main: main }, network: network ?? IFACES } } }, (deps) => {
+	with_context({ uci: { data: { wgpathd: wgpathd, network: network ?? IFACES } } }, (deps) => {
 		res = config.load(deps);
 	});
 	return res;
 }
 
-function peers_of(...sections) {
+// The loaded peers of a spoke whose mesh has the peer sections `mesh`, and its settings.
+function peers_of(mesh, peers) {
 	let network = { ...IFACES };
-	for (let i = 0; i < length(sections); i++)
-		network[`peer${i}`] = sections[i];
-	return load(SPOKE, network).data.peers;
+	for (let i = 0; i < length(mesh); i++)
+		network[`peer${i}`] = mesh[i];
+	return load(SPOKE, network, peers).data.peers;
 }
 
 describe('config: role', () => {
@@ -56,7 +66,7 @@ describe('config: spoke', () => {
 	it('loads the role file', () => {
 		assert.match({ role: 'spoke', mesh_iface: 'wg_mesh', hub_iface: 'wg_hub',
 			discovery: 'http://10.10.0.1:7780/peers', overrides: {}, mode: 'observe',
-			peers: { managed: [], unmanaged: [] } },
+			peers: { managed: [], unmanaged: [], stale: [] }, leftovers: [] },
 			load(SPOKE).data);
 	});
 
@@ -137,7 +147,7 @@ describe('config: interface names', () => {
 	});
 
 	it('keeps steering the peers of anonymous sections, by their id', () => {
-		let res = load(SPOKE, { ...IFACES, cfg09cdcd: SPOKE_B_PEER });
+		let res = load(SPOKE, { ...IFACES, cfg09cdcd: SPOKE_B_PEER }, [ SPOKE_B_SETTINGS ]);
 		assert.match([ 'cfg09cdcd' ], map(res.data.peers.managed, (p) => p.section));
 	});
 });
@@ -163,7 +173,7 @@ describe('config: discovery url', () => {
 describe('config: hub', () => {
 	it('loads the role file without peers or mode', () => {
 		assert.match({ role: 'hub', read_iface: 'wg_mesh', serve_addr: '10.10.0.1', serve_port: '7780',
-			overrides: {} },
+			overrides: {}, leftovers: [] },
 			load(HUB_ROLE).data);
 	});
 
@@ -286,44 +296,88 @@ describe('config: parameter overrides', () => {
 });
 
 describe('config: steered peers', () => {
-	it('manages an annotated peer, with canonical relay and tunnel', () => {
-		let peers = peers_of(steered(SPOKE_B, '[FD42:0::12]:51820', 'FD42:2:0::12'));
+	it('manages a mesh peer with settings, with canonical relay and tunnel', () => {
+		let peers = peers_of([ SPOKE_B_PEER ], [ settings(SPOKE_B, '[FD42:0::12]:51820', 'FD42:2:0::12') ]);
 		assert.match([ { section: 'peer0', pubkey: SPOKE_B, relay: '[fd42::12]:51820', tunnel: 'fd42:2::12' } ], peers.managed);
-		assert.match([], peers.unmanaged);
+		assert.match([ [], [] ], [ peers.unmanaged, peers.stale ]);
 	});
 
-	it('leaves the static hub peer unmanaged, by section', () => {
-		let peers = peers_of(SPOKE_B_PEER, HUB_PEER);
+	it('leaves a mesh peer without settings, the static hub peer, unmanaged by section', () => {
+		let peers = peers_of([ SPOKE_B_PEER, HUB_PEER ], [ SPOKE_B_SETTINGS ]);
 		assert.match([ { section: 'peer0', pubkey: SPOKE_B, relay: '10.10.0.12:51820', tunnel: '10.20.0.12' } ], peers.managed);
-		assert.match([ { section: 'peer1', pubkey: HUB, reason: 'missing wgpathd_relay' } ], peers.unmanaged);
+		assert.match([ { section: 'peer1', pubkey: HUB, reason: 'not configured' } ], peers.unmanaged);
 	});
 
 	it('gives the reason a peer is left alone', () => {
 		let cases = {
-			'invalid public_key':     steered('nope', '10.10.0.12:51820', '10.20.0.12'),
-			'missing wgpathd_relay':  steered(SPOKE_A, null, '10.20.0.11'),
-			'invalid wgpathd_relay':  steered(SPOKE_A, '10.10.0.11', '10.20.0.11'),
-			'missing wgpathd_tunnel': steered(SPOKE_A, '10.10.0.11:51820', null),
-			'invalid wgpathd_tunnel': steered(SPOKE_A, '10.10.0.11:51820', '10.20.0.11:1'),
+			'invalid public_key':        [ mesh_peer('nope'), [ settings('nope', '10.10.0.11:51820', '10.20.0.11') ] ],
+			'not configured':            [ mesh_peer(SPOKE_A), [] ],
+			'configured more than once': [ mesh_peer(SPOKE_A), [ settings(SPOKE_A, '10.10.0.11:51820', '10.20.0.11'),
+				settings(SPOKE_A, '10.10.0.11:51820', '10.20.0.11') ] ],
+			'missing relay':             [ mesh_peer(SPOKE_A), [ settings(SPOKE_A, null, '10.20.0.11') ] ],
+			'invalid relay':             [ mesh_peer(SPOKE_A), [ settings(SPOKE_A, '10.10.0.11', '10.20.0.11') ] ],
+			'missing tunnel':            [ mesh_peer(SPOKE_A), [ settings(SPOKE_A, '10.10.0.11:51820', null) ] ],
+			'invalid tunnel':            [ mesh_peer(SPOKE_A), [ settings(SPOKE_A, '10.10.0.11:51820', '10.20.0.11:1') ] ],
 		};
-		for (let reason, section in cases) {
-			let peers = peers_of(SPOKE_B_PEER, section);
+		for (let reason, c in cases) {
+			let peers = peers_of([ SPOKE_B_PEER, c[0] ], [ SPOKE_B_SETTINGS, ...c[1] ]);
 			assert.match(1, length(peers.managed), reason);
-			assert.match(reason, peers.unmanaged[0].reason);
+			assert.match([ { section: 'peer1', pubkey: c[0].public_key, reason: reason } ], peers.unmanaged, reason);
 		}
 	});
 
-	it('ignores wireguard peers of other interfaces', () => {
-		let other = { ...SPOKE_B_PEER, '.type': 'wireguard_wg_hub' };
-		assert.match({ managed: [], unmanaged: [] }, peers_of(other));
+	it('finds a peer\'s settings by its public key, whatever its section is called', () => {
+		let res = load(SPOKE, { ...IFACES, cfg09cdcd: SPOKE_B_PEER, spoke_b: HUB_PEER }, [ SPOKE_B_SETTINGS ]);
+		assert.match([ [ 'cfg09cdcd', SPOKE_B ] ], map(res.data.peers.managed, (p) => [ p.section, p.pubkey ]));
+		assert.match([ [ 'spoke_b', 'not configured' ] ], map(res.data.peers.unmanaged, (p) => [ p.section, p.reason ]));
 	});
 
+	it('ignores wireguard peers of other interfaces, and takes their settings as stale', () => {
+		let other = { ...SPOKE_B_PEER, '.type': 'wireguard_wg_hub' };
+		assert.match({ managed: [], unmanaged: [], stale: [ { pubkey: SPOKE_B } ] }, peers_of([ other ], [ SPOKE_B_SETTINGS ]));
+	});
+
+	it('lists settings that match no mesh peer as stale, once per key, and steers nothing with them', () => {
+		let stray = settings(SPOKE_A, '10.10.0.11:51820', '10.20.0.11');
+		let peers = peers_of([ SPOKE_B_PEER ], [ stray, SPOKE_B_SETTINGS, stray, { '.type': 'peer', relay: '10.0.0.1:1' } ]);
+		assert.match([ SPOKE_B ], map(peers.managed, (p) => p.pubkey));
+		assert.match([ { pubkey: SPOKE_A }, { pubkey: null } ], peers.stale);
+	});
+
+	// A key of 43 digits and a padding sign is a valid key: one per peer.
 	prop('never fails the config for bad peers', gen.array(gen.tuple(gen.bool(), gen.bool(), gen.bool()), { max_len: 6 }), (specs) => {
-		let sections = map(specs, (p) => steered(p[0] ? SPOKE_B : 'bad', p[1] ? '10.10.0.12:51820' : 'x', p[2] ? '10.20.0.12' : null));
-		let peers = peers_of(...sections);
+		let key = (i) => sprintf('%043d=', i);
+		let mesh = [], peers = [];
+		for (let i = 0; i < length(specs); i++) {
+			let p = specs[i];
+			push(mesh, mesh_peer(p[0] ? key(i) : 'bad'));
+			push(peers, settings(key(i), p[1] ? '10.10.0.12:51820' : 'x', p[2] ? '10.20.0.12' : null));
+		}
+		let loaded = peers_of(mesh, peers);
 		let good = length(filter(specs, (p) => p[0] && p[1] && p[2]));
-		assert.match(good, length(peers.managed));
-		assert.match(length(specs) - good, length(peers.unmanaged));
+		assert.match(good, length(loaded.managed));
+		assert.match(length(specs) - good, length(loaded.unmanaged));
+		assert.match(length(filter(specs, (p) => !p[0])), length(loaded.stale));
 	});
 });
 
+describe('config: options left over in network', () => {
+	const LEGACY = { ...SPOKE_B_PEER, wgpathd_relay: '10.10.0.12:51820', wgpathd_tunnel: '10.20.0.12' };
+
+	it('reads no settings from network: a peer with the old options alone is not configured', () => {
+		let peers = peers_of([ LEGACY ], []);
+		assert.match([ [], [ 'not configured' ] ], [ peers.managed, map(peers.unmanaged, (u) => u.reason) ]);
+	});
+
+	it('names each network section that still has them, in both roles', () => {
+		let network = { ...IFACES, spoke_b: LEGACY, hub: { ...HUB_PEER, wgpathd_tunnel: '10.20.0.1' } };
+		let expected = [ { section: 'spoke_b', options: [ 'wgpathd_relay', 'wgpathd_tunnel' ] },
+			{ section: 'hub', options: [ 'wgpathd_tunnel' ] } ];
+		assert.match(expected, load(SPOKE, network).data.leftovers);
+		assert.match(expected, load(HUB_ROLE, network).data.leftovers);
+	});
+
+	it('names none when network has none', () => {
+		assert.match([], load(SPOKE, { ...IFACES, spoke_b: SPOKE_B_PEER }, [ SPOKE_B_SETTINGS ]).data.leftovers);
+	});
+});
