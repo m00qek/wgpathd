@@ -78,7 +78,7 @@ fw4_starts_clean() { fw4 start >/dev/null 2>&1 && wgpathd_rules_are 0; }
 # The image build already installed every dependency from the feeds.
 check "dependencies present" apk add --allow-untrusted --no-network --simulate "$APK" "$APP"
 check "app pins the daemon's version" pins_daemon_version
-# The postinst reloads fw4, which only has a ruleset to reload if it is running.
+# The upgrade from a release with the fw4 include, at the end, needs a ruleset to reload.
 check "fw4 loads the base ruleset" fw4_starts_clean
 check "package installs" sh -c 'apk add --allow-untrusted --no-network "$1" >/tmp/install.log 2>&1' - "$APK"
 # The default postinst runs `/etc/init.d/wgpathd start`; shipped disabled, it must not even validate.
@@ -90,7 +90,8 @@ for f in daemon status check migrate; do
 	check "libexec $f.uc 0755" has_mode 755 /usr/libexec/wgpathd/$f.uc
 done
 check "nothing on the PATH" test ! -e /usr/sbin/wgpathd
-check "fw4 include 0644"    has_mode 644 /usr/share/nftables.d/chain-pre/input/wgpathd.nft
+check "ships no firewall rules" sh -c '! grep -q nftables /lib/apk/packages/wgpathd.list'
+check "install loads no firewall rule" wgpathd_rules_are 0
 check "modules 0644"        has_mode 644 /usr/share/ucode/wgpathd/daemon.uc
 check "components shipped"  test -f /usr/share/ucode/wgpathd/components/exec.uc -a -f /usr/share/ucode/wgpathd/components/icmp.uc
 check "uci-defaults shipped" grep -qx "$MIGRATION" /lib/apk/packages/wgpathd.list
@@ -113,6 +114,7 @@ uci -q batch <<-EOF
 	set network.wg_mesh=interface
 	set network.wg_mesh.proto=wireguard
 	set network.wg_mesh.private_key=$PRIVATE_KEY
+	add_list network.wg_mesh.addresses=192.0.2.1/24
 	set network.spoke_b=wireguard_wg_mesh
 	set network.spoke_b.public_key=$SPOKE_B_KEY
 	set network.spoke_b.preshared_key=$PRESHARED_KEY
@@ -121,8 +123,12 @@ uci -q batch <<-EOF
 	set wgpathd.main.read_iface=wg_mesh
 	set wgpathd.main.serve_addr=192.0.2.1
 	set wgpathd.main.serve_port=7780
+	add_list firewall.@zone[1].network=wg_mesh
 EOF
+# The default firewall's wan zone, which now holds wg_mesh, rejects input.
 check "full check passes a valid config without ubus" /usr/libexec/wgpathd/check.uc
+check "full check prints the firewall rule the hub needs" sh -c \
+	"/usr/libexec/wgpathd/check.uc | grep -qx \"        uci set firewall.@rule\\[-1\\].dest_port='7780'\""
 
 check "rpcd plugin 0644"      has_mode 644 /usr/share/rpcd/ucode/wgpathd.uc
 check "rpcd plugin compiles"  ucode -c -o /dev/null /usr/share/rpcd/ucode/wgpathd.uc
@@ -159,6 +165,12 @@ lists_peers_without_secrets() {
 gives_parameter_bounds() {
 	ubus call wgpathd.config schema | grep -q '"name": "cycle"'
 }
+# rpcd runs the plugin as root: it reads /etc/config/firewall itself, whatever the caller may read.
+reports_missing_rule() {
+	out=$(config_check) || return 1
+	echo "$out" | grep -q '"message": "firewall: TCP port 7780 (peer list) from wg_mesh (zone wan): no rule accepts it"' &&
+		echo "$out" | grep -q "uci set firewall.@rule\[-1\].dest_port='7780'"
+}
 
 check "rpcd serves wgpathd.config" start_rpcd
 check "config check answers without the daemon" answers_without_daemon
@@ -166,6 +178,7 @@ check "config check takes a candidate" takes_candidate
 check "config check refuses a malformed candidate" refuses_malformed_candidate
 check "peers lists a peer without its keys or endpoint" lists_peers_without_secrets
 check "schema gives the parameter bounds" gives_parameter_bounds
+check "config check reports a missing firewall rule, with the rule to add" reports_missing_rule
 stop_rpcd
 
 # An upgrade from a release that kept the peer settings in /etc/config/network. There is
@@ -230,12 +243,8 @@ check "migrate command has nothing left to move" sh -c '/etc/init.d/wgpathd migr
 /etc/init.d/wgpathd disable
 check "init script enables" sh -c '/etc/init.d/wgpathd enable && [ -L /etc/rc.d/S95wgpathd ]'
 
-check "fw4 includes the nft file" sh -c \
-	'fw4 print 2>/dev/null | grep -q "include \"/usr/share/nftables.d/chain-pre/input/wgpathd.nft\""'
-check "install loads the four wgpathd rules" wgpathd_rules_are 4
-check "fw4 ruleset passes nft -c" sh -c 'fw4 print 2>/dev/null | nft -c -f -'
-check "install, upgrade and removal reload fw4" sh -c \
-	'[ "$(apk adbdump "$1" | grep -c "/etc/init.d/firewall reload")" = 3 ]' - "$APK"
+check "only install and upgrade may reload fw4" sh -c \
+	'[ "$(apk adbdump "$1" | grep -c "/etc/init.d/firewall reload")" = 2 ]' - "$APK"
 check "install, upgrade and removal reload rpcd" sh -c \
 	'[ "$(apk adbdump "$1" | grep -c "/etc/init.d/rpcd reload")" = 3 ]' - "$APK"
 check "upgrade restarts a running daemon" sh -c \
@@ -264,10 +273,40 @@ check "app removes cleanly and keeps the daemon" sh -c \
 		apk info -e wgpathd' - "$MENU" "$VIEWS" "$MODULE" "$INCLUDE"
 check "app removal clears the LuCI caches" luci_caches_cleared
 
-check "package removes cleanly" sh -c \
-	'apk del wgpathd >/dev/null 2>&1 && [ ! -e /usr/share/nftables.d/chain-pre/input/wgpathd.nft ] &&
-		[ ! -e /usr/share/rpcd/ucode/wgpathd.uc ]'
-check "removal unloads the wgpathd rules" wgpathd_rules_are 0
+check "package removes cleanly" sh -c 'apk del wgpathd >/dev/null 2>&1 && [ ! -e /usr/share/rpcd/ucode/wgpathd.uc ]'
+
+# An upgrade from a release that shipped an fw4 include, up to 5. There is no such build
+# here, so the package is installed again and the database made to say it is an older
+# one that owns the include, which is put in place and loaded as that release did.
+FW4_INCLUDE=/usr/share/nftables.d/chain-pre/input/wgpathd.nft
+as_release_with_include() {
+	apk add --allow-untrusted --no-network "$APK" >/dev/null 2>&1 || return 1
+	mkdir -p "${FW4_INCLUDE%/*}"
+	cat >"$FW4_INCLUDE" <<-'EOF'
+		icmpv6 type echo-request accept comment "wgpathd: underlay probe"
+		meta iifkind "wireguard" icmp type echo-request accept comment "wgpathd: tunnel probe"
+		meta iifkind "wireguard" tcp dport 7780 accept comment "wgpathd: discovery publisher"
+		meta iifkind "wireguard" udp dport 51820 accept comment "wgpathd: relay ingress"
+	EOF
+	awk '
+		/^C:/ { held = $0; next }
+		/^P:/ { pkg = substr($0, 3); print (pkg == "wgpathd") ? "C:Q1AAAAAAAAAAAAAAAAAAAAAAAAAAA=" : held }
+		/^V:/ && pkg == "wgpathd" { print "V:0.1.0-r5"; next }
+		{ print }
+		pkg == "wgpathd" && $0 == "F:usr/share" {
+			print "F:usr/share/nftables.d"; print "F:usr/share/nftables.d/chain-pre"
+			print "F:usr/share/nftables.d/chain-pre/input"; print "R:wgpathd.nft"
+		}' /lib/apk/db/installed >/tmp/installed.db && cp /tmp/installed.db /lib/apk/db/installed &&
+		apk info -L wgpathd 2>/dev/null | grep -qx "${FW4_INCLUDE#/}" && fw4 reload >/dev/null 2>&1 && wgpathd_rules_are 4
+}
+upgrade_from_release_with_include() {
+	apk add --allow-untrusted --no-network "$APK" >/tmp/upgrade.log 2>&1 &&
+		grep -q ' wgpathd (0.1.0-r5 -> ' /tmp/upgrade.log || { sed 's/^/     -> /' /tmp/upgrade.log >&3; return 1; }
+}
+check "a release with the fw4 include, its rules loaded" as_release_with_include
+check "upgrade from a release with the fw4 include" upgrade_from_release_with_include
+check "upgrade removed the include" test ! -e "$FW4_INCLUDE"
+check "upgrade unloaded its rules" wgpathd_rules_are 0
 
 [ "$failures" -eq 0 ] && echo "package-check: all passed" && exit 0
 echo "package-check: $failures failed"

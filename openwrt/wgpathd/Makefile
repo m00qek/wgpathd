@@ -30,12 +30,16 @@ endef
 define Build/Compile
 endef
 
-# fw4 picks up the nftables.d include on reload, and rpcd the wgpathd.config plugin:
-# on install, and once they are gone. rpcd re-executes itself and keeps its sessions.
+# rpcd picks up the wgpathd.config plugin on reload: on install, and once it is gone.
+# rpcd re-executes itself and keeps its sessions.
 define Package/wgpathd/postinst
 #!/bin/sh
-[ -n "$$IPKG_INSTROOT" ] || /etc/init.d/firewall reload || true
 [ -n "$$IPKG_INSTROOT" ] || /etc/init.d/rpcd reload || true
+# Releases up to 5 shipped an fw4 include. The upgrade has removed it, but its rules
+# stay loaded until the firewall reloads.
+if [ -z "$$IPKG_INSTROOT" ] && nft list chain inet fw4 input 2>/dev/null | grep -q 'comment "wgpathd: '; then
+	/etc/init.d/firewall reload || true
+fi
 # An upgrade replaces the code, but default_postinst leaves a running daemon on the old one.
 # default_postinst has run the package's uci-defaults, so the new one reads migrated settings.
 if [ -z "$$IPKG_INSTROOT" ] && [ "$$PKG_UPGRADE" = 1 ] && /etc/init.d/wgpathd running; then
@@ -45,7 +49,6 @@ endef
 
 define Package/wgpathd/postrm
 #!/bin/sh
-[ -n "$$IPKG_INSTROOT" ] || /etc/init.d/firewall reload || true
 [ -n "$$IPKG_INSTROOT" ] || /etc/init.d/rpcd reload || true
 endef
 
@@ -60,8 +63,6 @@ define Package/wgpathd/install
 	$(INSTALL_BIN) ./files/etc/uci-defaults/50-wgpathd-peers $(1)/etc/uci-defaults/50-wgpathd-peers
 	$(INSTALL_DIR) $(1)/usr/libexec/wgpathd
 	$(INSTALL_BIN) ./files/usr/libexec/wgpathd/*.uc $(1)/usr/libexec/wgpathd/
-	$(INSTALL_DIR) $(1)/usr/share/nftables.d/chain-pre/input
-	$(INSTALL_DATA) ./files/usr/share/nftables.d/chain-pre/input/wgpathd.nft $(1)/usr/share/nftables.d/chain-pre/input/wgpathd.nft
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/ucode
 	$(INSTALL_DATA) ./files/usr/share/rpcd/ucode/wgpathd.uc $(1)/usr/share/rpcd/ucode/wgpathd.uc
 endef
