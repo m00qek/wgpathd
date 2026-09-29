@@ -54,7 +54,7 @@ A managed peer that is missing from the kernel's peer table is skipped and logge
 
 ## Trials time out
 
-The log shows `transition TRIALING -> RELAY reason=trial_timeout backoff=<s>s` again and again, with the backoff growing.
+The log shows `transition TRIALING -> RELAY reason=trial_timeout backoff=<s>s` again and again, with the backoff growing, until the address is [given up](#the-direct-address-is-given-up).
 
 The direct endpoint answers ping, but WireGuard traffic does not get through both ways. Common causes:
 
@@ -65,7 +65,19 @@ The direct endpoint answers ping, but WireGuard traffic does not get through bot
 - The path drops large packets. The tunnel probe fills the `wg_mesh` MTU, so a direct path that only carries smaller packets, for example over a link with a lower MTU that drops what does not fit, fails the trial. Lower the `wg_mesh` MTU on both sides until full-size packets cross, or leave the peer on the relay.
 - The other side is in RELAY and sends a lot of traffic through the relay. Its packets move this side's endpoint back onto the relay, and an answer that comes back that way does not count. On a healthy path a trial still gets through between those packets, and the other side then trials on the roam; if it is held by its own backoff, this side waits for that backoff to run out.
 
-Each failed trial also cuts that peer's traffic for up to `trial_window`, once per backoff interval, until the cause is fixed. See [What a trial costs](../explanation/state-machine.md#what-a-trial-costs).
+Each failed trial also cuts that peer's traffic for up to `trial_window`. After `give_up_after` of them in a row (3) on the same address, wgpathd stops testing it; see [What a trial costs](../explanation/state-machine.md#what-a-trial-costs).
+
+## The direct address is given up
+
+The log shows `direct address given up endpoint=<endpoint> failed_trials=<n> pause=<s>s`, and `given_up` is set for the peer in `ubus call wgpathd status`. After `give_up_after` trials in a row on that address timed out, wgpathd stopped testing it on the underlay echo alone, so the peer's traffic no longer pays for a failed trial every backoff. The peer stays on the relay; `up_streak` goes on counting the echo answers, but `ready` stays `false`.
+
+It tests again by itself, logged as `direct address trials resumed reason=<reason>`, when:
+
+- the peer's packets arrive directly, for example when the other side tests the path (`roam`),
+- the hub publishes another address for the peer that answers ping (`new_candidate`),
+- the time in `given_up.until` has passed, `give_up_pause` after the give-up, 6 hours by default (`pause_over`). This is one trial: if it fails, the address is given up again at once.
+
+Once you have fixed the cause, one of those in [Trials time out](#trials-time-out), you need not wait: `service wgpathd restart` forgets the give-up, and the peer earns direct again from scratch. A reload keeps it. To give up sooner or later, see [How to tune timing parameters](tune-timing.md).
 
 ## A peer keeps falling back
 

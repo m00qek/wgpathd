@@ -114,6 +114,8 @@ What a reload applies is listed in [Service commands](service-commands.md#reload
 | info | `<peer>: no longer ready` | Observe mode only: the peer is not ready and has had no direct evidence for more than `n_up` cycles in a row. A roam makes a peer ready for its cycle alone, so the line waits out the cycles between roams instead of following each one. |
 | warning | `<peer>: candidate refused endpoint=<endpoint> reason=<reason>` | The peer's candidate from discovery is not taken, for one of the reasons in [Discovery HTTP API](discovery-api.md#spoke-side-validation): `own address`, `relay address`, `tunnel address` or `routes into <iface>`. Logged when the refusal starts or its reason changes. Meanwhile the candidate is neither probed nor trialed. |
 | notice | `<peer>: candidate no longer refused` | The refused candidate is taken again, or discovery no longer offers it. |
+| notice | `<peer>: direct address given up endpoint=<endpoint> failed_trials=<n> pause=<s>s` | Steer mode only: the trial toward `endpoint` timed out, the `n`-th in a row on that address, which reaches `give_up_after`. The underlay echo alone starts no trial toward it for `pause` (`give_up_pause`). Logged right after the `trial_timeout` transition. `n` is above `give_up_after` when the one trial after a pause or a roam failed as well. See [Giving up an address](../explanation/state-machine.md#giving-up-an-address). |
+| notice | `<peer>: direct address trials resumed reason=<reason> endpoint=<endpoint>` | Steer mode only: a trial starts although `endpoint`, the address given up, still was. Logged right before its `trial_start` transition. The reasons are listed below. |
 
 | Reason | Transition |
 | :--- | :--- |
@@ -123,6 +125,14 @@ What a reload applies is listed in [Service commands](service-commands.md#reload
 | `demoted` | DIRECT → RELAY after `m_down` failed probes |
 | `observe_mode` | TRIALING or DIRECT → RELAY because the mode is not `steer` |
 
+The reasons of `direct address trials resumed`:
+
+| Reason | Why trials resumed |
+| :--- | :--- |
+| `roam` | An authenticated roam: the peer's packets arrived directly. The trial takes the roam's source as its target. |
+| `new_candidate` | Discovery offers another address for the peer, and it answers the underlay echo. The trial takes that address. |
+| `pause_over` | `give_up_pause` has passed since the address was given up. The trial takes the given-up address once more. |
+
 For example:
 
 ```
@@ -130,6 +140,17 @@ peer spoke_b (SpokeBme): transition RELAY -> TRIALING reason=trial_start endpoin
 peer spoke_b (SpokeBme): transition TRIALING -> DIRECT reason=trial_ok endpoint=[2001:db8:b::20]:51820
 peer spoke_b (SpokeBme): roamed endpoint=[2001:db8:b::21]:51820
 peer spoke_b (SpokeBme): transition DIRECT -> RELAY reason=demoted failed_probes=2 backoff=60s endpoint=10.10.0.12:51820
+```
+
+An address that answers ping but not WireGuard, given up at the third timeout and tried once more when the pause is over:
+
+```
+peer spoke_c (SpokeCme): transition TRIALING -> RELAY reason=trial_timeout backoff=120s endpoint=10.10.0.13:51820
+peer spoke_c (SpokeCme): direct address given up endpoint=[2001:db8:c::30]:51820 failed_trials=3 pause=21600s
+peer spoke_c (SpokeCme): direct address trials resumed reason=pause_over endpoint=[2001:db8:c::30]:51820
+peer spoke_c (SpokeCme): transition RELAY -> TRIALING reason=trial_start endpoint=[2001:db8:c::30]:51820
+peer spoke_c (SpokeCme): transition TRIALING -> RELAY reason=trial_timeout backoff=240s endpoint=10.10.0.13:51820
+peer spoke_c (SpokeCme): direct address given up endpoint=[2001:db8:c::30]:51820 failed_trials=4 pause=21600s
 ```
 
 ## Cycle problems

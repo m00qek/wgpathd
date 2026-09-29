@@ -8,14 +8,14 @@ wgpathd is built as a **functional core with an imperative shell**. One pure fun
 
 The core is `decide(ctl, obs, params, now)` in `decide.uc`. For one peer, it takes:
 
-- `ctl`, the peer's control state: its RELAY/TRIALING/DIRECT state, streak counters, backoff, trial deadline, target, and the endpoint wgpathd last set;
+- `ctl`, the peer's control state: its RELAY/TRIALING/DIRECT state, streak counters, backoff, trial deadline, target, the endpoint wgpathd last set, and the failed trials in a row on one address and when it was [given up](state-machine.md#giving-up-an-address);
 - `obs`, what the shell observed this cycle: the kernel's current endpoint, the underlay probe result, last cycle's tunnel probe result and the endpoint the kernel held right after its answer, the discovery candidate, the relay endpoint and the tunnel address;
 - `params`, the timing parameters and the mode;
 - `now`, the time, passed in rather than read.
 
 It returns the next `ctl` and a list of **effects**. It does no I/O and reads no clock, so a test can replay any scenario, including the passage of minutes, instantly and exactly.
 
-The effects form a closed vocabulary: `set_endpoint`, `tunnel_probe`, `refresh_discovery`, `log` and `metric`. `effects.uc` defines and validates it. There is no effect that could create an interface or change AllowedIPs, which is how the [scope limit](trust-model.md#endpoints-only) is enforced by structure.
+The effects form a closed vocabulary: `set_endpoint`, `tunnel_probe`, `refresh_discovery`, `log`, `given_up`, `resumed` and `metric`. `effects.uc` defines and validates it. There is no effect that could create an interface or change AllowedIPs, which is how the [scope limit](trust-model.md#endpoints-only) is enforced by structure.
 
 ## The shell
 

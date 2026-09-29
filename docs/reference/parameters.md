@@ -15,12 +15,14 @@ Each parameter can be overridden by an option of the same name in the `main` sec
 | `backoff_max` | `900` | s | spoke | Upper limit of the backoff. |
 | `backoff_reset` | `600` | s | spoke | Time a peer must stay in DIRECT before its backoff returns to zero. |
 | `discovery_interval` | `60` | s | spoke | Interval between regular discovery fetches. |
+| `give_up_after` | `3` | trials | spoke | Failed trials in a row on the same address after which the address is given up: the underlay echo alone no longer starts a trial toward it. |
+| `give_up_pause` | `21600` | s | spoke | How long an address stays given up before the echo may start one more trial toward it. |
 
 The hub uses only `cycle`, as the interval between snapshots of `read_iface`. It accepts and validates the other parameters but does not use them.
 
 ## Bounds
 
-A value must be a decimal number within its bounds, both included; `n_up` and `m_down` must be whole numbers. A value outside them stops startup, fails `service wgpathd check`, and is refused on reload, which keeps the running values; the error is `CONFIG_INVALID_OPTION` with the detail `<name> must be a number from <min> to <max>`, or `a whole number` for the counts.
+A value must be a decimal number within its bounds, both included; `n_up`, `m_down` and `give_up_after` must be whole numbers. A value outside them stops startup, fails `service wgpathd check`, and is refused on reload, which keeps the running values; the error is `CONFIG_INVALID_OPTION` with the detail `<name> must be a number from <min> to <max>`, or `a whole number` for the counts.
 
 | Parameter | Minimum | Maximum | Why |
 | :--- | :--- | :--- | :--- |
@@ -31,6 +33,8 @@ A value must be a decimal number within its bounds, both included; `n_up` and `m
 | `trial_window` | `1` | `60` | A trial sends the peer's traffic over an unproven path, so a failing one should not last longer than a minute. |
 | `backoff_min`, `backoff_max`, `backoff_reset` | `1` | `86400` | Up to a day. |
 | `discovery_interval` | `5` | `86400` | Every spoke fetches from the hub at this interval. |
+| `give_up_after` | `1` | `100` | A count of trials. |
+| `give_up_pause` | `60` | `604800` | From a minute to a week. |
 
 procd restarts the daemon when 30 seconds pass without a watchdog ping, and the daemon pings once per cycle, when the cycle completes. Between two pings a spoke waits `cycle`, up to `tunnel_timeout` for the underlay probes, up to 2 s for `wg set`, and up to `tunnel_timeout` for the tunnel probes: at the maxima 10 + 5 + 2 + 5 = 22 seconds, which leaves 8 for the `wireguard status` reads.
 
@@ -56,6 +60,10 @@ The first answer to a trial's probe is read a cycle, and a probe wait, after the
 **`trial_window`.** Measured from the cycle in which the trial started. The deadline is checked before the probe result: an answer that is read at or after the deadline is a timeout. The tunnel probe answer is read one cycle after it is sent. A good path answers the first probe and commits one cycle after the trial starts. A second probe is read two cycles after the start; while the path fails, each of those cycles lasts `cycle` plus about `tunnel_timeout`, so with the defaults the second answer arrives after the 8-second deadline and the trial times out on its first probe.
 
 **Backoff.** A failed trial or a demotion sets the backoff to `backoff_min` if it was zero, otherwise to twice its value, capped at `backoff_max`. No trial starts until that many seconds have passed since the failure. While in DIRECT, once the peer has held DIRECT for `backoff_reset`, the backoff returns to zero. A demotion caused by switching to observe mode does not change the backoff.
+
+**`give_up_after`.** Only a trial that times out counts, against its target: the endpoint, port included. A timeout on another target starts the count again at one, and a trial that commits clears it; a demotion from DIRECT does not count. At `give_up_after` timeouts in a row the address is given up, and the underlay echo alone starts no trial toward it. An authenticated roam still starts a trial at once, and so does echo evidence for another address from discovery. If the trial that follows is toward the same address and fails, the address is given up again at once. See [Giving up an address](../explanation/state-machine.md#giving-up-an-address).
+
+**`give_up_pause`.** Measured from the timeout that gave the address up. Once it has passed, the echo may start one more trial toward the address, once the backoff has run out too. A reload applies a new value to an address already given up: the pause is measured from the same moment.
 
 **`discovery_interval`.** The first fetch happens on the first cycle. After that a fetch starts when `discovery_interval` has passed since the last one started, or when a peer in RELAY without evidence asks for a refresh and at least 10 seconds have passed. Only one fetch runs at a time.
 

@@ -301,7 +301,9 @@ ubus call wgpathd status
 		"backoff_min": 30,
 		"backoff_max": 900,
 		"backoff_reset": 600,
-		"discovery_interval": 60
+		"discovery_interval": 60,
+		"give_up_after": 3,
+		"give_up_pause": 21600
 	},
 	"discovery": {
 		"fresh": true,
@@ -323,6 +325,9 @@ ubus call wgpathd status
 			"since": 1790524807,
 			"trial_deadline": null,
 			"next_trial": null,
+			"failed_target": null,
+			"failed_trials": 0,
+			"given_up": null,
 			"switches": 0,
 			"relayed_answers": 0,
 			"last_change": null
@@ -482,6 +487,8 @@ uPLXea2jUXzX+M8u+y7heE1IMxUHIpfBW9/ne7ed3Rk=	10.10.0.12:51820
 spoke-b's endpoint is its relay address again. spoke-b did the same towards spoke-a.
 
 If we take longer than half a minute here, the log shows two more lines, `RELAY -> TRIALING` and then `TRIALING -> RELAY reason=trial_timeout backoff=60s`: once the backoff ran out, wgpathd tried the direct path, found it still dead, and doubled the backoff. That is expected, and it only makes the next step take longer. [About the path state machine](../explanation/state-machine.md#fast-down-slow-up) explains why wgpathd falls back fast and comes back slowly.
+
+If we take longer than about four minutes, a third failed test in a row makes wgpathd give the address up: the log says `direct address given up`, and wgpathd would not test the address again for six hours. In that case, once the next step has restored the path, we run `service wgpathd restart` on both spokes, and they earn the direct path again from scratch. [Giving up an address](../explanation/state-machine.md#giving-up-an-address) explains why.
 
 ## Step 9: Restore the direct path
 

@@ -64,7 +64,7 @@ The hub ignores `mode`.
 
 Both roles accept the timing parameters as options in the `main` section, for example `option cycle '2'`. Each is optional and overrides one default. The full list, defaults and meanings are in [Timing parameters](parameters.md).
 
-A parameter value must be a decimal number: digits, optionally followed by a dot and more digits, within the parameter's bounds; `n_up` and `m_down` take whole numbers only. `3`, `2.5` and `900` are in that form; `-1`, `1e3`, `0x10` and `3s` are not. On a spoke, `backoff_max` must be at least `backoff_min` and `trial_window` longer than `cycle` plus `tunnel_timeout`. An invalid value stops startup with `CONFIG_INVALID_OPTION`; the detail names the parameter and what it must be, for example `cycle must be a number from 1 to 10`. The bounds are in [Timing parameters](parameters.md#bounds).
+A parameter value must be a decimal number: digits, optionally followed by a dot and more digits, within the parameter's bounds; `n_up`, `m_down` and `give_up_after` take whole numbers only. `3`, `2.5` and `900` are in that form; `-1`, `1e3`, `0x10` and `3s` are not. On a spoke, `backoff_max` must be at least `backoff_min` and `trial_window` longer than `cycle` plus `tunnel_timeout`. An invalid value stops startup with `CONFIG_INVALID_OPTION`; the detail names the parameter and what it must be, for example `cycle must be a number from 1 to 10`. The bounds are in [Timing parameters](parameters.md#bounds).
 
 ## Validation order
 

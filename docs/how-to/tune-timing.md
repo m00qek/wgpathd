@@ -34,6 +34,8 @@ Each parameter has bounds, and a spoke's parameters must agree with each other (
 
 **Park a flapping path sooner or longer.** The backoff doubles from `backoff_min` up to `backoff_max` with each failure, and only resets after `backoff_reset` seconds of stable DIRECT. Raise `backoff_max` to hold a bad path on the relay longer; lower `backoff_reset` to forgive a path sooner.
 
+**Stop testing an address that never carries WireGuard, sooner or later.** After `give_up_after` failed trials in a row (3) on the same address, wgpathd stops testing it on the echo alone for `give_up_pause` (6 hours), since each failed trial loses that peer's traffic for up to `trial_window`. Lower `give_up_pause` if a firewall on the path is fixed often and you do not want to wait for the other side, a new address or a restart to bring the peer back; raise `give_up_after` for a path whose trials fail now and then although it works. `give_up_after 100` all but turns giving up off, leaving the backoff alone to space the trials. See [Giving up an address](../explanation/state-machine.md#giving-up-an-address).
+
 **Pick up roaming peers faster.** Lower `discovery_interval`. Peers stuck in RELAY without evidence already trigger a refresh at most every 10 seconds, so this mostly helps peers that are DIRECT or have evidence.
 
 **Speed everything up for a lab.** For example:

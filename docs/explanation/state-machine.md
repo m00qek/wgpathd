@@ -10,10 +10,10 @@ On a spoke, every managed mesh peer has its own small state machine. It has thre
 stateDiagram-v2
     [*] --> RELAY: start
     RELAY --> RELAY: re-assert relay endpoint,<br/>count evidence
-    RELAY --> TRIALING: n_up cycles of evidence<br/>or a roam, and backoff expired<br/>(trial_start)
+    RELAY --> TRIALING: n_up cycles of evidence<br/>toward an address not given up,<br/>or a roam; backoff expired<br/>(trial_start)
     TRIALING --> TRIALING: set target, probe again
     TRIALING --> DIRECT: tunnel probe answered<br/>over the direct path<br/>(trial_ok)
-    TRIALING --> RELAY: trial_window passed<br/>(trial_timeout, backoff grows)
+    TRIALING --> RELAY: trial_window passed<br/>(trial_timeout, backoff grows,<br/>the failure counts)
     DIRECT --> DIRECT: re-assert target, probe,<br/>adopt roams
     DIRECT --> RELAY: m_down failed probes<br/>(demoted, backoff grows)
     TRIALING --> RELAY: mode set to observe<br/>(observe_mode)
@@ -61,7 +61,38 @@ A trial is not free. A WireGuard peer has one endpoint, so while a trial runs, a
 
 There is no cheaper test. WireGuard ignores unauthenticated packets, so nothing outside the tunnel can prove a path works, and one peer cannot use two endpoints at once.
 
-The cost repeats when the evidence is misleading: a peer that answers ICMPv6 echo while a firewall blocks UDP to its WireGuard port. The echo keeps producing evidence, so each backoff expiry starts another trial and loses another window. The backoff grows to 15 minutes, which bounds the loss to one trial window per backoff interval, about 1% of that peer's traffic once the backoff reaches its cap.
+The cost repeats when the evidence is misleading: a peer that answers ICMPv6 echo while a firewall blocks UDP to its WireGuard port, or an address that is stale or wrong but still answers ping. The echo keeps producing evidence, so each backoff expiry would start another trial and lose another window: with the backoff at its cap of 15 minutes, about 1% of that peer's traffic, for as long as the address stays. [Giving up an address](#giving-up-an-address) bounds that. A failed trial keeps the peer on its target until the first cycle at or after `trial_window`: 9 seconds with the defaults. The worst cases, with the defaults, over a day:
+
+| Case | What it costs |
+| :--- | :--- |
+| A fixed address that answers ping but never carries WireGuard | `give_up_after` trials within the first few minutes, then one each time `give_up_pause` runs out: 6 trials, 54 seconds, in the first day (0.06%). Without giving up it was about 99 trials, 15 minutes (1%). |
+| A hub that publishes another bad address on every fetch | Every address is new, so none is given up, and the backoff alone bounds it: one trial per backoff, `backoff_max` once it has grown, about 1% as before. A hub can already hold its spokes on the relay by publishing nothing, so a lying hub gains nothing new. |
+| A good address after a long outage that let ping through but not WireGuard | The address was given up during the outage. Once the path is back, the peer stays on the relay until its pause runs out, at most `give_up_pause` (6 hours), unless the other side's packets arrive directly first, the hub publishes another address, or the daemon restarts. The cost is time on the relay; no traffic is lost. |
+
+An outage that stops ping as well costs nothing of the kind: without evidence no trial runs and nothing is counted, so the first trial after the path is back commits.
+
+## Giving up an address
+
+After `give_up_after` trials in a row on the same address time out (3 by default), wgpathd gives that address up. It logs `direct address given up`, and the peer's [status](../reference/ubus-status.md) shows it under `given_up`. From then on:
+
+- The underlay echo alone starts no trial toward that address. The peer stays on the relay.
+- A trial starts again, backoff permitting, only when something changes. wgpathd logs `direct address trials resumed` with the reason:
+    - `roam`: the peer's own packets arrive directly, an authenticated roam. As always, the trial starts at once and takes the roam's source as its target.
+    - `new_candidate`: discovery offers another address for the peer, and it answers the echo. A different port makes a different address.
+    - `pause_over`: `give_up_pause` (6 hours by default) has passed since the address was given up. The echo may start one more trial toward it.
+- If the trial toward the same address fails again, after the pause or after a roam from that address, the address is given up again at once, without `give_up_after` more failures, and the pause starts over.
+
+Only a trial that times out counts, against its target: the endpoint with its port. A timeout on another target starts the count again at one: wgpathd keeps a count for one address per peer at a time, so once another address has been tried, the one given up before gets `give_up_after` trials again. A trial that commits clears the count.
+
+A demotion from DIRECT is not counted. A path that passed its trial carried the peer's packets both ways, so the address is right; what failed is the path, for a while, and a failing path is what the backoff is for. Even a path that passes every trial and dies right after costs no more than before: `m_down` failed probes per backoff, the backoff growing to its cap. Counting those demotions would give a correct address up and keep the peer on the relay for the whole pause.
+
+The underlay probe keeps running while an address is given up. It is one small ping per cycle, it shows in the status whether the address still answers, and the evidence it keeps counting lets the trial after the pause start at once.
+
+Giving up applies whether discovery is fresh or not. Candidates never expire, and the cache keeps them through a hub outage on purpose: a remembered address that is still right lets two spokes find each other while the hub is down. Giving up bounds what a remembered address that has gone wrong can cost.
+
+Observe mode never trials, so it never counts a failure. A peer whose address is given up is not `ready`, since steer mode would not trial it. The count and the give-up are kept in memory with the rest of the peer's state: a reload keeps them for every peer whose annotations did not change, and a restart of the daemon forgets them, which is the way to retry at once.
+
+Two spokes can give each other's address up, as when a firewall filters the path in both directions. When one of them retries at the end of its pause and the path works again, its trial's packets reach the other directly, a roam, so the other trials at once and both return to DIRECT together.
 
 ## Why the anchor needs roams
 
@@ -101,7 +132,7 @@ In DIRECT, a roam to a new direct address is adopted as the new target, logged a
 The rules are asymmetric on purpose.
 
 - **Falling back is fast.** In DIRECT, `m_down` failed tunnel probes in a row (2 by default) demote the peer to RELAY. Each probe's answer is read on the next cycle, and on a dead path every cycle also waits for its probes to time out, so with the defaults a dead path is left in roughly 8 to 15 seconds. A probe that did not complete in time counts as failed, and so does one answered through the relay. The relay is the safe place to be when in doubt.
-- **Coming back is slow.** A return to direct needs `n_up` cycles of evidence (or a roam from a peer that is already trialing or DIRECT) **and** a successful trial, **and** the backoff must have expired.
+- **Coming back is slow.** A return to direct needs `n_up` cycles of evidence (or a roam from a peer that is already trialing or DIRECT) **and** a successful trial, **and** the backoff must have expired. The echo alone starts no trial toward an address that has been [given up](#giving-up-an-address).
 
 The backoff is what stops a flapping path from bouncing. Each failed trial and each demotion bumps it: the first time to `backoff_min` (30 seconds), then doubling each time up to `backoff_max` (15 minutes). It resets only after DIRECT has held for `backoff_reset` (10 minutes). A path that works for a minute and then breaks walks its backoff up to the cap and ends up parked on the relay, which is the outcome you want from a bad path. Evidence keeps counting during the backoff, so a peer that is ready trials as soon as the backoff ends.
 

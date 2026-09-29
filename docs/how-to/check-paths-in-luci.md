@@ -39,18 +39,20 @@ Click **Show details** on the peer's row. For a peer via the hub you see:
 - why it uses the hub, for example that a number of checks in a row got no answer over the direct path;
 - when it tries the direct path next. After each failed try it waits longer, up to the `backoff_max` of [Timing parameters](../reference/parameters.md).
 
+After several failed tests in a row on the same address, 3 by default, the row gets a **Direct given up** label. The details then say after how many failed tests, and when wgpathd tries the address again: once its pause of 6 hours by default is over, or as soon as the hub publishes another address or the peer reaches this router directly. [The direct address is given up](troubleshoot.md#the-direct-address-is-given-up) explains why, and how to retry at once.
+
 For a peer testing the direct path, the details say when the test ends.
 
 **Recent changes** lists the last 20 changes of all peers, newest first. The list is kept in memory since the service started; the system log has every change.
 
 ## Notice observe mode and a stale peer list
 
-- In observe mode a note at the top says so. Every peer stays on the hub; a **Would test direct** label marks the peers steer mode would try. See [Moving a Spoke from Observe to Steer](enable-steering.md).
+- In observe mode a note at the top says so. Every peer stays on the hub; a **Would test direct** label marks the peers steer mode would try, and a **Direct given up** label the peers whose address an earlier run in steer mode gave up, which steer mode would not try yet. See [Moving a Spoke from Observe to Steer](enable-steering.md).
 - If the spoke cannot fetch the peer list from the hub, a warning says how old the last good list is. The **Service** table shows the list's address and age.
 
 ## Glance at it from the Overview
 
-**Status → Overview** has a short **Mesh paths** section with the path and state of each steered peer, and a **Details** link to the full page. It is hidden while the service is not running, on a hub, and when no peer is steered.
+**Status → Overview** has a short **Mesh paths** section with the path and state of each steered peer, what happens next, such as when a given-up direct address is tried again, and a **Details** link to the full page. It is hidden while the service is not running, on a hub, and when no peer is steered.
 
 ## On the hub
 
