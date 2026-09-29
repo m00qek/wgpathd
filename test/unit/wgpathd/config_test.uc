@@ -233,6 +233,8 @@ describe('config: parameter overrides', () => {
 			backoff_max: [ '30', '86400', '0.5', '86401', 'backoff_max must be a number from 1 to 86400' ],
 			backoff_reset: [ '1', '86400', '0.5', '86401', 'backoff_reset must be a number from 1 to 86400' ],
 			discovery_interval: [ '5', '86400', '4.9', '86401', 'discovery_interval must be a number from 5 to 86400' ],
+			give_up_after: [ '1', '100', '0', '101', 'give_up_after must be a whole number from 1 to 100' ],
+			give_up_pause: [ '60', '604800', '59.5', '604801', 'give_up_pause must be a number from 60 to 604800' ],
 		};
 		let roomy = { ...SPOKE, trial_window: '60' };
 		for (let name, c in cases) {

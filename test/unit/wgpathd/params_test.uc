@@ -45,6 +45,7 @@ describe('params: bounds', () => {
 
 	it('reads whole numbers only for a count of cycles', () => {
 		assert.match([ 3, null, null ], [ params.parse('n_up', '3'), params.parse('n_up', '3.0'), params.parse('m_down', '2.5') ]);
+		assert.match([ 3, null ], [ params.parse('give_up_after', '3'), params.parse('give_up_after', '2.5') ]);
 		assert.match([ 2.5, 0.1 ], [ params.parse('cycle', '2.5'), params.parse('tunnel_timeout', '0.1') ]);
 	});
 });
