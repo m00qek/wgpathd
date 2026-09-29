@@ -10,6 +10,11 @@ import { is_pubkey } from 'wgpathd.wg';
 export const MAX_BYTES = 65536;
 const MAX_ENTRIES = 64;
 
+// A url shown in a log line or the status must not carry the credentials of its user:pass@ part.
+export function redact(url) {
+	return (type(url) == 'string') ? replace(url, /^([a-z][a-z0-9+.-]*:\/\/)[^\/@]*@/i, '$1') : url;
+};
+
 function decode(stdout) {
 	if (type(stdout) != 'string' || length(stdout) > MAX_BYTES)
 		return null;

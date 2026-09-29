@@ -289,9 +289,24 @@ ubus call wgpathd status
 {
 	"role": "spoke",
 	"mode": "observe",
+	"now": 1790524823,
+	"mesh_iface": "wg_mesh",
+	"hub_iface": "wg_hub",
+	"params": {
+		"cycle": 3,
+		"n_up": 5,
+		"m_down": 2,
+		"tunnel_timeout": 1,
+		"trial_window": 8,
+		"backoff_min": 30,
+		"backoff_max": 900,
+		"backoff_reset": 600,
+		"discovery_interval": 60
+	},
 	"discovery": {
 		"fresh": true,
-		"last_ok": 1790524807
+		"last_ok": 1790524807,
+		"url": "http://10.10.0.1:7780/peers"
 	},
 	"peers": {
 		"uPLXea2jUXzX+M8u+y7heE1IMxUHIpfBW9/ne7ed3Rk=": {
@@ -303,7 +318,13 @@ ubus call wgpathd status
 			"section": "spoke_b",
 			"endpoint": "10.10.0.12:51820",
 			"target": null,
+			"candidate": "[fd77:e2e0:0:1::12]:51820",
+			"last_target": null,
+			"since": 1790524807,
+			"trial_deadline": null,
+			"next_trial": null,
 			"switches": 0,
+			"relayed_answers": 0,
 			"last_change": null
 		}
 	},
@@ -313,7 +334,8 @@ ubus call wgpathd status
 			"pubkey": "u8maAxX3TJoR2m/cKuXIdWp9UrsA5JI0AIzUG7rqDgU=",
 			"reason": "missing wgpathd_relay"
 		}
-	]
+	],
+	"history": []
 }
 ```
 

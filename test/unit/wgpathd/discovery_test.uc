@@ -157,3 +157,21 @@ describe('discovery: cache', () => {
 			});
 	});
 });
+
+describe('discovery: redact', () => {
+	it('drops the user:pass@ part of a url and leaves any other url alone', () => {
+		assert.match([
+			'http://10.10.0.1:7780/peers',
+			'https://[2001:db8::1]:7780/peers',
+			'http://10.10.0.1:7780/peers',
+			'http://10.10.0.1:7780/a@b',
+			null,
+		], map([
+			'http://wgpathd:secret@10.10.0.1:7780/peers',
+			'https://user@[2001:db8::1]:7780/peers',
+			'http://10.10.0.1:7780/peers',
+			'http://10.10.0.1:7780/a@b',
+			null,
+		], (url) => discovery.redact(url)));
+	});
+});

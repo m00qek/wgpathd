@@ -17,3 +17,11 @@ export const DEFAULTS = {
 export function build(cfg) {
 	return { ...DEFAULTS, ...cfg.overrides, mode: cfg.mode };
 };
+
+// The timing values in effect, without the mode.
+export function timing(params) {
+	let out = {};
+	for (let name in keys(DEFAULTS))
+		out[name] = params[name];
+	return out;
+};

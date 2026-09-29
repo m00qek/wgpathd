@@ -4,11 +4,7 @@
 
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
-
-// A url in a log line must not carry the credentials of its user:pass@ part.
-function redact(url) {
-	return replace(url, /^([a-z][a-z0-9+.-]*:\/\/)[^\/@]*@/i, '$1');
-}
+import { redact } from 'wgpathd.discovery';
 
 export function create(uclient, uloop) {
 	return {

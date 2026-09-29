@@ -703,7 +703,7 @@ describe('daemon: discovery', () => {
 		w.payload = payload({ [SPOKE_B]: SPOKE_B_ROAMED });
 		let d = start(w);
 		cycle(w, d, 0);
-		assert.match({ fresh: true, last_ok: 1790456500 }, d.status().discovery);
+		assert.match({ fresh: true, last_ok: 1790456500, url: URL }, d.status().discovery);
 		assert.match({ [SPOKE_B]: { direct: SPOKE_B_ROAMED } }, json(w.fs.files[daemon.CACHE_PATH]));
 	});
 
@@ -714,7 +714,7 @@ describe('daemon: discovery', () => {
 		cycle(w, d, 60);
 		w.payload = null;
 		cycle(w, d);
-		assert.match({ fresh: false, last_ok: 1790456500 }, d.status().discovery);
+		assert.match({ fresh: false, last_ok: 1790456500, url: URL }, d.status().discovery);
 		assert.match([ [ 'warning', 'discovery failed: DISCOVERY_FETCH_FAILED (uclient error 4)' ] ], w.logs.matching(/^discovery failed/));
 		let seen = length(w.icmp.sent);
 		cycle(w, d);
@@ -833,15 +833,29 @@ describe('daemon: watchdog', () => {
 	});
 });
 
+const TIMING = { cycle: 3, n_up: 5, m_down: 2, tunnel_timeout: 1, trial_window: 8, backoff_min: 30,
+	backoff_max: 900, backoff_reset: 600, discovery_interval: 60 };
+
+// A trial on spoke-b that times out: its direct path answers the underlay echo but not the tunnel probe.
+function failed_trial(cfg_extra) {
+	let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+	w.reachable['2001:db8::12'] = true;
+	let d = start(w, spoke_cfg({ overrides: { n_up: 1, trial_window: 6 }, ...(cfg_extra ?? {}) }));
+	return { w: w, d: d, peer: () => d.status().peers[SPOKE_B] };
+}
+
 describe('daemon: status', () => {
 	it('reports every managed peer in RELAY before the first cycle', () => {
 		let w = h.world(kernel_of(SPOKE_B));
 		let d = start(w);
 		assert.match({
-			role: 'spoke', mode: 'steer', discovery: { fresh: false, last_ok: null },
-			peers: { [SPOKE_B]: { state: 'RELAY', section: 'spoke_b', endpoint: null, target: null, up_streak: 0, down_streak: 0,
+			role: 'spoke', mode: 'steer', now: 1790456500, mesh_iface: 'wg_mesh', hub_iface: 'wg_hub', params: TIMING,
+			discovery: { fresh: false, last_ok: null, url: URL },
+			peers: { [SPOKE_B]: { state: 'RELAY', section: 'spoke_b', endpoint: null, target: null, candidate: null,
+				last_target: null, since: 1790456500, trial_deadline: null, next_trial: null, up_streak: 0, down_streak: 0,
 				backoff: 0, ready: false, switches: 0, relayed_answers: 0, last_change: null } },
 			unmanaged: [ HUB_UNMANAGED ],
+			history: [],
 		}, d.status());
 	});
 
@@ -850,8 +864,110 @@ describe('daemon: status', () => {
 		w.reachable['2001:db8::12'] = true;
 		let d = start(w);
 		cycles(w, d, 2);
-		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, up_streak: 2, down_streak: 0,
+		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, candidate: SPOKE_B_DIRECT,
+			last_target: null, since: 1790456500, trial_deadline: null, next_trial: null, up_streak: 2, down_streak: 0,
 			backoff: 0, ready: false, switches: 0, relayed_answers: 0, last_change: null }, d.status().peers[SPOKE_B]);
+	});
+
+	it('reports the timing parameters in effect, overrides included', () => {
+		let w = h.world(kernel_of(SPOKE_B));
+		let d = start(w, spoke_cfg({ overrides: { m_down: 3, cycle: 0.5 } }));
+		assert.match({ ...TIMING, m_down: 3, cycle: 0.5 }, d.status().params);
+	});
+
+	it('shows the discovery url without the credentials of its user:pass@ part', () => {
+		let w = h.world(kernel_of(SPOKE_B));
+		let d = start(w, spoke_cfg({ discovery: 'http://wgpathd:secret@10.10.0.1:7780/peers' }));
+		assert.match('http://10.10.0.1:7780/peers', d.status().discovery.url);
+	});
+
+	it('times a trial: since it began and when it ends, in wall-clock seconds', () => {
+		let t = failed_trial();
+		cycle(t.w, t.d, 2);
+		let started = 1790456500;
+		assert.match(contains({ state: 'TRIALING', target: SPOKE_B_DIRECT, last_target: SPOKE_B_DIRECT, since: started,
+			trial_deadline: started + 6, next_trial: null }), t.peer());
+		assert.match(t.w.clock.wall(), t.d.status().now);
+	});
+
+	it('after a failed trial, keeps the endpoint tried and says when the next trial may start', () => {
+		let t = failed_trial();
+		cycles(t.w, t.d, 3);
+		let fell_back = t.w.clock.wall() - 3;
+		assert.match(contains({ state: 'RELAY', target: null, last_target: SPOKE_B_DIRECT, candidate: SPOKE_B_DIRECT,
+			since: fell_back, trial_deadline: null, next_trial: fell_back + 30, backoff: 30,
+			last_change: { ts: fell_back, from: 'TRIALING', to: 'RELAY', reason: 'trial_timeout' } }), t.peer());
+	});
+
+	it('clears next_trial once the backoff has run out', () => {
+		let t = failed_trial();
+		cycles(t.w, t.d, 3);
+		t.w.clock.advance(27);
+		assert.match(contains({ state: 'RELAY', next_trial: null }), t.peer());
+	});
+
+	it('never shows a next trial in observe mode, where none starts', () => {
+		let t = failed_trial();
+		cycles(t.w, t.d, 3);
+		t.d.reload(spoke_cfg({ mode: 'observe' }), params.build(spoke_cfg({ mode: 'observe', overrides: { n_up: 1 } })));
+		assert.match(contains({ state: 'RELAY', next_trial: null }), t.peer());
+	});
+
+	it('keeps the time a peer became managed as its since until its first change', () => {
+		let w = h.world(kernel_of(SPOKE_B));
+		w.unrouted['10.10.0.12'] = true;
+		let d = start(w);
+		cycle(w, d);
+		w.unrouted = {};
+		cycle(w, d);
+		cycle(w, d);
+		assert.match(contains({ state: 'RELAY', since: 1790456503 }), d.status().peers[SPOKE_B]);
+	});
+});
+
+describe('daemon: status history', () => {
+	it('lists the transitions and roams across peers, newest first', () => {
+		let w = h.world({ [SPOKE_B]: { endpoint: SPOKE_B_RELAY, hs: 0 }, [SPOKE_A]: { endpoint: SPOKE_A_RELAY, hs: 0 } },
+			{ files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT, [SPOKE_A]: SPOKE_A_DIRECT }) });
+		for (let host in [ '2001:db8::12', '2001:db8::11', SPOKE_B_TUNNEL ])
+			w.reachable[host] = true;
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1, trial_window: 6 },
+			peers: { managed: [ SPOKE_B_PEER, SPOKE_A_PEER ], unmanaged: [] } }));
+		let t0 = w.clock.wall();
+		cycles(w, d, 2);
+		w.kernel[SPOKE_B].endpoint = SPOKE_B_ROAMED;
+		cycles(w, d, 2);
+		assert.match([
+			{ ts: t0 + 6, section: 'spoke_a', pubkey: SPOKE_A, from: 'TRIALING', to: 'RELAY', reason: 'trial_timeout',
+				endpoint: SPOKE_A_RELAY },
+			{ ts: t0 + 6, section: 'spoke_b', pubkey: SPOKE_B, from: 'DIRECT', to: 'DIRECT', reason: 'roam_adopted',
+				endpoint: SPOKE_B_ROAMED },
+			{ ts: t0 + 3, section: 'spoke_b', pubkey: SPOKE_B, from: 'TRIALING', to: 'DIRECT', reason: 'trial_ok',
+				endpoint: SPOKE_B_DIRECT },
+			{ ts: t0, section: 'spoke_a', pubkey: SPOKE_A, from: 'RELAY', to: 'TRIALING', reason: 'trial_start',
+				endpoint: SPOKE_A_DIRECT },
+			{ ts: t0, section: 'spoke_b', pubkey: SPOKE_B, from: 'RELAY', to: 'TRIALING', reason: 'trial_start',
+				endpoint: SPOKE_B_DIRECT },
+		], d.status().history);
+	});
+
+	it('keeps the last 20 changes only', () => {
+		let w = h.world(kernel_of(SPOKE_B), { files: cache_of({ [SPOKE_B]: SPOKE_B_DIRECT }) });
+		w.reachable['2001:db8::12'] = true;
+		let d = start(w, spoke_cfg({ overrides: { n_up: 1, trial_window: 1, backoff_min: 1, backoff_max: 1 } }));
+		cycles(w, d, 30);
+		let history = d.status().history;
+		assert.match(20, length(history));
+		assert.match(w.clock.wall() - 3, history[0].ts, 'the newest first');
+		assert.match(true, d.status().peers[SPOKE_B].switches > 20);
+	});
+
+	it('keeps the entries of a peer a reload removed', () => {
+		let t = failed_trial();
+		cycle(t.w, t.d);
+		t.d.reload(spoke_cfg({ peers: { managed: [], unmanaged: [] } }), params.build(spoke_cfg()));
+		assert.match({}, t.d.status().peers);
+		assert.match([ contains({ section: 'spoke_b', reason: 'trial_start' }) ], t.d.status().history);
 	});
 });
 
@@ -887,8 +1003,9 @@ describe('daemon: scenario through the real decide', () => {
 		assert.match(contains({ state: 'DIRECT', down_streak: 1 }), peer());
 		let demoted_at = w.clock.wall();
 		cycle(w, d);
-		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, up_streak: 0, down_streak: 0,
-			backoff: 30, ready: false, switches: 3, relayed_answers: 0,
+		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, candidate: SPOKE_B_DIRECT,
+			last_target: SPOKE_B_ROAMED, since: demoted_at, trial_deadline: null, next_trial: demoted_at + 30,
+			up_streak: 0, down_streak: 0, backoff: 30, ready: false, switches: 3, relayed_answers: 0,
 			last_change: { ts: demoted_at, from: 'DIRECT', to: 'RELAY', reason: 'demoted' } }, peer());
 		assert.match(SPOKE_B_RELAY, w.kernel[SPOKE_B].endpoint);
 		assert.match([

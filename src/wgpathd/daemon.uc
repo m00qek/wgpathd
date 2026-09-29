@@ -19,6 +19,7 @@ export const CACHE_PATH = '/var/run/wgpathd/cache.json';
 const SET_TIMEOUT   = 2;
 const FETCH_TIMEOUT = 5000;
 const REFRESH_GAP   = 10;
+const HISTORY       = 20;
 const WATCHDOG      = { name: 'wgpathd', instance: 'wgpathd' };
 
 // Options a running daemon cannot change: a reload that touches one exits, and procd respawns it.
@@ -90,11 +91,13 @@ function peer_name(peer) {
 	return `peer ${peer.section}${key}`;
 }
 
-function peer_record(peer) {
+function peer_record(peer, now) {
 	let ctl = state.init();
 	return {
 		peer: peer,
 		ctl: ctl,
+		managed_at: now,
+		last_target: null,
 		tunnel_ok: null,
 		answered_via: null,
 		absent: false,
@@ -107,13 +110,34 @@ function peer_record(peer) {
 	};
 }
 
-// ctl keeps monotonic time; status shows wall-clock seconds.
-function peer_status(rec, clock) {
-	let change = rec.ctl.last_change;
-	if (change != null)
-		change = { ...change, ts: int(clock.wall() - (clock.now() - change.ts)) };
-	return { ...rec.metric, section: rec.peer.section, endpoint: rec.ctl.asserted, target: rec.ctl.target,
+// ctl keeps monotonic time; status shows wall-clock seconds, which stay consistent
+// with the reply's `now` even when the wall clock jumps (NTP after boot).
+function wall_clock(clock) {
+	let now = clock.now(), wall = clock.wall();
+	return (ts) => (ts == null) ? null : int(wall - (now - ts));
+}
+
+// A backoff holds trials back only in steer mode, and only until it runs out.
+function next_trial(ctl, params, now) {
+	let held = params.mode == 'steer' && ctl.state == state.RELAY && ctl.backoff_until > now;
+	return held ? ctl.backoff_until : null;
+}
+
+function peer_status(rec, candidate, params, clock) {
+	let wall = wall_clock(clock);
+	let ctl = rec.ctl;
+	let change = (ctl.last_change != null) ? { ...ctl.last_change, ts: wall(ctl.last_change.ts) } : null;
+	return { ...rec.metric, section: rec.peer.section, endpoint: ctl.asserted, target: ctl.target,
+		candidate: candidate, last_target: rec.last_target,
+		since: wall(ctl.last_change?.ts ?? rec.managed_at),
+		trial_deadline: wall(ctl.trial_deadline),
+		next_trial: wall(next_trial(ctl, params, clock.now())),
 		switches: rec.switches, relayed_answers: rec.relayed_answers, last_change: change };
+}
+
+function history_status(history, clock) {
+	let wall = wall_clock(clock);
+	return map(history, (e) => ({ ...e, ts: wall(e.ts) }));
 }
 
 function unmanaged_entry(peer, reason) {
@@ -124,6 +148,7 @@ function create_spoke(deps, cfg, params) {
 	let records = [];
 	let rejected = [];
 	let waiting = [];
+	let history = [];
 	let disc = { peers: {}, fresh: false, fetching: false, last_fetch: null, last_ok: null };
 	let report_read = streak_reporter(deps, `reading ${cfg.mesh_iface}`);
 	let report_discovery = streak_reporter(deps, 'discovery');
@@ -140,7 +165,7 @@ function create_spoke(deps, cfg, params) {
 
 	// Every reason is a configuration error, except a relay route lookup that may yet succeed.
 	let log_unmanaged = (u, level) => log_peer(level ?? 'warning', u, `unmanaged reason=${u.reason}`);
-	let manage = (peer) => push(records, peer_record(peer));
+	let manage = (peer) => push(records, peer_record(peer, deps.clock.now()));
 	let log_managed = (peer) => log_peer('notice', peer, 'relay route found, now managed');
 
 	let warn_invalid_mode = function() {
@@ -339,9 +364,11 @@ function create_spoke(deps, cfg, params) {
 		return `transition ${entry.from} -> ${entry.to} reason=${entry.reason}${detail} endpoint=${rec.ctl.asserted}`;
 	};
 
-	let record_log = function(rec, entry) {
+	let record_log = function(rec, entry, now) {
 		if (entry.event == 'transition')
 			rec.switches++;
+		history = slice([ { ts: now, section: rec.peer.section, pubkey: rec.peer.pubkey, from: entry.from,
+			to: entry.to, reason: entry.reason, endpoint: rec.ctl.asserted }, ...history ], 0, HISTORY);
 		log_peer('notice', rec.peer, describe_change(rec, entry));
 	};
 
@@ -367,7 +394,7 @@ function create_spoke(deps, cfg, params) {
 
 	// Records the log and metric effects; returns the endpoint to set and the address to probe.
 	// `target` is the endpoint a trial would take, for the readiness line.
-	let take_effects = function(rec, effects, target) {
+	let take_effects = function(rec, effects, target, now) {
 		let step = { rec: rec, endpoint: null, probe: null };
 		for (let e in effects) {
 			if (exists(e, 'set_endpoint'))
@@ -375,7 +402,7 @@ function create_spoke(deps, cfg, params) {
 			else if (exists(e, 'tunnel_probe'))
 				step.probe = e.tunnel_probe;
 			else if (exists(e, 'log'))
-				record_log(rec, e.log);
+				record_log(rec, e.log, now);
 			else if (exists(e, 'metric')) {
 				note_readiness(rec, e.metric, target);
 				rec.metric = e.metric;
@@ -523,8 +550,9 @@ function create_spoke(deps, cfg, params) {
 					let target = trial_target(rec.ctl, obs);
 					let out = decide(rec.ctl, obs, params, now);
 					rec.ctl = out.ctl;
+					rec.last_target = out.ctl.target ?? rec.last_target;
 					wants_refresh ||= length(filter(out.effects, (e) => e.refresh_discovery)) > 0;
-					push(steps, take_effects(rec, out.effects, target));
+					push(steps, take_effects(rec, out.effects, target, now));
 				}
 				apply(steps, () => {
 					if (probe_outcome != null)
@@ -539,9 +567,11 @@ function create_spoke(deps, cfg, params) {
 		status: function() {
 			let peers = {};
 			for (let rec in records)
-				peers[rec.peer.pubkey] = peer_status(rec, deps.clock);
-			return { role: 'spoke', mode: cfg.mode, discovery: { fresh: disc.fresh, last_ok: disc.last_ok },
-				peers: peers, unmanaged: unmanaged_entries() };
+				peers[rec.peer.pubkey] = peer_status(rec, candidate(rec), params, deps.clock);
+			return { role: 'spoke', mode: cfg.mode, now: int(deps.clock.wall()),
+				mesh_iface: cfg.mesh_iface, hub_iface: cfg.hub_iface, params: parameters.timing(params),
+				discovery: { fresh: disc.fresh, last_ok: disc.last_ok, url: discovery.redact(cfg.discovery) },
+				peers: peers, unmanaged: unmanaged_entries(), history: history_status(history, deps.clock) };
 		},
 	};
 }
