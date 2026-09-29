@@ -8,7 +8,7 @@ RUN          = $(COMPOSE) --progress quiet run --rm $(if $(CI),-T) openwrt
 IMAGE_STAMP := devenv/.built-$(OPENWRT_ARCH)-$(OPENWRT_VERSION)
 TEST_ARGS    = $(if $(FILTER),-f '$(FILTER)') $(if $(VERBOSE),-v) $(MODULES)
 
-.PHONY: test unit integration watch lint shell image e2e lab-up lab-down lab-shell lab-fault package package-check docs docs-serve
+.PHONY: test unit integration watch lint shell image e2e lab-up lab-down lab-shell lab-fault package package-check docs docs-mike docs-test docs-serve
 
 test:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh all $(TEST_ARGS)
 unit:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh unit $(TEST_ARGS)
@@ -60,4 +60,6 @@ package-check: package
 		$(PKGCHECK_IMAGE) /usr/local/bin/package-check.sh
 
 docs:       ; @$(MAKE) -C docs build
+docs-mike:  ; @$(MAKE) -C docs build-mike
+docs-test:  ; @$(MAKE) -C docs test
 docs-serve: ; @$(MAKE) -C docs serve
