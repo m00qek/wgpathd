@@ -21,7 +21,7 @@ make e2e SCENARIO=kill-direct              # one (or several, space-separated)
 
 | Scenario | Proves |
 | :--- | :--- |
-| `baseline` | both DIRECT, cross-site ping, status/check/discovery/fw4 rules |
+| `baseline` | both DIRECT, cross-site ping, status/check/discovery, the firewall rules the check confirms |
 | `kill-direct` | direct dies → both RELAY, traffic survives via the hub; restore → DIRECT |
 | `mtu-blackhole` | the direct path drops full-size packets only → both RELAY on the full-size tunnel probe, full-size traffic crosses via the hub; restore → DIRECT |
 | `anchor-only` | spoke-b unreachable → both DIRECT (anchor promotes on roams, R2) |

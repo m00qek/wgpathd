@@ -1,5 +1,5 @@
 # The direct path dies: both spokes fall back to the relay floor and site traffic
-# keeps flowing through the hub (relay endpoint, fw4 relay-ingress rule, hub
+# keeps flowing through the hub (relay endpoint, the relay rule of the firewall, hub
 # forwarding); once it returns, both earn DIRECT again.
 
 baseline

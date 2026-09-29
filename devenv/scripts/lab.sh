@@ -1,6 +1,7 @@
 #!/bin/sh
 # The e2e topology left running for a learner (docs/tutorials/first-failover.md):
-# the WireGuard substrate in place, wgpathd installed but disabled on every node.
+# the WireGuard substrate and the firewall rules wgpathd needs in place, wgpathd
+# installed but disabled on every node.
 # usage: lab.sh up | down | shell NODE | fault kill-direct|relay-delay MS|restore
 #
 # The e2e host guard (host-guard.sh) covers the lab's whole life: `up` leaves

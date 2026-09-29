@@ -12,7 +12,7 @@ role=${node%%-*}
 install_package() {
 	apk=$(ls -t /artifacts/wgpathd-*.apk | head -n1)
 	mkdir -p /var/lock /var/run
-	# The postinst's firewall reload has no procd yet and fails; fw4 loads at boot.
+	# The postinst's rpcd reload has no procd yet and fails; rpcd starts at boot.
 	apk add --allow-untrusted --no-network "$apk" >/tmp/wgpathd-install.log 2>&1
 }
 
@@ -125,9 +125,26 @@ wan_rule() { # name proto port [family]
 	echo
 }
 
-# The vpn zone rejects input, so the probe, discovery and relay-ingress accepts
-# come only from the package's fw4 include. ICMPv6 echo is left out of the WAN
-# rule for the same reason.
+# The rules docs/how-to/open-firewall.md has an operator add for wgpathd.
+vpn_rule() { # name proto port-or-icmp-type [family]
+	cat <<-EOF
+		config rule
+		option name '$1'
+		option src 'vpn'
+		option proto '$2'
+	EOF
+	if [ "$2" = icmp ]; then
+		printf "\toption icmp_type '%s'\n" "$3"
+	else
+		printf "\toption dest_port '%s'\n" "$3"
+	fi
+	[ -z "$4" ] || printf "\toption family '%s'\n" "$4"
+	printf "\toption target 'ACCEPT'\n\n"
+}
+
+# The wan and vpn zones reject input: wgpathd's traffic gets in only through the
+# vpn rules above, and the underlay probe through Allow-ICMPv6-Input, as OpenWrt
+# ships it, rate limit included.
 common_firewall() {
 	cat <<-EOF
 		config defaults
@@ -155,11 +172,18 @@ common_firewall() {
 		option src 'wan'
 		option proto 'icmp'
 		option family 'ipv6'
+		list icmp_type 'echo-request'
+		list icmp_type 'echo-reply'
 		list icmp_type 'destination-unreachable'
 		list icmp_type 'packet-too-big'
 		list icmp_type 'time-exceeded'
+		list icmp_type 'bad-header'
+		list icmp_type 'unknown-header-type'
+		list icmp_type 'router-solicitation'
 		list icmp_type 'neighbour-solicitation'
+		list icmp_type 'router-advertisement'
 		list icmp_type 'neighbour-advertisement'
+		option limit '1000/sec'
 		option target 'ACCEPT'
 
 	EOF
@@ -169,6 +193,7 @@ hub_firewall() {
 	common_firewall
 	wan_rule Allow-wg_hub udp "$HUB_WG_PORT"
 	wan_rule Allow-wg_mesh udp "$MESH_PORT" ipv6
+	vpn_rule Allow-wgpathd-discovery tcp "$DISCOVERY_PORT"
 	cat <<-EOF
 		config rule
 		option name 'wg_hub-transit'
@@ -184,6 +209,8 @@ hub_firewall() {
 spoke_firewall() {
 	common_firewall
 	wan_rule Allow-wg_mesh udp "$MESH_PORT" ipv6
+	vpn_rule Allow-wgpathd-tunnel-probe icmp echo-request ipv4
+	vpn_rule Allow-wgpathd-relay udp "$MESH_PORT"
 	cat <<-EOF
 		config zone
 		option name 'lan'
