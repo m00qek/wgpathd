@@ -10,6 +10,7 @@ wgpathd is run and inspected through its init script, `/etc/init.d/wgpathd`, usu
 | `reload` | Applies a changed configuration to the running daemon. See [reload](#reload). |
 | `status` | Prints procd's state and, while running, a readable summary. See [status](#status). |
 | `check` | Validates the configuration and the substrate. See [check](#check). |
+| `migrate` | Moves peer settings left in `/etc/config/network` by releases up to 4 into `/etc/config/wgpathd`. See [migrate](#migrate). |
 | `enable` / `disable` | Adds or removes the boot-time start link, `/etc/rc.d/S95wgpathd`. |
 
 ---
@@ -40,7 +41,7 @@ On `SIGHUP` the daemon reads `/etc/config/wgpathd` and `/etc/config/network` aga
 | Timing parameters | Apply from the next cycle. |
 | `mode` | Applies from the next cycle. Switching to `observe` demotes TRIALING and DIRECT peers to RELAY. |
 | `discovery` | The new URL is fetched on the next cycle. The discovery map already held is kept until then. |
-| A peer's `public_key`, `wgpathd_relay` and `wgpathd_tunnel` all unchanged | The peer keeps its state, counters and switch count. A peer rejected with `relay routes into <mesh_iface>` is guarded again, and becomes managed, starting in RELAY, if its route was fixed. |
+| A peer's `public_key`, `relay` and `tunnel` all unchanged | The peer keeps its state, counters and switch count. A peer rejected with `relay routes into <mesh_iface>` is guarded again, and becomes managed, starting in RELAY, if its route was fixed. |
 | A peer added, or one of those three options changed | The peer is checked like at startup and, if managed, starts in RELAY. |
 | A peer removed | It leaves steering and the status. Its endpoint is left as it is. |
 
@@ -69,7 +70,7 @@ peers:
   spoke_b  SpokeBme  DIRECT  [2001:db8:b::20]:51820  5m ago (trial_ok)  2 switches
   spoke_c  SpokeCme  RELAY   10.10.0.13:51820        no change yet      0 switches
 unmanaged:
-  hub  HubMeshP  missing wgpathd_relay
+  hub  HubMeshP  not configured
 ```
 
 | Line | Content |
@@ -115,15 +116,15 @@ ok    config: spoke, mode observe, 1 steered peer, 2 not steered
 ok    wg_mesh: up, 3 peers
 ok    wg_hub: up, 1 peer
 ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12
-skip  peer hub: not steered (missing wgpathd_relay)
-FAIL  peer spoke_c: not steered (invalid wgpathd_relay)
+skip  peer hub: not steered (not configured)
+FAIL  peer spoke_c: not steered (invalid relay)
 ```
 
 ### Findings
 
 | Level | Line | When |
 | :--- | :--- | :--- |
-| `ok` | `config: spoke, mode <mode>, <n> steered peer(s), <n> not steered` | A valid spoke configuration. "Steered" counts peers with valid annotations, before the route check. |
+| `ok` | `config: spoke, mode <mode>, <n> steered peer(s), <n> not steered` | A valid spoke configuration. "Steered" counts peers with valid settings, before the route check. |
 | `ok` | `config: hub, reads <read_iface>, serves <addr>:<port>` | A valid hub configuration. |
 | `FAIL` | `config: option role must be 'spoke' or 'hub' (is <value>)` | `role` is missing or wrong. `<value>` is `unset` when missing. |
 | `FAIL` | `config: missing option <name>` | A required option is missing or empty. |
@@ -140,6 +141,9 @@ FAIL  peer spoke_c: not steered (invalid wgpathd_relay)
 | `warn` | `config: discovery host <addr> routes via <oif>, not <hub_iface>` | The route to the discovery host does not leave via `hub_iface`, so discovery would stop with the path it goes over. Not checked with `--config`. |
 | `warn` | `config: discovery host <addr>: route lookup failed: <CODE> (<detail>)` | No route to the discovery host. Not checked with `--config`. |
 | `warn` | `config: serve_addr <addr> is no address of a WireGuard interface in /etc/config/network` | On a hub, no `interface` section with `proto 'wireguard'` lists `serve_addr` in its `addresses`. The discovery server then answers on whatever network holds that address, as far as the firewall lets it; see [Firewall rules](firewall.md). Not checked with `--config`. |
+| `warn` | `config: network section <section>: <options> left over from an earlier version, ignored; run service wgpathd migrate or remove it` | The section still has `wgpathd_relay`, `wgpathd_tunnel` or both, which releases up to 4 read and this one does not. `<options>` names them, joined by `and`; with two, the line ends `remove them`. See [How to upgrade from a release that kept peer settings in the network configuration](../how-to/upgrade-peer-settings.md). |
+| `warn` | `peer settings for <key>: no such peer in <mesh_iface>, ignored` | On a spoke, a `peer` section's `public_key` is the key of no `wireguard_<mesh_iface>` section. |
+| `warn` | `peer settings without a public_key: ignored` | On a spoke, a `peer` section has no `public_key`. |
 | `skip` | `ubus unavailable: interfaces not checked` | ubus cannot be reached. The interface lines are left out; the peer lines still appear. |
 | `ok` | `<iface>: up, <n> peer(s)` | The interface is in the `wireguard status` reply. |
 | `FAIL` | `<iface>: <reason>` | `mesh_iface` or `read_iface` is not in the `wireguard status` reply, or the reply cannot be read. |
@@ -148,13 +152,25 @@ FAIL  peer spoke_c: not steered (invalid wgpathd_relay)
 | `FAIL` | `peer <section>: relay routes into <mesh_iface>` | The relay host routes into the mesh. |
 | `warn` | `peer <section>: relay route lookup failed: <CODE> (<detail>) (retried every cycle)` | No route to the relay host yet. |
 | `warn` | `peer <section>: not in <mesh_iface> yet, skipped until it appears` | The peer is managed but not in the kernel's peer table. |
-| `skip` | `peer <section>: not steered (missing <option>)` | The peer has no `wgpathd_relay` or no `wgpathd_tunnel`, such as the hub peer. |
-| `FAIL` | `peer <section>: not steered (invalid <option>)` | A `public_key`, `wgpathd_relay` or `wgpathd_tunnel` is malformed. |
+| `skip` | `peer <section>: not steered (not configured)` | No `peer` section has the peer's key, as for the hub peer. |
+| `FAIL` | `peer <section>: not steered (configured more than once)` | Two or more `peer` sections have the peer's key. |
+| `FAIL` | `peer <section>: not steered (missing <option>)` | The peer's `peer` section has no `relay` or no `tunnel`. |
+| `FAIL` | `peer <section>: not steered (invalid <option>)` | The peer's `public_key` in `/etc/config/network`, or the `relay` or `tunnel` of its `peer` section, is malformed. |
 
-The peer reasons are the ones in [Substrate annotations](substrate.md#managed-and-unmanaged-peers).
+The peer reasons are the ones in [Managed and unmanaged peers](uci-config.md#managed-and-unmanaged-peers).
 
 The same findings, apart from the interface lines, are available over ubus, also for values not saved yet: see [ubus config check](ubus-config-check.md).
 
 ### `--config`
 
-`/usr/libexec/wgpathd/check.uc --config` runs only the configuration findings: the `config:` lines, without the `enabled` warning, ubus or routes. It is what `start` and `reload` run. Any other argument prints `usage: check.uc [--config]` on standard error and exits with `2`.
+`/usr/libexec/wgpathd/check.uc --config` runs only the configuration findings: the `config:` lines, including the options left over in `/etc/config/network`, and the `peer settings` warnings, without the `enabled` warning, ubus, routes or the other peer lines. It is what `start` and `reload` run. Any other argument prints `usage: check.uc [--config]` on standard error and exits with `2`.
+
+## `migrate`
+
+```bash
+service wgpathd migrate
+```
+
+It runs `/usr/libexec/wgpathd/migrate.uc`, the program the package's uci-defaults script runs after an install or upgrade: it moves the options `wgpathd_relay` and `wgpathd_tunnel` of every WireGuard peer section in `/etc/config/network` into the `peer` section with that peer's key in `/etc/config/wgpathd`, keeping any value already there, and commits both files. What it does, step by step, is in [Files and dependencies](files.md#etcuci-defaults50-wgpathd-peers).
+
+Its messages go to syslog, and to standard error when run from a terminal; see [Log messages](log-messages.md#migration). The exit status is `0` when everything was moved or there was nothing to move, and `1` when a step failed, in which case `/etc/config/network` is left as it was. It does not reload the daemon: run `service wgpathd reload` afterwards.

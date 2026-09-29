@@ -1,24 +1,25 @@
-# Substrate Annotations
+# WireGuard Substrate
 
-On a spoke, wgpathd reads its peers from `/etc/config/network`: every section of type `wireguard_<mesh_iface>`, for example `wireguard_wg_mesh`. It reads them at startup and again on every reload (`service wgpathd reload`). wgpathd never writes this file.
-
-netifd ignores the `wgpathd_*` options, so they can sit next to the peer's normal options.
+wgpathd reads the WireGuard setup from `/etc/config/network` and never writes it. It reads it at startup and again on every reload (`service wgpathd reload`). Its own settings, including those of each steered peer, are in `/etc/config/wgpathd`; see [UCI configuration](uci-config.md).
 
 ---
 
-## Options read per peer
+## What wgpathd reads from network
 
-| Option | Required | Format | Description |
-| :--- | :--- | :--- | :--- |
-| `public_key` | Yes | WireGuard public key: 43 base64 characters followed by `=` | Identifies the peer in the kernel, in discovery and in the status output. |
-| `wgpathd_relay` | Yes | Endpoint: `v4:port` or `[v6]:port`, port 1–65535 | The endpoint used on the relay path: the peer's address on the hub tunnel and the peer's `wg_mesh` listen port. Its route must leave via an interface other than `mesh_iface`. |
-| `wgpathd_tunnel` | Yes | IPv4 or IPv6 address, no port | The peer's address inside `wg_mesh`. Target of the tunnel probe. Must be inside the peer's `allowed_ips`. |
+| Read | By | For |
+| :--- | :--- | :--- |
+| The `interface` sections named by `mesh_iface`, `hub_iface` or `read_iface` | Both roles | They must exist; see [Validation order](uci-config.md#validation-order). |
+| Every section of type `wireguard_<mesh_iface>`, for example `wireguard_wg_mesh`: its name and `public_key` | Spoke | The mesh peers. Each is matched by `public_key` to a [`peer` section](uci-config.md#peer-sections) of `/etc/config/wgpathd`, and named by its section name in logs, the status and the check. |
+| The `addresses` of every interface with `proto 'wireguard'` | Hub, `service wgpathd check` only | The warning when `serve_addr` is no address of a WireGuard interface. |
+| The options `wgpathd_relay` and `wgpathd_tunnel` of any section | Both roles | Only to warn that they are left over; see [below](#options-left-over-from-earlier-releases). |
 
-wgpathd does not read `endpoint`, `allowed_ips` or any other option of the peer. A steered peer should have no `endpoint` option; wgpathd sets the endpoint at runtime.
+wgpathd does not read `endpoint`, `allowed_ips`, the keys or any other option of a peer. A steered peer should have no `endpoint` option; wgpathd sets the endpoint at runtime.
 
-Endpoints and addresses are stored in canonical form (lowercase, compressed IPv6), so `[2001:DB8::0001]:51820` and `[2001:db8::1]:51820` are the same.
+The rpcd plugin's [`peers` method](ubus-config-check.md#peers) reads the same peer sections, and returns only their names, public keys and descriptions.
 
 ## Example
+
+A spoke's peer section for spoke-b in `/etc/config/network`, and the `peer` section that makes wgpathd steer it, in `/etc/config/wgpathd`:
 
 ```
 config wireguard_wg_mesh 'spoke_b'
@@ -26,29 +27,20 @@ config wireguard_wg_mesh 'spoke_b'
 	list allowed_ips '10.12.0.0/16'
 	list allowed_ips '10.20.0.12/32'
 	option route_allowed_ips '1'
-	option wgpathd_relay '10.10.0.12:51820'
-	option wgpathd_tunnel '10.20.0.12'
 ```
 
-## Managed and unmanaged peers
+```
+config peer
+	option public_key 'SpokeBmeshPublicKeyExample00000000000000000='
+	option relay      '10.10.0.12:51820'
+	option tunnel     '10.20.0.12'
+```
 
-A peer is **managed** when all three options are present and valid, and the route to its relay address leaves via an interface other than `mesh_iface`. wgpathd steers only managed peers.
+## Options left over from earlier releases
 
-Any other peer is **unmanaged**: wgpathd never touches its endpoint. Unmanaged peers are logged at startup and on reload, reported by `service wgpathd check`, and listed in the `unmanaged` array of [`ubus call wgpathd status`](ubus-status.md). The checks run in this order; the first failure is the reason reported.
+Releases up to 4 kept a peer's settings as the options `wgpathd_relay` and `wgpathd_tunnel` of its section in `/etc/config/network`. They are no longer read. The package moves them into `/etc/config/wgpathd` when it is installed or upgraded; see [How to upgrade from a release that kept peer settings in the network configuration](../how-to/upgrade-peer-settings.md).
 
-| Reason | Cause | Rechecked |
-| :--- | :--- | :--- |
-| `invalid public_key` | `public_key` missing or not a valid key | On reload |
-| `missing wgpathd_relay` | No `wgpathd_relay` option | On reload |
-| `invalid wgpathd_relay` | `wgpathd_relay` is not a valid `v4:port` or `[v6]:port` | On reload |
-| `missing wgpathd_tunnel` | No `wgpathd_tunnel` option | On reload |
-| `invalid wgpathd_tunnel` | `wgpathd_tunnel` is not a valid IP address | On reload |
-| `relay routes into <mesh_iface>` | The route to the relay host leaves via `mesh_iface` | On reload |
-| `relay route lookup failed: <error>` | The route lookup for the relay host failed, for example because `wg_hub` is not up yet | Every cycle |
-
-Every reload reads the annotations again and repeats the route check, so fixing a peer and reloading is enough. A peer waiting on a failed route lookup is also rechecked at the start of every cycle. Either way, a peer whose relay route now leaves via another interface becomes managed, starting in RELAY, and wgpathd logs `relay route found, now managed`. A waiting peer whose route resolves into `mesh_iface` becomes unmanaged with `relay routes into <mesh_iface>`.
-
-The spoke's own `wg_mesh` peer for the hub normally has no annotations, so it is always listed as unmanaged with `missing wgpathd_relay`. That is expected: the hub peer keeps its static endpoint.
+While a section still has either option, the daemon logs `network section <section>: ignoring <options>, left over from an earlier version; run service wgpathd migrate` once at startup, and `service wgpathd check` warns about it.
 
 ## Substrate requirements
 

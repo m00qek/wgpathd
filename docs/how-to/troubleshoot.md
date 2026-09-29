@@ -27,9 +27,11 @@ To watch every message as it happens, including routine detail, stop the service
 
 ## A peer is missing from `peers`
 
-The peer is not managed. Find it under `unmanaged` in the status, or in the `peer` lines of `service wgpathd check`; the reason says why. The reasons are listed in [Substrate annotations](../reference/substrate.md#managed-and-unmanaged-peers).
+The peer is not managed. Find it under `unmanaged` in the status, or in the `peer` lines of `service wgpathd check`; the reason says why. The reasons are listed in [Managed and unmanaged peers](../reference/uci-config.md#managed-and-unmanaged-peers).
 
-- `missing ...` or `invalid ...`: fix the annotation in `/etc/config/network`, then run `service wgpathd reload`.
+- `not configured`: the peer has no `peer` section in `/etc/config/wgpathd`, or its `public_key` there differs from the one in `/etc/config/network`. Add or fix it as in [How to configure a spoke](configure-spoke.md#1-write-the-configuration), then run `service wgpathd reload`. If `service wgpathd check` warns about options left over in `/etc/config/network`, see [How to upgrade from a release that kept peer settings in the network configuration](upgrade-peer-settings.md).
+- `configured more than once`: two `peer` sections have the peer's key. Remove one, then run `service wgpathd reload`.
+- `missing ...` or `invalid ...`: fix the `relay` or `tunnel` of the peer's `peer` section in `/etc/config/wgpathd` (or its `public_key` in `/etc/config/network`), then run `service wgpathd reload`.
 - `relay routes into wg_mesh`: some `wg_mesh` peer's `allowed_ips` covers the relay address. Remove it and make sure the hub's `wg_hub` peer holds the transit range. Check with `ip route get <relay address>`; it must say `dev wg_hub`, and `service wgpathd check` must show the peer as `ok`. Then run `service wgpathd reload`: the reload guards the peer again and logs `peer <section> (<key prefix>): relay route found, now managed`.
 - `relay route lookup failed: ...`: usually `wg_hub` was not up yet. wgpathd retries every cycle and logs `relay route found, now managed` when it succeeds.
 

@@ -15,7 +15,7 @@ tutorials, how-to guides, reference and explanation. Preview with `make docs-ser
 
 ## Layout
 - `src/wgpathd/` — ucode modules (pure `decide` core + `deps`-injected shell).
-- `files/` — OpenWrt package payload (config, procd service, libexec scripts, fw4 include, rpcd plugin).
+- `files/` — OpenWrt package payload (config, procd service, libexec scripts, the uci-defaults migration of peer settings, fw4 include, rpcd plugin).
 - `luci/` — `luci-app-wgpathd`, the LuCI pages (Status → Mesh paths with a Status → Overview
   section, Network → Mesh paths),
   laid out like an openwrt/luci `applications/` directory; packaged alongside the daemon,

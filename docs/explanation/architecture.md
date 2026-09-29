@@ -76,7 +76,7 @@ The init script runs `check.uc --config` before it asks procd for an instance. T
 
 The daemon's own startup is fail-closed:
 
-1. Load and validate `/etc/config/wgpathd` and, on a spoke, the annotated `wg_mesh` peers from `/etc/config/network`.
+1. Load and validate `/etc/config/wgpathd` and, on a spoke, the `wg_mesh` peers from `/etc/config/network`, each matched by public key to its `peer` section in `/etc/config/wgpathd`.
 2. Check the WireGuard interface (`mesh_iface` or `read_iface`) is present in the `wireguard status` reply, so it exists in the kernel, not only in UCI.
 3. On a spoke, run the relay loop guard for each peer, log every unmanaged peer, and load the discovery cache.
 4. Publish the `wgpathd` ubus object; on the hub, also bind the discovery listener.
@@ -106,7 +106,8 @@ If the configuration is invalid by the time the daemon reads it, the daemon logs
 | `relay.uc`, `direct.uc` | The relay loop guard, shared by the daemon and the check, and the guard on direct candidates |
 | `address.uc` | The special-purpose address ranges: where the hub may listen, and which addresses can be a direct path |
 | `check.uc`, `status_view.uc` | `service wgpathd check` and the text of `service wgpathd status` |
-| `rpc.uc`, `candidate.uc` | The `wgpathd.config` ubus object that rpcd serves, and unsaved values laid over the saved configuration |
+| `rpc.uc`, `candidate.uc` | The `wgpathd.config` ubus object that rpcd serves (the check, the mesh peers without their keys, the parameter bounds), and unsaved values laid over the saved configuration |
+| `migrate.uc` | The move of peer settings out of `/etc/config/network`, from releases up to 4 |
 | `publisher.uc` | Hub snapshot and the HTTP request/response mapping and listener |
 | `discovery.uc` | Spoke payload validation and the cache |
 | `config.uc`, `params.uc` | Configuration loading and timing defaults |
@@ -115,7 +116,7 @@ If the configuration is invalid by the time the daemon reads it, the daemon logs
 | `deps.uc`, `components/` | Real I/O: ubus, syslog, rtnl, uclient HTTP, command runner, ICMP prober, clock |
 | `result.uc`, `errors.uc` | The ok/err result type and the [error codes](../reference/error-codes.md) |
 
-Endpoints are compared as plain strings, so every endpoint that enters the core — from the kernel, discovery, the cache or the annotations — is first put in one canonical form (`[v6]:port` or `v4:port`, lowercase and compressed, as `wg` prints it). Without that, the same address written two ways would look like a roam every cycle.
+Endpoints are compared as plain strings, so every endpoint that enters the core — from the kernel, discovery, the cache or the `peer` sections — is first put in one canonical form (`[v6]:port` or `v4:port`, lowercase and compressed, as `wg` prints it). Without that, the same address written two ways would look like a roam every cycle.
 
 ## Further reading
 

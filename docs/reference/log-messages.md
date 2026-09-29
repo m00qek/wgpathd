@@ -49,6 +49,7 @@ In the tables below, `<CODE> (<detail>)` is an [error code](error-codes.md) with
 | :--- | :--- | :--- |
 | err | `invalid configuration: <CODE> (<detail>)` | `/etc/config/wgpathd` failed validation. The daemon exits with status 1. Under the init script this is normally caught before the daemon starts; see [Init script](#init-script). See [UCI configuration](uci-config.md#validation-order). |
 | err | `startup failed: <CODE> (<detail>)` | The interface was not in `wireguard status`, the ubus object could not be published, or the hub listener could not bind. The daemon exits with status 1, and procd starts it again after 5 seconds. |
+| warning | `network section <section>: ignoring <options>, left over from an earlier version; run service wgpathd migrate` | The section of `/etc/config/network` still has `wgpathd_relay`, `wgpathd_tunnel` or both (`<options>`, joined by `and`), which this release does not read. Logged once per section at startup, in both roles, not on reload. See [How to upgrade from a release that kept peer settings in the network configuration](../how-to/upgrade-peer-settings.md). |
 | warning | `unknown mode, running in observe mode value=<mode>` | The spoke's `mode` is neither `steer` nor `observe`. Logged at startup and on every reload. |
 | info | `discovery cache: loaded peers=<n>` | A spoke started with `<n>` peers from the discovery cache in `/var/run/wgpathd/cache.json`. |
 | info | `discovery cache: none usable` | A spoke started without a discovery cache, or with one that failed validation. |
@@ -100,7 +101,7 @@ What a reload applies is listed in [Service commands](service-commands.md#reload
 
 | Level | Message | Meaning |
 | :--- | :--- | :--- |
-| warning | `<peer>: unmanaged reason=<reason>` | A mesh peer will not be steered because of a configuration error: `invalid public_key`, `missing wgpathd_relay`, `invalid wgpathd_relay`, `missing wgpathd_tunnel`, `invalid wgpathd_tunnel`, or `relay routes into <mesh_iface>`. Logged once per peer at startup, when a reload adds or changes the peer, and when a waiting peer's relay route later resolves into `mesh_iface`. See [Substrate annotations](substrate.md#managed-and-unmanaged-peers). |
+| warning | `<peer>: unmanaged reason=<reason>` | A mesh peer will not be steered: `invalid public_key`, `not configured`, `configured more than once`, `missing relay`, `invalid relay`, `missing tunnel`, `invalid tunnel`, or `relay routes into <mesh_iface>`. Logged once per peer at startup, when a reload adds or changes the peer, and when a waiting peer's relay route later resolves into `mesh_iface`. The hub peer, which has no `peer` section, is logged with `not configured`. See [Managed and unmanaged peers](uci-config.md#managed-and-unmanaged-peers). |
 | info | `<peer>: unmanaged reason=relay route lookup failed: <CODE> (<detail>)` | The route lookup for the peer's relay host failed, typically because `wg_hub` is not up yet. It is retried every cycle. |
 | notice | `<peer>: relay route found, now managed` | A peer whose relay route lookup had failed, or that a reload guarded again, now has a route outside `mesh_iface` and is steered from now on. |
 
@@ -179,3 +180,18 @@ Each `failed:` line in this table marks the start of an outage; the matching `re
 `watchdog ping failed` without a recovery usually means procd does not know the service `wgpathd`, for example when the daemon was started by hand or in a container without procd.
 
 A URL in a message shows the scheme, host, port and path only: never the `user:password@` part, the query or the fragment. A value that does not read as `scheme://host[:port]` shows as `(unreadable url)`.
+
+## Migration
+
+`/usr/libexec/wgpathd/migrate.uc`, run by the uci-defaults script `/etc/uci-defaults/50-wgpathd-peers` after an install or upgrade and by `service wgpathd migrate`, logs through the same syslog identifier, `wgpathd`, each message starting with `migrate:`. It logs nothing when there is nothing to move.
+
+```bash
+logread -e 'migrate:'
+```
+
+| Level | Message | Meaning |
+| :--- | :--- | :--- |
+| notice | `migrate: moved the settings of <n> peer(s) from /etc/config/network to /etc/config/wgpathd` | Both files are committed: the `peer` sections hold the settings, and the options are gone from network. |
+| warning | `migrate: network section <section>: kept <option> '<value>' of /etc/config/wgpathd, dropped <legacy option> '<value>'` | The peer's `peer` section already had a different `relay` or `tunnel`. That value is kept; the one from network is removed with the rest. |
+| warning | `migrate: network section <section> has no valid public_key, its options stay` | The section cannot be keyed, so its options are not moved. `service wgpathd check` keeps warning about them. |
+| err | `migrate: failed, /etc/config/network left as it was: MIGRATE_FAILED (<detail>)` | A step failed; the details are listed in [Error codes](error-codes.md#migration). Settings already committed to `/etc/config/wgpathd` stay, and a later run finishes the job. Run from the uci-defaults script, it runs again at the next boot. |

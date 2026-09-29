@@ -8,8 +8,9 @@ How-to guides are recipes. Each one takes you through the steps to reach one spe
 
 Roughly in the order you will need them:
 
-- [Preparing the WireGuard Substrate](prepare-substrate.md) - How to set up `wg_hub`, `wg_mesh`, the peer annotations and the hub's forwarding.
+- [Preparing the WireGuard Substrate](prepare-substrate.md) - How to set up `wg_hub`, `wg_mesh` and the hub's forwarding.
 - [Installing wgpathd](install.md) - How to build, install and upgrade the package.
+- [Upgrading Peer Settings from Earlier Releases](upgrade-peer-settings.md) - How to check, or do by hand, the move of peer settings out of `/etc/config/network`.
 - [Configuring the Hub](configure-hub.md) - How to publish discovery from the hub.
 - [Configuring a Spoke](configure-spoke.md) - How to run a spoke in observe mode and check the relay path.
 - [Moving a Spoke from Observe to Steer](enable-steering.md) - How to let wgpathd move peers to direct paths.

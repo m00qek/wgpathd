@@ -27,7 +27,7 @@ The rules do not follow the UCI configuration. They assume:
 
 | Assumption | Rule | If yours differs |
 | :--- | :--- | :--- |
-| The tunnel probe uses IPv4 | 2 | An IPv6 `wgpathd_tunnel` is covered by rule 1 instead. |
+| The tunnel probe uses IPv4 | 2 | An IPv6 `tunnel` address is covered by rule 1 instead. |
 | The discovery listener uses port `7780` | 3 | Add a rule for your `serve_port`. |
 | `wg_mesh` listens on UDP port `51820` | 4 | Add an equivalent rule for your listen port. |
 

@@ -57,6 +57,7 @@ nav:
       - Operators:
           - Preparing the WireGuard Substrate: how-to/prepare-substrate.md
           - Installing wgpathd: how-to/install.md
+          - Upgrading Peer Settings from Earlier Releases: how-to/upgrade-peer-settings.md
           - Configuring the Hub: how-to/configure-hub.md
           - Configuring a Spoke: how-to/configure-spoke.md
           - Moving a Spoke from Observe to Steer: how-to/enable-steering.md
@@ -78,7 +79,7 @@ nav:
   - Reference:
       - Overview: reference/index.md
       - UCI Configuration: reference/uci-config.md
-      - Substrate Annotations: reference/substrate.md
+      - WireGuard Substrate: reference/substrate.md
       - Timing Parameters: reference/parameters.md
       - Service Commands: reference/service-commands.md
       - ubus Status: reference/ubus-status.md

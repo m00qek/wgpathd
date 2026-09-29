@@ -20,7 +20,7 @@ stateDiagram-v2
     DIRECT --> RELAY: mode set to observe<br/>(observe_mode)
 ```
 
-Every peer starts in RELAY, including after a restart. State is kept in memory only, so a restarted daemon earns direct again from scratch. That takes a few seconds and keeps the design simple. A configuration reload is gentler: it keeps the state of every peer whose annotations did not change (see [Architecture](architecture.md#reload)).
+Every peer starts in RELAY, including after a restart. State is kept in memory only, so a restarted daemon earns direct again from scratch. That takes a few seconds and keeps the design simple. A configuration reload is gentler: it keeps the state of every peer whose settings did not change (see [Architecture](architecture.md#reload)).
 
 Once per cycle (every 3 seconds by default), wgpathd sets the endpoint the current state calls for: the relay endpoint in RELAY, the direct target in TRIALING and DIRECT. It does this every cycle even if nothing changed. `wg set ... endpoint` does not rekey or interrupt the session, so re-asserting is harmless.
 
@@ -90,7 +90,7 @@ The underlay probe keeps running while an address is given up. It is one small p
 
 Giving up applies whether discovery is fresh or not. Candidates never expire, and the cache keeps them through a hub outage on purpose: a remembered address that is still right lets two spokes find each other while the hub is down. Giving up bounds what a remembered address that has gone wrong can cost.
 
-Observe mode never trials, so it never counts a failure. A peer whose address is given up is not `ready`, since steer mode would not trial it. The count and the give-up are kept in memory with the rest of the peer's state: a reload keeps them for every peer whose annotations did not change, and a restart of the daemon forgets them, which is the way to retry at once.
+Observe mode never trials, so it never counts a failure. A peer whose address is given up is not `ready`, since steer mode would not trial it. The count and the give-up are kept in memory with the rest of the peer's state: a reload keeps them for every peer whose settings did not change, and a restart of the daemon forgets them, which is the way to retry at once.
 
 Two spokes can give each other's address up, as when a firewall filters the path in both directions. When one of them retries at the end of its pause and the path works again, its trial's packets reach the other directly, a roam, so the other trials at once and both return to DIRECT together.
 

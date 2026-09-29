@@ -35,7 +35,7 @@ rm -rf /var/run/wgpathd
 
 If `/etc/config/wgpathd` is still there after removal, delete it.
 
-The `wgpathd_relay` and `wgpathd_tunnel` options in `/etc/config/network` are ignored by netifd and can stay. Remove them if you want a clean file.
+wgpathd keeps nothing in `/etc/config/network`. If the router ran a release up to 4 and its settings were never moved, the `wgpathd_relay` and `wgpathd_tunnel` options may still be there: netifd ignores them, so they can stay, or you can remove them for a clean file.
 
 ## Afterwards
 

@@ -156,16 +156,14 @@ network.spoke_b=wireguard_wg_mesh
 network.spoke_b.public_key='uPLXea2jUXzX+M8u+y7heE1IMxUHIpfBW9/ne7ed3Rk='
 network.spoke_b.allowed_ips='10.12.0.0/16' '10.20.0.12/32'
 network.spoke_b.route_allowed_ips='1'
-network.spoke_b.wgpathd_relay='10.10.0.12:51820'
-network.spoke_b.wgpathd_tunnel='10.20.0.12'
 ```
 
-Notice the last two lines. `wgpathd_relay` is how to reach spoke-b through the hub, and `wgpathd_tunnel` is spoke-b's address inside the mesh, which wgpathd pings to prove a path works. They are what makes spoke-b a peer that wgpathd steers ([Substrate annotations](../reference/substrate.md) lists them).
+An ordinary WireGuard peer: a key, the addresses it may use, and no endpoint. wgpathd will set the endpoint. To steer spoke-b, it needs two more things about it: how to reach spoke-b through the hub, its relay endpoint `10.10.0.12:51820`, and spoke-b's address inside the mesh, its tunnel address `10.20.0.12`, which wgpathd pings to prove a path works.
 
-Now the spoke's configuration. We start in observe mode, where wgpathd only watches and reports:
+These go into wgpathd's own configuration, in a `peer` section that names spoke-b by its public key. We start in observe mode, where wgpathd only watches and reports. The heredoc is not quoted, so the shell fills in spoke-b's key from the network configuration:
 
 ```bash
-cat > /etc/config/wgpathd <<'EOF'
+cat > /etc/config/wgpathd <<EOF
 config wgpathd 'main'
 	option enabled    '1'
 	option role       'spoke'
@@ -173,6 +171,11 @@ config wgpathd 'main'
 	option hub_iface  'wg_hub'
 	option discovery  'http://10.10.0.1:7780/peers'
 	option mode       'observe'
+
+config peer
+	option public_key '$(uci get network.spoke_b.public_key)'
+	option relay      '10.10.0.12:51820'
+	option tunnel     '10.20.0.12'
 EOF
 service wgpathd check
 ```
@@ -182,10 +185,10 @@ ok    config: spoke, mode observe, 1 steered peer, 1 not steered
 ok    wg_mesh: up, 2 peers
 ok    wg_hub: up, 1 peer
 ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12
-skip  peer hub: not steered (missing wgpathd_relay)
+skip  peer hub: not steered (not configured)
 ```
 
-spoke-b will be steered; the hub is left alone, since it has no relay annotation. Let's start it:
+spoke-b will be steered; the hub is left alone, since it has no `peer` section ([Peer sections](../reference/uci-config.md#peer-sections) lists the options). Let's start it:
 
 ```bash
 service wgpathd start
@@ -199,7 +202,7 @@ discovery: fresh (last success 3s ago)
 peers:
   spoke_b  uPLXea2j  RELAY  10.10.0.12:51820  no change yet  0 switches
 unmanaged:
-  hub  u8maAxX3  missing wgpathd_relay
+  hub  u8maAxX3  not configured
 ```
 
 spoke-b is in `RELAY`, with its relay address as the endpoint. `discovery: fresh` means spoke-a has fetched the hub's list.
@@ -212,10 +215,10 @@ In another terminal, we log in to spoke-b:
 make lab-shell NODE=spoke-b
 ```
 
-A spoke's `/etc/config/wgpathd` names no peers, so spoke-b gets exactly the same file. We run the same commands as on spoke-a:
+spoke-b gets the same `main` section, and a `peer` section for spoke-a, with spoke-a's key, relay endpoint and tunnel address:
 
 ```bash
-cat > /etc/config/wgpathd <<'EOF'
+cat > /etc/config/wgpathd <<EOF
 config wgpathd 'main'
 	option enabled    '1'
 	option role       'spoke'
@@ -223,6 +226,11 @@ config wgpathd 'main'
 	option hub_iface  'wg_hub'
 	option discovery  'http://10.10.0.1:7780/peers'
 	option mode       'observe'
+
+config peer
+	option public_key '$(uci get network.spoke_a.public_key)'
+	option relay      '10.10.0.11:51820'
+	option tunnel     '10.20.0.11'
 EOF
 service wgpathd check
 service wgpathd start
@@ -235,7 +243,7 @@ The check lists `peer spoke_a` this time, and the status ends like this:
 peers:
   spoke_a  LYDoEcV/  RELAY  10.10.0.11:51820  no change yet  0 switches
 unmanaged:
-  hub  u8maAxX3  missing wgpathd_relay
+  hub  u8maAxX3  not configured
 ```
 
 Both spokes now hold each other on the relay.
@@ -271,7 +279,7 @@ About 15 seconds after the start, a line like the last one here appears:
 
 ```
 Sun Sep 27 16:00:07 2026 daemon.warn procd: failed adding instance cgroup for wgpathd: Operation not permitted
-Sun Sep 27 16:00:07 2026 daemon.warn wgpathd[1329]: peer hub (u8maAxX3): unmanaged reason=missing wgpathd_relay
+Sun Sep 27 16:00:07 2026 daemon.warn wgpathd[1329]: peer hub (u8maAxX3): unmanaged reason=not configured
 Sun Sep 27 16:00:07 2026 daemon.info wgpathd[1329]: discovery cache: none usable
 Sun Sep 27 16:00:07 2026 daemon.notice wgpathd[1329]: started role=spoke mode=observe managed=1 unmanaged=1
 Sun Sep 27 16:00:22 2026 daemon.notice wgpathd[1329]: peer spoke_b (uPLXea2j): ready, steer would trial endpoint=[fd77:e2e0:0:1::12]:51820
@@ -337,7 +345,7 @@ ubus call wgpathd status
 		{
 			"section": "hub",
 			"pubkey": "u8maAxX3TJoR2m/cKuXIdWp9UrsA5JI0AIzUG7rqDgU=",
-			"reason": "missing wgpathd_relay"
+			"reason": "not configured"
 		}
 	],
 	"history": []
@@ -383,7 +391,7 @@ discovery: fresh (last success 23s ago)
 peers:
   spoke_b  uPLXea2j  DIRECT  [fd77:e2e0:0:1::12]:51820  3s ago (trial_ok)  2 switches
 unmanaged:
-  hub  u8maAxX3  missing wgpathd_relay
+  hub  u8maAxX3  not configured
 ```
 
 Let's confirm it with WireGuard itself:
@@ -462,7 +470,7 @@ discovery: fresh (last success 48s ago)
 peers:
   spoke_b  uPLXea2j  RELAY  10.10.0.12:51820  10s ago (demoted)  3 switches
 unmanaged:
-  hub  u8maAxX3  missing wgpathd_relay
+  hub  u8maAxX3  not configured
 ```
 
 ```bash
@@ -528,7 +536,7 @@ discovery: fresh (last success 11s ago)
 peers:
   spoke_b  uPLXea2j  DIRECT  [fd77:e2e0:0:1::12]:51820  2s ago (trial_ok)  5 switches
 unmanaged:
-  hub  u8maAxX3  missing wgpathd_relay
+  hub  u8maAxX3  not configured
 ```
 
 Direct again, with 5 switches counted. spoke-b's status shows `DIRECT` as well.

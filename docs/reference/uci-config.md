@@ -2,9 +2,9 @@
 
 wgpathd reads `/etc/config/wgpathd` at startup and again on every `service wgpathd reload`. Most options apply on reload; `role` and the interface and listener options restart the daemon. The full list is in [Service commands](service-commands.md#reload).
 
-All options live in one section of type `wgpathd` named `main`. Other sections are ignored.
+The service options live in one section of type `wgpathd` named `main`. On a spoke, each mesh peer to steer has a section of type `peer` as well; see [Peer sections](#peer-sections). Sections of other types are ignored.
 
-The per-peer options that wgpathd reads from `/etc/config/network` are listed in [Substrate annotations](substrate.md).
+What wgpathd reads from `/etc/config/network` is listed in [WireGuard substrate](substrate.md).
 
 ---
 
@@ -60,6 +60,51 @@ config wgpathd 'main'
 
 The hub ignores `mode`.
 
+## Peer sections
+
+On a spoke, each mesh peer that wgpathd steers has one section of type `peer`. The section is found by the peer's public key, so it may be anonymous, and it does not follow a rename of the peer's section in `/etc/config/network`. A hub reads no `peer` section.
+
+```
+config peer
+	option public_key 'SpokeBmeshPublicKeyExample00000000000000000='
+	option relay      '10.10.0.12:51820'
+	option tunnel     '10.20.0.12'
+```
+
+| Option | Required | Format | Description |
+| :--- | :--- | :--- | :--- |
+| `public_key` | Yes | WireGuard public key: 43 base64 characters followed by `=` | The key of a peer section of type `wireguard_<mesh_iface>` in `/etc/config/network`. |
+| `relay` | Yes | Endpoint: `v4:port` or `[v6]:port`, port 1–65535 | The endpoint used on the relay path: the peer's address on the hub tunnel and the peer's `wg_mesh` listen port. Its route must leave via an interface other than `mesh_iface`. |
+| `tunnel` | Yes | IPv4 or IPv6 address, no port | The peer's address inside `wg_mesh`. Target of the tunnel probe. Must be inside the peer's `allowed_ips`. |
+
+Endpoints and addresses are used in canonical form (lowercase, compressed IPv6), so `[2001:DB8::0001]:51820` and `[2001:db8::1]:51820` are the same.
+
+A `peer` section whose `public_key` is no peer of `mesh_iface`, or that has no `public_key`, is stale: wgpathd ignores it, and `service wgpathd check` warns about it with `peer settings for <key>: no such peer in <mesh_iface>, ignored` or `peer settings without a public_key: ignored`.
+
+Releases up to 4 kept `relay` and `tunnel` as the options `wgpathd_relay` and `wgpathd_tunnel` of the peer's section in `/etc/config/network`. Those options are no longer read. The package moves them here on upgrade; see [How to upgrade from a release that kept peer settings in the network configuration](../how-to/upgrade-peer-settings.md).
+
+### Managed and unmanaged peers
+
+A mesh peer is **managed** when it has exactly one `peer` section, with a valid `relay` and `tunnel`, and the route to its relay address leaves via an interface other than `mesh_iface`. wgpathd steers only managed peers.
+
+Any other peer of `mesh_iface` is **unmanaged**: wgpathd never touches its endpoint. Unmanaged peers are logged at startup and on reload, reported by `service wgpathd check`, and listed in the `unmanaged` array of [`ubus call wgpathd status`](ubus-status.md). The checks run in this order; the first failure is the reason reported.
+
+| Reason | Cause | Check level | Rechecked |
+| :--- | :--- | :--- | :--- |
+| `invalid public_key` | The peer's `public_key` in `/etc/config/network` is missing or not a valid key | `FAIL` | On reload |
+| `not configured` | No `peer` section has the peer's key | `skip` | On reload |
+| `configured more than once` | Two or more `peer` sections have the peer's key | `FAIL` | On reload |
+| `missing relay` | The `peer` section has no `relay` | `FAIL` | On reload |
+| `invalid relay` | `relay` is not a valid `v4:port` or `[v6]:port` | `FAIL` | On reload |
+| `missing tunnel` | The `peer` section has no `tunnel` | `FAIL` | On reload |
+| `invalid tunnel` | `tunnel` is not a valid IP address | `FAIL` | On reload |
+| `relay routes into <mesh_iface>` | The route to the relay host leaves via `mesh_iface` | `FAIL` | On reload |
+| `relay route lookup failed: <error>` | The route lookup for the relay host failed, for example because `wg_hub` is not up yet | `warn` | Every cycle |
+
+Every reload reads the `peer` sections again and repeats the route check, so fixing a peer and reloading is enough. A peer waiting on a failed route lookup is also rechecked at the start of every cycle. Either way, a peer whose relay route now leaves via another interface becomes managed, starting in RELAY, and wgpathd logs `relay route found, now managed`. A waiting peer whose route resolves into `mesh_iface` becomes unmanaged with `relay routes into <mesh_iface>`.
+
+The spoke's own `wg_mesh` peer for the hub normally has no `peer` section, so it is always listed as unmanaged with `not configured`. That is expected: the hub peer keeps its static endpoint.
+
 ## Timing parameters
 
 Both roles accept the timing parameters as options in the `main` section, for example `option cycle '2'`. Each is optional and overrides one default. The full list, defaults and meanings are in [Timing parameters](parameters.md).
@@ -76,8 +121,8 @@ The configuration is checked in this order, by the daemon at startup and on relo
 4. Every interface option names a `network` section of type `interface` — else `INTERFACE_MISSING` naming the value.
 5. Every timing parameter present is within its bounds, in the order of [Timing parameters](parameters.md), and on a spoke the parameters agree — else `CONFIG_INVALID_OPTION`.
 
-On a spoke, the mesh peers are then loaded. A peer with a problem does not stop startup; it is reported as unmanaged. See [Substrate annotations](substrate.md).
+On a spoke, the mesh peers are then loaded with their `peer` sections. A peer with a problem does not stop startup; it is reported as unmanaged. See [Managed and unmanaged peers](#managed-and-unmanaged-peers).
 
 ## Shipped default
 
-The package installs `/etc/config/wgpathd` with `option enabled '0'` and no other active option. It holds a commented-out example for each role and for a timing override. With it, the service does not start, and `service wgpathd check` fails with `option role must be 'spoke' or 'hub' (is unset)`. It is a conffile: an upgrade keeps your edits.
+The package installs `/etc/config/wgpathd` with `option enabled '0'` and no other active option. It holds a commented-out example for each role, for a timing override and for a `peer` section. With it, the service does not start, and `service wgpathd check` fails with `option role must be 'spoke' or 'hub' (is unset)`. It is a conffile: an upgrade keeps your edits.

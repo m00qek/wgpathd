@@ -17,11 +17,18 @@ These stop startup, fail the config check that `service wgpathd start` and `relo
 | `CONFIG_INVALID_OPTION` | the option's name, then what it must be: `<name> must be …` | An option has a value it cannot take: an interface option that is not a name of letters, digits and `_`, a `discovery` that is not an `http://` URL, a `serve_addr` that is not an address the hub can listen on, a `serve_port` that is not a decimal port number, or a timing parameter out of its bounds or, on a spoke, in conflict with another. |
 | `INTERFACE_MISSING` | interface name | From configuration: an interface option names no `network` section of type `interface`. At startup: the interface is not in the `wireguard status` reply; the detail is `<iface>: <cause>`. |
 
-## Check
+## ubus config object
 
 | Code | Detail | Trigger |
 | :--- | :--- | :--- |
 | `CHECK_INVALID_CANDIDATE` | what is wrong with the candidate | A `candidate` passed to `ubus call wgpathd.config check` does not follow its rules. It is returned as `{ "error": "CHECK_INVALID_CANDIDATE", "message": "<detail>" }` and nothing is checked; see [ubus config check](ubus-config-check.md#malformed-candidate). |
+| `PEERS_INVALID_IFACE` | `iface must name a WireGuard interface of /etc/config/network` | The `iface` passed to `ubus call wgpathd.config peers` is not the name of an `interface` section with `proto 'wireguard'`. It is returned as `{ "error": "PEERS_INVALID_IFACE", "message": "<detail>" }` and no peer is read; see [ubus config check](ubus-config-check.md#peers). |
+
+## Migration
+
+| Code | Detail | Trigger |
+| :--- | :--- | :--- |
+| `MIGRATE_FAILED` | `cannot add a peer to /etc/config/wgpathd: <uci error>`, `cannot set <option> in /etc/config/wgpathd: <uci error>`, `cannot write /etc/config/wgpathd: <uci error>`, `cannot remove <option> from network section <section>: <uci error>`, `cannot write /etc/config/network: <uci error>` | The move of peer settings out of `/etc/config/network` failed; `/etc/config/network` is left as it was. See [How to upgrade from a release that kept peer settings in the network configuration](../how-to/upgrade-peer-settings.md). |
 
 ## Discovery
 

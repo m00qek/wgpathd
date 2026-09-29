@@ -10,7 +10,7 @@ The hub is usually a rented VPS, the most exposed machine in the setup. wgpathd 
 
 - **It cannot read site traffic.** On `wg_mesh` the hub's AllowedIPs for each spoke cover only that spoke's tunnel address, never its site networks. When the hub relays, it forwards `wg_mesh` packets that are still encrypted end to end between the two spokes.
 - **It cannot redirect traffic.** The hub publishes only candidate endpoints. A spoke uses a candidate only after its own tunnel probe gets an answer from the peer, and that answer has to come through a WireGuard session keyed with the peer's static key. An endpoint that leads anywhere else fails the trial, and the peer returns to the relay with a growing backoff.
-- **It cannot move the floor.** The relay endpoint of each peer comes from the spoke's own configuration (`wgpathd_relay`), never from discovery. A spoke with no discovery at all, even at a cold boot with the hub down, can always set every peer to relay.
+- **It cannot move the floor.** The relay endpoint of each peer comes from the spoke's own configuration (the `relay` of its `peer` section), never from discovery. A spoke with no discovery at all, even at a cold boot with the hub down, can always set every peer to relay.
 - **It cannot confuse the parser.** A discovery payload that breaks any limit is rejected as a whole. See [discovery](discovery.md).
 - **It cannot aim the probes inside the router or the tunnels.** A published address that is loopback, link-local, multicast or otherwise no place for a direct path is ignored, and so is one that belongs to the spoke itself, is the peer's relay or tunnel address, or routes into `wg_mesh` or `wg_hub`.
 
@@ -26,10 +26,12 @@ The practical meaning: the worst a wgpathd bug can do is point a mesh peer at a 
 
 Tools in this space often manage the whole overlay: they generate keys, hand out peers and addresses, and create interfaces. wgpathd deliberately does none of that.
 
-- Creating or rewriting interfaces would mean writing `/etc/config/network`. A bug there could take down `wg_hub`, the tunnel you need to fix the bug.
+- Creating or rewriting interfaces would mean writing `/etc/config/network`. A bug there could take down `wg_hub`, the tunnel you need to fix the bug. The daemon never writes it. The one program of the package that does is the migration from releases up to 4, which, after an upgrade, deletes the two options those releases kept on peer sections, `wgpathd_relay` and `wgpathd_tunnel`, and nothing else.
 - Distributing peers or keys through the hub would make the hub a source of identity. Then a compromised hub could add a peer or widen AllowedIPs, and read traffic. Keeping keys and AllowedIPs in static configuration, rendered by you, keeps the hub out of that path entirely.
 
-So wgpathd is a tenant, not a landlord. You own the substrate. wgpathd checks at startup that the interfaces it was told about exist and refuses to run if they do not; `service wgpathd check` runs the same checks on demand. Each mesh peer it would steer must carry valid annotations; a peer that does not is left alone and reported as unmanaged.
+So wgpathd is a tenant, not a landlord. You own the substrate. wgpathd checks at startup that the interfaces it was told about exist and refuses to run if they do not; `service wgpathd check` runs the same checks on demand. Each mesh peer it would steer must have valid settings in wgpathd's own configuration, found by the peer's public key; a peer that does not is left alone and reported as unmanaged.
+
+The same line runs through the LuCI pages. `/etc/config/network` holds the private key of every WireGuard interface on the router, so the `luci-app-wgpathd` ACL grants no access to it at all: a peer's settings live in `/etc/config/wgpathd`, and the pages name the peers through a read-only rpcd method that returns each peer's section name, public key and description, and nothing else. See [Files and dependencies](../reference/files.md#acl).
 
 ## Relay loop guard
 

@@ -20,7 +20,7 @@ wgpathd is for operators who already run WireGuard hub-and-spoke on OpenWrt and 
 Before wgpathd can do anything useful you need:
 
 - **Two WireGuard interfaces on every node, with separate keys.** `wg_hub` is the IPv4 tunnel from each spoke to the hub. It is always up and it carries the relay. `wg_mesh` is the IPv6 mesh whose peer endpoints wgpathd steers.
-- **Endpoint-less mesh peers with annotations.** On each spoke, every other spoke is a `wg_mesh` peer with no `endpoint`, plus two extra UCI options: `wgpathd_relay` (where to send when relaying) and `wgpathd_tunnel` (the peer's address inside the tunnel, used for the health probe).
+- **Endpoint-less mesh peers.** On each spoke, every other spoke is a `wg_mesh` peer with no `endpoint`. For each, wgpathd's own configuration holds two settings, keyed by the peer's public key: its relay endpoint (where to send when relaying) and its tunnel address (the peer's address inside the tunnel, used for the health probe).
 - **A hub that forwards the transit range.** The hub forwards traffic between its `wg_hub` peers, so a spoke can reach another spoke's `wg_hub` address through it.
 - **At least one inbound-reachable IPv6 site.** A pair of spokes goes direct if at least one of them accepts inbound WireGuard over IPv6. If neither does, that pair stays on the relay.
 

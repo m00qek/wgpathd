@@ -76,3 +76,5 @@ Until you configure a role, the answer has `"ok": false` and a finding `config: 
 ## To upgrade
 
 Build and copy the new package, then run `apk add --allow-untrusted` on it as above. Your `/etc/config/wgpathd` is kept, the firewall is reloaded with the new rules, and a running daemon is restarted on the new code. Every peer starts again in RELAY and earns direct within a few cycles.
+
+Releases up to 4 kept each peer's relay endpoint and tunnel address in `/etc/config/network`. An upgrade from one of them moves those settings into `/etc/config/wgpathd` before the daemon restarts; [How to upgrade from a release that kept peer settings in the network configuration](upgrade-peer-settings.md) shows how to check that it did.

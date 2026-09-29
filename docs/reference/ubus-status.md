@@ -101,7 +101,7 @@ The reply depends on the role. Fields that have no value yet are `null`.
 		{
 			"section": "hub",
 			"pubkey": "HubMeshPublicKeyExample00000000000000000000=",
-			"reason": "missing wgpathd_relay"
+			"reason": "not configured"
 		}
 	],
 	"history": [
@@ -186,7 +186,7 @@ Apart from `discovery.last_ok`, these times are kept on the monotonic clock and 
 | `failed_target` | string or null | The direct endpoint whose trials timed out, the last `failed_trials` of them in a row. `null` before any trial timed out, and after a trial commits. |
 | `failed_trials` | integer | Trials in a row that timed out on `failed_target`; `0` when it is `null`. A timeout on another target starts again at `1`. Demotions are not counted. |
 | `given_up` | object or null | Set while `failed_target` is given up: it reached `give_up_after` failed trials, and the underlay echo alone starts no trial toward it. `null` otherwise. See [Giving up an address](../explanation/state-machine.md#giving-up-an-address). |
-| `switches` | integer | Number of state transitions since the daemon started, or since a reload added the peer or changed its annotations. Roam adoptions are not counted. |
+| `switches` | integer | Number of state transitions since the daemon started, or since a reload added the peer or changed its settings. Roam adoptions are not counted. |
 | `relayed_answers` | integer | Tunnel probe answers after which the kernel endpoint was the relay, over the same span as `switches`. It grows while the peer's side is in RELAY and sends traffic, whose packets move the kernel endpoint back onto the relay. Such an answer does not commit a trial but does hold DIRECT, so a count that keeps growing while the peer is DIRECT can mean a direct path that no longer carries traffic. |
 | `last_change` | object or null | The most recent state transition; `null` if none since the peer started being managed. |
 
@@ -236,7 +236,7 @@ The last 20 transitions and roam adoptions of all managed peers, newest first; e
 | :--- | :--- | :--- |
 | `section` | string | The UCI section name of the peer in `/etc/config/network`. Anonymous sections show their generated name, such as `cfg0a8f3c`. |
 | `pubkey` | string or null | The peer's `public_key` as configured; `null` if it has none. |
-| `reason` | string | Why the peer is not managed. See [Substrate annotations](substrate.md#managed-and-unmanaged-peers). |
+| `reason` | string | Why the peer is not managed. See [Managed and unmanaged peers](uci-config.md#managed-and-unmanaged-peers). |
 
 ## Hub reply
 

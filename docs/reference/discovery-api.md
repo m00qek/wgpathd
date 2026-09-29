@@ -96,8 +96,8 @@ Every cycle, before probing, the spoke also refuses a peer's candidate that this
 | Reason | The address is |
 | :--- | :--- |
 | `own address` | an address of this router |
-| `relay address` | the host of the peer's `wgpathd_relay` |
-| `tunnel address` | the peer's `wgpathd_tunnel` |
+| `relay address` | the host of the `relay` in the peer's [`peer` section](uci-config.md#peer-sections) |
+| `tunnel address` | the `tunnel` in the peer's `peer` section |
 | `routes into <iface>` | routed out of `mesh_iface` or `hub_iface`, where a WireGuard endpoint would loop into a tunnel |
 
 A refused candidate is neither probed nor trialed: a peer in RELAY stays there, unless it roams to a direct address by itself. The refusal is logged when it starts or its reason changes, and when it ends, and the peer's status shows it in `candidate_refused`. A candidate whose route cannot be looked up is not refused: its probes fail on their own. The refusal applies to candidates only; an authenticated roam is taken as before.

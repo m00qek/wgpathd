@@ -45,13 +45,15 @@ Reference pages describe the code as it is. When you change an option, parameter
 
 | Code | Reference page |
 | :--- | :--- |
-| `config.uc`, `files/etc/config/wgpathd` | [UCI configuration](../../reference/uci-config.md), [Substrate annotations](../../reference/substrate.md) |
+| `config.uc`, `files/etc/config/wgpathd` | [UCI configuration](../../reference/uci-config.md), [WireGuard substrate](../../reference/substrate.md) |
 | `params.uc` | [Timing parameters](../../reference/parameters.md) |
 | `daemon.uc` status | [ubus status](../../reference/ubus-status.md) |
 | `publisher.uc`, `discovery.uc` | [Discovery HTTP API](../../reference/discovery-api.md) |
 | `deps.log(...)` calls | [Log messages](../../reference/log-messages.md) |
 | `errors.uc` | [Error codes](../../reference/error-codes.md) |
 | `files/etc/init.d/wgpathd`, `check.uc`, `status_view.uc`, daemon reload | [Service commands](../../reference/service-commands.md) |
+| `rpc.uc`, `candidate.uc` | [ubus config check](../../reference/ubus-config-check.md) |
+| `migrate.uc`, `files/etc/uci-defaults/` | [Files and dependencies](../../reference/files.md), [How to upgrade peer settings](../upgrade-peer-settings.md) |
 | `files/`, `openwrt/wgpathd/Makefile` | [Files and dependencies](../../reference/files.md), [Firewall rules](../../reference/firewall.md) |
 | root `Makefile` | [Make targets](../../reference/make-targets.md) |
 | `docs/Makefile`, `devenv/scripts/docs-*.sh`, `.github/workflows/docs.yml`, `mkdocs.mike.yml`, `docs/overrides/`, `devenv/gh-pages/`, `devenv/services/docs/` | [Make targets](../../reference/make-targets.md), [Documentation publishing](../../reference/docs-publishing.md) |

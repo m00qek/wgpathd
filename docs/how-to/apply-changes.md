@@ -1,6 +1,6 @@
 # How to Apply Configuration Changes
 
-wgpathd picks up changes to `/etc/config/wgpathd` and to the peer annotations in `/etc/config/network` on a reload, without losing the state of the peers you did not touch.
+wgpathd picks up changes to `/etc/config/wgpathd`, its `peer` sections included, and to the WireGuard peers in `/etc/config/network` on a reload, without losing the state of the peers you did not touch.
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ uci set wgpathd.main.mode='steer'
 uci commit wgpathd
 ```
 
-If you changed WireGuard peers in `/etc/config/network`, not only their `wgpathd_` options, also apply them to the interface with `service network reload`.
+If you changed WireGuard peers in `/etc/config/network`, also apply them to the interface with `service network reload`.
 
 ## 2. Check it
 
