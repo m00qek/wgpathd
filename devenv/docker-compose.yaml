@@ -9,7 +9,7 @@ x-openwrt-build: &openwrt-build
 
 services:
   openwrt:
-    image: wgpathd-openwrt:${OPENWRT_ARCH}-${OPENWRT_VERSION}
+    image: wgpathd-openwrt:${IMAGE_TAG}
     build: *openwrt-build
     network_mode: none
     init: true

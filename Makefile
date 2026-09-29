@@ -1,11 +1,17 @@
 OPENWRT_ARCH    ?= x86_64
 OPENWRT_VERSION ?= 25.12.5
-PKG_DEPENDS     := $(shell sed -n 's/^[[:space:]]*DEPENDS:=//p' openwrt/wgpathd/Makefile | tr ' ' '\n' | sed 's/^+//' | grep -v '^kmod-')
-export OPENWRT_ARCH OPENWRT_VERSION PKG_DEPENDS
+# The feed packages a package in openwrt/wgpathd/Makefile depends on: not kmods, not its sibling.
+feed_depends = $(shell sed -n '/^define Package\/$(1)$$/,/^endef/s/^[[:space:]]*DEPENDS:=//p' openwrt/wgpathd/Makefile \
+	| tr ' ' '\n' | sed 's/^+//' | grep -v -e '^kmod-' -e '^wgpathd$$')
+PKG_DEPENDS     := $(call feed_depends,wgpathd)
+APP_DEPENDS     := $(call feed_depends,luci-app-wgpathd)
+# Keyed by the image's inputs, so worktrees with different Dockerfiles don't overwrite each other's image.
+IMAGE_TAG       := $(OPENWRT_ARCH)-$(OPENWRT_VERSION)-$(shell { cat devenv/services/openwrt/Dockerfile; echo '$(PKG_DEPENDS)'; } | sha256sum | cut -c1-12)
+export OPENWRT_ARCH OPENWRT_VERSION PKG_DEPENDS IMAGE_TAG
 
 COMPOSE     := docker compose -f devenv/docker-compose.yaml
 RUN          = $(COMPOSE) --progress quiet run --rm $(if $(CI),-T) openwrt
-IMAGE_STAMP := devenv/.built-$(OPENWRT_ARCH)-$(OPENWRT_VERSION)
+IMAGE_STAMP := devenv/.built-$(IMAGE_TAG)
 TEST_ARGS    = $(if $(FILTER),-f '$(FILTER)') $(if $(VERBOSE),-v) $(MODULES)
 
 .PHONY: test unit integration watch lint shell image e2e lab-up lab-down lab-shell lab-fault package package-check docs docs-mike docs-test docs-serve
