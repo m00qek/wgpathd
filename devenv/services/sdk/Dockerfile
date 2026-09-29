@@ -11,8 +11,8 @@ USER buildbot
 WORKDIR /sdk
 
 # feeds.conf.default pins each feed to the release commit. Only the metadata of
-# wgpathd's runtime DEPENDS is needed; nothing from the feeds is compiled.
-RUN ./scripts/feeds update base packages && \
-    ./scripts/feeds install ucode uclient rpcd-mod-wireguard wireguard-tools
+# the packages' runtime DEPENDS is needed; nothing from the feeds is compiled.
+RUN ./scripts/feeds update base packages luci && \
+    ./scripts/feeds install ucode uclient rpcd-mod-wireguard wireguard-tools luci-base
 
 RUN mkdir -p package/wgpathd

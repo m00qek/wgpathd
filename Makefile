@@ -49,6 +49,7 @@ package:
 		-v $(CURDIR)/openwrt/wgpathd/Makefile:$(PKG_DIR)/Makefile:ro \
 		-v $(CURDIR)/src:$(PKG_DIR)/src:ro \
 		-v $(CURDIR)/files:$(PKG_DIR)/files:ro \
+		-v $(CURDIR)/luci:$(PKG_DIR)/luci:ro \
 		-v $(CURDIR)/devenv/services/sdk/build.sh:/usr/local/bin/build.sh:ro \
 		-v $(CURDIR)/bin:/artifacts \
 		$(SDK_IMAGE) /usr/local/bin/build.sh
@@ -59,7 +60,8 @@ PKGCHECK_IMAGE := wgpathd-pkgcheck:$(OPENWRT_ARCH)-$(OPENWRT_VERSION)
 # rules into the container's own, otherwise empty, network namespace.
 package-check: package
 	docker build -q -t $(PKGCHECK_IMAGE) --build-arg OPENWRT_ARCH --build-arg OPENWRT_VERSION \
-		--build-arg PKG_DEPENDS="$(PKG_DEPENDS)" devenv/services/pkgcheck >/dev/null
+		--build-arg PKG_DEPENDS="$(PKG_DEPENDS)" --build-arg APP_DEPENDS="$(APP_DEPENDS)" \
+		devenv/services/pkgcheck >/dev/null
 	docker run --rm $(if $(CI),,-t) --network none --cap-add NET_ADMIN \
 		-v $(CURDIR)/bin:/artifacts:ro \
 		-v $(CURDIR)/devenv/scripts/package-check.sh:/usr/local/bin/package-check.sh:ro \

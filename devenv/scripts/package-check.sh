@@ -1,10 +1,11 @@
 #!/bin/sh
-# Installs the built .apk offline into a rootfs that already carries its
+# Installs the built packages offline into a rootfs that already carries their
 # dependencies, with NET_ADMIN in an otherwise empty network namespace, so fw4
 # can load rules for real. Nothing here boots procd or ubusd.
 set -u
 
 APK=$(ls /artifacts/wgpathd-*.apk 2>/dev/null | head -n1)
+APP=$(ls /artifacts/luci-app-wgpathd-*.apk 2>/dev/null | head -n1)
 failures=0
 exec 3>&1
 
@@ -38,13 +39,39 @@ scripts_parse() {
 }
 
 [ -n "$APK" ] || { echo "no wgpathd-*.apk in /artifacts (run make package)" >&2; exit 1; }
-echo "checking $APK"
+[ -n "$APP" ] || { echo "no luci-app-wgpathd-*.apk in /artifacts (run make package)" >&2; exit 1; }
+echo "checking $APK and $APP"
+
+VIEWS=/www/luci-static/resources/view/wgpathd
+MENU=/usr/share/luci/menu.d/luci-app-wgpathd.json
+ACL=/usr/share/rpcd/acl.d/luci-app-wgpathd.json
+
+apk_version() { apk adbdump "$1" | sed -n 's/^  version: //p'; }
+pins_daemon_version() { apk adbdump "$APP" | grep -qx "    - wgpathd=$(apk_version "$APK")"; }
+
+# No second wgpathd build to install, so the installed one is made to look like another release.
+refuses_other_daemon_release() {
+	cp /lib/apk/db/installed /tmp/installed.db
+	sed -i '/^P:wgpathd$/,/^$/s/^V:.*/V:0.0.0-r0/' /lib/apk/db/installed
+	apk add --allow-untrusted --no-network --simulate "$APP" 2>&1 | grep -q 'breaks: luci-app-wgpathd'
+	refused=$?
+	cp /tmp/installed.db /lib/apk/db/installed
+	return $refused
+}
+
+seed_luci_caches() { mkdir -p /tmp/luci-modulecache && touch /tmp/luci-indexcache.test.json /tmp/luci-modulecache/test; }
+luci_caches_cleared() { [ ! -e /tmp/luci-indexcache.test.json ] && [ ! -e /tmp/luci-modulecache ]; }
+
+json_parses() { ucode -e 'json(require("fs").readfile(ARGV[0]))' "$1"; }
+# LuCI compiles a view as a function body (top-level `return`), so it is parsed the same way.
+view_parses() { qjs --std -e 'new Function(std.loadFile(scriptArgs[0]))' "$1"; }
 
 wgpathd_rules_are() { [ "$(nft list ruleset 2>/dev/null | grep -c 'comment "wgpathd: ')" = "$1" ]; }
 fw4_starts_clean() { fw4 start >/dev/null 2>&1 && wgpathd_rules_are 0; }
 
 # The image build already installed every dependency from the feeds.
-check "dependencies present" apk add --allow-untrusted --no-network --simulate "$APK"
+check "dependencies present" apk add --allow-untrusted --no-network --simulate "$APK" "$APP"
+check "app pins the daemon's version" pins_daemon_version
 # The postinst reloads fw4, which only has a ruleset to reload if it is running.
 check "fw4 loads the base ruleset" fw4_starts_clean
 check "package installs" sh -c 'apk add --allow-untrusted --no-network "$1" >/tmp/install.log 2>&1' - "$APK"
@@ -94,6 +121,26 @@ check "install, upgrade and removal reload fw4" sh -c \
 check "upgrade restarts a running daemon" sh -c \
 	'[ "$(apk adbdump "$1" | grep -c "/etc/init.d/wgpathd restart")" = 2 ]' - "$APK"
 check "package scripts parse" scripts_parse "$APK"
+
+check "app refuses another wgpathd release" refuses_other_daemon_release
+seed_luci_caches
+check "app installs" apk add --allow-untrusted --no-network "$APP"
+check "app install clears the LuCI caches" luci_caches_cleared
+check "app ships only its menu, ACL and views" sh -c \
+	'[ "$(grep -c . /lib/apk/packages/luci-app-wgpathd.list)" = 4 ]'
+for f in "$MENU" "$ACL" "$VIEWS/status.js" "$VIEWS/settings.js"; do
+	check "$f 0644" has_mode 644 "$f"
+done
+check "menu JSON parses" json_parses "$MENU"
+check "ACL JSON parses" json_parses "$ACL"
+check "status view parses" view_parses "$VIEWS/status.js"
+check "settings view parses" view_parses "$VIEWS/settings.js"
+check "app scripts parse" scripts_parse "$APP"
+seed_luci_caches
+check "app removes cleanly and keeps the daemon" sh -c \
+	'apk del luci-app-wgpathd >/dev/null 2>&1 && [ ! -e "$1" ] && [ ! -d "$2" ] && apk info -e wgpathd' - "$MENU" "$VIEWS"
+check "app removal clears the LuCI caches" luci_caches_cleared
+
 check "package removes cleanly" sh -c \
 	'apk del wgpathd >/dev/null 2>&1 && [ ! -e /usr/share/nftables.d/chain-pre/input/wgpathd.nft ]'
 check "removal unloads the wgpathd rules" wgpathd_rules_are 0

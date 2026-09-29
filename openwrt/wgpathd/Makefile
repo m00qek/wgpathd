@@ -59,3 +59,39 @@ define Package/wgpathd/install
 endef
 
 $(eval $(call BuildPackage,wgpathd))
+
+define Package/luci-app-wgpathd
+  SECTION:=luci
+  CATEGORY:=LuCI
+  SUBMENU:=3. Applications
+  TITLE:=LuCI support for wgpathd
+  URL:=https://example.invalid/wgpathd
+  DEPENDS:=+luci-base +wgpathd
+  EXTRA_DEPENDS:=wgpathd (=$(PKG_VERSION)-r$(PKG_RELEASE))
+  PKGARCH:=all
+endef
+
+define Package/luci-app-wgpathd/description
+  LuCI pages for wgpathd: the live path of each mesh peer, and its settings.
+endef
+
+# luci.mk's default postinst, also run on removal: drop LuCI's menu and module caches, reload rpcd for the ACL.
+define Package/luci-app-wgpathd/postinst
+#!/bin/sh
+[ -n "$${IPKG_INSTROOT}" ] || {
+	rm -f /tmp/luci-indexcache.*
+	rm -rf /tmp/luci-modulecache/
+	/etc/init.d/rpcd reload 2>/dev/null
+	exit 0
+}
+endef
+
+Package/luci-app-wgpathd/postrm = $(Package/luci-app-wgpathd/postinst)
+
+define Package/luci-app-wgpathd/install
+	$(INSTALL_DIR) $(1)/www
+	$(CP) ./luci/htdocs/* $(1)/www/
+	$(CP) ./luci/root/* $(1)/
+endef
+
+$(eval $(call BuildPackage,luci-app-wgpathd))
