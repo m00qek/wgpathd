@@ -27,15 +27,10 @@ function is_ready(ctl, ev, params) {
 }
 
 // Relay traffic from the peer roams the kernel back onto the relay, so the probe may
-// have left and come back that way: only an answer that arrived direct proves the path (R4).
-function proven(obs) {
-	return obs.tunnel_ok === true && obs.answered_via != null && obs.answered_via != obs.relay_endpoint;
-}
-
-// A trial commits to its target, so the answer must have come back from it: one from
-// another direct address proves a path, not the one DIRECT would then assert.
+// have left and come back that way. A trial commits to its target, so only an answer
+// that came back from the target proves it (R4).
 function trial_proven(ctl, obs) {
-	return proven(obs) && obs.answered_via == ctl.target;
+	return obs.tunnel_ok === true && obs.answered_via != null && obs.answered_via == ctl.target;
 }
 
 function relay_step(ctl, obs, ev, params, now, steering) {
@@ -54,10 +49,12 @@ function trialing_step(ctl, obs, params, now) {
 	return { ctl: ctl, reason: null };
 }
 
-// Any direct answer holds DIRECT: the kernel now sends to where it came from, and a
-// roam there is adopted below (R2).
+// Any answer holds DIRECT, even one read back on the relay: while the peer still
+// sends through the relay, its packets roam the kernel back after nearly every direct
+// answer, and R4 here would demote a healthy path. A roam to another direct address
+// is adopted below (R2).
 function direct_step(ctl, obs, ev, params, now) {
-	let down = proven(obs) ? 0 : ctl.down_streak + 1;
+	let down = (obs.tunnel_ok === true) ? 0 : ctl.down_streak + 1;
 	if (down >= params.m_down)
 		return { ctl: state.relay(state.bump_backoff(ctl, params, now)), reason: 'demoted' };
 

@@ -425,21 +425,21 @@ describe('decide: DIRECT', () => {
 		assert.match(0, s.cycle({ tunnel_ok: true, answered_via: ROAM2 }).ctl.down_streak);
 	});
 
-	it('an answer that came back over the relay counts as a failed probe (R4)', () => {
+	it('answers read back on the relay still hold DIRECT', () => {
 		let s = sim();
 		to_direct(s);
-		let out = s.cycle({ tunnel_ok: true, answered_via: RELAY_EP });
-		assert.match([ state.DIRECT, 1 ], [ out.ctl.state, out.ctl.down_streak ]);
-		assert.match(0, s.cycle({ tunnel_ok: true }).ctl.down_streak);
+		for (let i = 0; i < P.m_down + 2; i++) {
+			let out = s.cycle({ tunnel_ok: true, answered_via: RELAY_EP });
+			assert.match([ state.DIRECT, 0, CAND ], [ out.ctl.state, out.ctl.down_streak, endpoint(out) ]);
+			assert.match([], logs(out));
+		}
 	});
 
-	it('answers that only ever come over the relay demote after m_down cycles (R4)', () => {
+	it('an answer whose endpoint could not be read still holds DIRECT', () => {
 		let s = sim();
 		to_direct(s);
-		s.cycles(P.m_down - 1, { tunnel_ok: true, answered_via: RELAY_EP });
-		let out = s.cycle({ tunnel_ok: true, answered_via: RELAY_EP });
-		assert.match([ state.RELAY, RELAY_EP, 30 ], [ out.ctl.state, endpoint(out), out.ctl.backoff ]);
-		assert.match([ { event: 'transition', from: state.DIRECT, to: state.RELAY, reason: 'demoted' } ], logs(out));
+		let out = s.cycle({ tunnel_ok: true, answered_via: null });
+		assert.match([ state.DIRECT, 0 ], [ out.ctl.state, out.ctl.down_streak ]);
 	});
 
 	it('demotion wins over a roam seen in the same cycle', () => {
@@ -800,15 +800,12 @@ describe('decide: invariants', () => {
 		}
 	});
 
-	prop('I6: an answer that came back over the relay never commits or holds DIRECT', sequence, (seq, ctx) => {
+	prop('I6: an answer that came back over the relay never commits a trial', sequence, (seq, ctx) => {
 		replay(seq, P, (out, obs, prev) => {
-			if (obs.answered_via != obs.relay_endpoint)
+			if (obs.answered_via != obs.relay_endpoint || prev.state != state.TRIALING)
 				return;
-			ctx.classify(`from ${prev.state}`);
-			if (prev.state == state.TRIALING)
-				assert.match(true, out.ctl.state != state.DIRECT);
-			if (prev.state == state.DIRECT && out.ctl.state == state.DIRECT)
-				assert.match(prev.down_streak + 1, out.ctl.down_streak);
+			ctx.classify(obs.tunnel_ok === true ? 'answered' : 'unanswered');
+			assert.match(true, out.ctl.state != state.DIRECT);
 		});
 	});
 
@@ -821,18 +818,17 @@ describe('decide: invariants', () => {
 		});
 	});
 
-	prop('I8: only a proven answer commits a trial or clears the down streak', sequence, (seq, ctx) => {
-		let direct = (obs) => obs.tunnel_ok === true && obs.answered_via != null && obs.answered_via != obs.relay_endpoint;
+	prop('I8: a trial commits only on an answer from its target; DIRECT holds only on an answer', sequence, (seq, ctx) => {
 		replay(seq, P, (out, obs, prev) => {
 			if (out.ctl.state != state.DIRECT)
 				return;
 			if (prev.state == state.TRIALING) {
 				ctx.classify('trial_ok');
-				assert.match(true, direct(obs) && obs.answered_via == prev.target);
+				assert.match(true, obs.tunnel_ok === true && obs.answered_via == prev.target);
 			}
 			else if (prev.state == state.DIRECT && out.ctl.down_streak == 0) {
 				ctx.classify('held');
-				assert.match(true, direct(obs));
+				assert.match(true, obs.tunnel_ok === true);
 			}
 		});
 	});

@@ -582,7 +582,7 @@ describe('daemon: spoke cycle, applying effects', () => {
 		assert.match('DIRECT', d.status().peers[SPOKE_B].state);
 		w.answer_read_ok = false;
 		cycles(w, d, 3);
-		assert.match(contains({ state: 'DIRECT', down_streak: 2 }), d.status().peers[SPOKE_B], 'the first cycle used the last read answer');
+		assert.match(contains({ state: 'DIRECT', down_streak: 0 }), d.status().peers[SPOKE_B], 'DIRECT holds on any answer');
 	});
 
 	it('judges each answer by a read made after it arrived', () => {
@@ -606,7 +606,7 @@ describe('daemon: spoke cycle, applying effects', () => {
 		w.ubus.deferred = false;
 		w.on_probe = null;
 		cycle(w, d);
-		assert.match([ [ 'DIRECT', 0 ], [ 'DIRECT', 1 ], [ 'DIRECT', 0 ] ], trio_states(d),
+		assert.match([ 0, 1, 0 ], map([ SPOKE_B, SPOKE_A, SPOKE_C ], (k) => d.status().peers[k].relayed_answers),
 			'spoke-a answered over the relay after the first read was made');
 	});
 
