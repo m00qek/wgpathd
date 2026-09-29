@@ -15,7 +15,7 @@ const HUB_MAIN = { '.type': 'wgpathd', role: 'hub', read_iface: 'wg_mesh', serve
 function network(extra) {
 	return {
 		wg_mesh: { '.type': 'interface', proto: 'wireguard' },
-		wg_hub:  { '.type': 'interface', proto: 'wireguard' },
+		wg_hub:  { '.type': 'interface', proto: 'wireguard', addresses: [ '192.0.2.1/24' ] },
 		spoke_b: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_B, wgpathd_relay: '10.10.0.12:51820',
 			wgpathd_tunnel: '10.20.0.12' },
 		hub:  { '.type': 'wireguard_wg_mesh', public_key: HUB },
@@ -62,6 +62,8 @@ describe('check: config only', () => {
 			[ { ...SPOKE, cycle: 'fast' }, 'option cycle must be a positive number' ],
 			[ { ...SPOKE, hub_iface: 'wg_nope' }, 'no interface wg_nope in /etc/config/network' ],
 			[ { ...SPOKE, mesh_iface: '@interface[0]' }, 'option mesh_iface must be an interface name of letters, digits and _' ],
+			[ { ...HUB_MAIN, serve_addr: '0.0.0.0' }, 'option serve_addr must be an IP address of the router, not unspecified or multicast' ],
+			[ { ...HUB_MAIN, serve_port: '0x50' }, 'option serve_port must be a port number from 1 to 65535' ],
 		];
 		for (let c in cases) {
 			let res = run(c[0], null, { config_only: true });
@@ -161,5 +163,30 @@ describe('check: full, hub', () => {
 	it('fails without the read interface', () => {
 		let res = run(HUB_MAIN, null, { status: Result.ok(h.status_reply('wg_hub', {})) });
 		assert.match(false, res.ok);
+	});
+
+	it('warns when serve_addr is no address of a WireGuard interface', () => {
+		let lan = { lan: { '.type': 'interface', proto: 'static', ipaddr: '198.51.100.1', addresses: [ '198.51.100.1/24' ] } };
+		let res = run({ ...HUB_MAIN, serve_addr: '198.51.100.1' }, network(lan));
+		assert.match(true, res.ok);
+		assert.match([ { level: 'warn', subject: 'config', option: 'serve_addr',
+			message: 'config: serve_addr 198.51.100.1 is no address of a WireGuard interface in /etc/config/network' } ],
+			filter(res.findings, (f) => f.option == 'serve_addr'));
+	});
+
+	it('finds serve_addr among the addresses of any WireGuard interface, however they are written', () => {
+		let forms = [
+			{ wg_hub: { '.type': 'interface', proto: 'wireguard', addresses: [ 'fd00:1::1/64', '192.0.2.1/24' ] } },
+			{ wg_hub: { '.type': 'interface', proto: 'wireguard', addresses: '192.0.2.1/24 fd00:1::1/64' } },
+			{ wg_hub: { '.type': 'interface', proto: 'wireguard', addresses: '192.0.2.1' } },
+		];
+		for (let extra in forms)
+			assert.match([], filter(run(HUB_MAIN, network(extra)).findings, (f) => f.level == 'warn'), extra);
+		assert.match([], filter(run({ ...HUB_MAIN, serve_addr: 'FD00:1:0::1' }, network(forms[0])).findings, (f) => f.level == 'warn'));
+	});
+
+	it('leaves serve_addr unwarned in a check of the config alone', () => {
+		let res = run({ ...HUB_MAIN, serve_addr: '198.51.100.1' }, null, { config_only: true });
+		assert.match([ 'ok' ], map(res.findings, (f) => f.level));
 	});
 });

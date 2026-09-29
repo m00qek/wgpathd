@@ -129,9 +129,12 @@ FAIL  peer spoke_c: not steered (invalid wgpathd_relay)
 | `FAIL` | `config: missing option <name>` | A required option is missing or empty. |
 | `FAIL` | `config: no interface <name> in /etc/config/network` | An interface option names no `interface` section. |
 | `FAIL` | `config: option <name> must be an interface name of letters, digits and _` | `mesh_iface`, `hub_iface` or `read_iface` is not a plain section name. |
+| `FAIL` | `config: option serve_addr must be an IP address of the router, not unspecified or multicast` | `serve_addr` is not one literal address a listener can bind, see [UCI configuration](uci-config.md#hub-options). |
+| `FAIL` | `config: option serve_port must be a port number from 1 to 65535` | `serve_port` is not a decimal port number. |
 | `FAIL` | `config: option <name> must be a positive number` | A timing parameter is invalid. |
 | `warn` | `config: unknown mode '<mode>' runs as observe` | `mode` is neither `steer` nor `observe`. |
 | `warn` | `service disabled (option enabled '<value>'): it will not start` | `enabled` is off. |
+| `warn` | `config: serve_addr <addr> is no address of a WireGuard interface in /etc/config/network` | On a hub, no `interface` section with `proto 'wireguard'` lists `serve_addr` in its `addresses`. The discovery server then answers on whatever network holds that address, as far as the firewall lets it; see [Firewall rules](firewall.md). Not checked with `--config`. |
 | `skip` | `ubus unavailable: interfaces not checked` | ubus cannot be reached. The interface lines are left out; the peer lines still appear. |
 | `ok` | `<iface>: up, <n> peer(s)` | The interface is in the `wireguard status` reply. |
 | `FAIL` | `<iface>: <reason>` | `mesh_iface` or `read_iface` is not in the `wireguard status` reply, or the reply cannot be read. |

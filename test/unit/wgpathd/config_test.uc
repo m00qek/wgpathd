@@ -159,6 +159,31 @@ describe('config: hub', () => {
 		assert.match(contains({ ok: false, error: 'INTERFACE_MISSING', details: 'wg_mesh' }),
 			load(HUB_ROLE, { wg_hub: IFACES.wg_hub }));
 	});
+
+	// socket.listen binds a wildcard for 0.0.0.0 and ::, and resolves a name with a blocking DNS lookup.
+	it('refuses a serve_addr that is not one literal address the router can hold', () => {
+		for (let bad in [ '0.0.0.0', '0.1.2.3', '::', 'localhost', 'hub.example.org', '*', '224.0.0.1', 'ff02::1',
+			'255.255.255.255', 'fe80::1', 'fe80::1%wg_hub', ' 10.10.0.1', '10.10.0.1 ', '10.10.0.1/24', '[2001:db8::1]', '010.10.0.1' ])
+			assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION',
+				details: 'serve_addr must be an IP address of the router, not unspecified or multicast' }),
+				load({ ...HUB_ROLE, serve_addr: bad }), bad);
+	});
+
+	it('takes serve_addr in its canonical form', () => {
+		let cases = { '10.10.0.1': '10.10.0.1', '127.0.0.1': '127.0.0.1', '2001:DB8:0:0::1': '2001:db8::1',
+			'fd00:1::1': 'fd00:1::1', '::1': '::1' };
+		for (let given, canonical in cases)
+			assert.match(canonical, load({ ...HUB_ROLE, serve_addr: given }).data.serve_addr, given);
+	});
+
+	// socket.listen reads `0` as any free port, `0x50` as 80 and ` 22 ` as 22.
+	it('refuses a serve_port that is not a decimal port number', () => {
+		for (let bad in [ '0', '00', '0x50', ' 22 ', '22 ', '07780', '65536', '70000', '-1', '80.5', '1e3', 'http' ])
+			assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION', details: 'serve_port must be a port number from 1 to 65535' }),
+				load({ ...HUB_ROLE, serve_port: bad }), bad);
+		for (let good in [ '1', '7780', '65535' ])
+			assert.match(good, load({ ...HUB_ROLE, serve_port: good }).data.serve_port, good);
+	});
 });
 
 describe('config: parameter overrides', () => {

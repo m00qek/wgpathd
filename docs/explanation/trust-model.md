@@ -44,7 +44,9 @@ The package ships its own firewall rules so that the probes and the relay work a
 
 ## Why wgpathd runs as root
 
-Like most OpenWrt services, wgpathd runs as root rather than as a jailed, unprivileged user. It has to hold the network-admin capability to run `wg set`, and that capability alone already lets a process rewrite routes, firewall rules and interfaces, so a jail would protect little that matters. What limits the damage instead is the narrow input surface: the discovery publisher listens only on WireGuard interfaces, and a spoke rejects any discovery payload that is not fully valid.
+Like most OpenWrt services, wgpathd runs as root rather than as a jailed, unprivileged user. It has to hold the network-admin capability to run `wg set`, and that capability alone already lets a process rewrite routes, firewall rules and interfaces, so a jail would protect little that matters. What limits the damage instead is the narrow input surface: a spoke rejects any discovery payload that is not fully valid, and the hub's discovery server answers one fixed request with data that is already public to the mesh.
+
+Where that server can be reached is partly up to you. wgpathd binds it to the one address in `serve_addr` and refuses a wildcard, a host name or a multicast address there, so it never listens on every interface at once. It does not make sure that the address belongs to a WireGuard interface: the configuration says which address, not which interface, and `service wgpathd check` only warns when no WireGuard interface in `/etc/config/network` has it. The shipped firewall rule accepts the port only from WireGuard interfaces, but your zone rules may accept it from elsewhere, for example from LAN when `serve_addr` is a LAN address.
 
 ## Further reading
 

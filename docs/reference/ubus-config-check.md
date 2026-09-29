@@ -21,6 +21,7 @@ Grant it as you would grant reading the configuration. A caller learns from the 
 | :--- | :--- |
 | The `config:` lines, and the loader failure if the configuration does not load | `<iface>: up, <n> peer(s)` and the other interface lines |
 | `service disabled (option enabled '<value>'): it will not start` | `peer <section>: not in <mesh_iface> yet, skipped until it appears` |
+| For a hub, whether `serve_addr` is an address of a WireGuard interface | |
 | For a spoke, one line per peer: the relay route check of each steered peer and the annotation reason of each other one | `ubus unavailable: interfaces not checked` |
 
 The interface lines are left out because rpcd itself serves `wireguard status`, through `rpcd-mod-wireguard`, and cannot answer that call while it waits for it inside the plugin. For those lines, run `service wgpathd check` on the router.
