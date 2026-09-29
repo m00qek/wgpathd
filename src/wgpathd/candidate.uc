@@ -54,7 +54,7 @@ function is_peer_section(uci, name) {
 }
 
 // Returns the changes per package and section: { wgpathd: { main }, network: { <section> } }.
-export function parse(uci, candidate) {
+function parse(uci, candidate) {
 	if (type(candidate) != 'object')
 		return invalid('candidate must be an object');
 	let part = unknown_key(candidate, PARTS);
@@ -81,7 +81,7 @@ export function parse(uci, candidate) {
 		}
 	}
 	return Result.ok(changes);
-};
+}
 
 function apply(section, changes) {
 	let out = { ...section };
@@ -111,8 +111,11 @@ export function overlay(uci, candidate) {
 	};
 
 	return Result.ok({
-		get: (pkg, name, opt) => (opt == null) ? (uci.get(pkg, name) ?? section(pkg, name)?.['.type'])
-			: section(pkg, name)?.[opt],
+		get: function(pkg, name, opt) {
+			if (opt != null)
+				return section(pkg, name)?.[opt];
+			return uci.get(pkg, name) ?? section(pkg, name)?.['.type'];
+		},
 		get_all: section,
 		foreach: (pkg, stype, cb) => uci.foreach(pkg, stype, (s) => cb(apply(s, changed(pkg, s['.name']) ?? {}))),
 	});
