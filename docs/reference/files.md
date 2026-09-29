@@ -72,3 +72,43 @@ The firewall reload is skipped when the package is installed into a firmware ima
 | `kmod-wireguard` | WireGuard in the kernel |
 
 The probes need no command: the daemon sends them itself on raw sockets, which needs root, as procd runs it.
+
+---
+
+## `luci-app-wgpathd`
+
+The LuCI pages for wgpathd are a second package, `luci-app-wgpathd`, built from the same source with the same version and release, architecture `all`, license MIT: `luci-app-wgpathd-0.1.0-r2.apk`. It is optional; the daemon does not need it.
+
+### Installed files
+
+| Path | Mode | Description |
+| :--- | :--- | :--- |
+| `/www/luci-static/resources/view/wgpathd/status.js` | 0644 | The **Status → Mesh paths** page. |
+| `/www/luci-static/resources/view/wgpathd/settings.js` | 0644 | The **Network → Mesh paths** page. |
+| `/usr/share/luci/menu.d/luci-app-wgpathd.json` | 0644 | The two menu entries, `admin/status/wgpathd` and `admin/network/wgpathd`. Each is shown only to a session granted the `luci-app-wgpathd` ACL, and only while `/etc/config/wgpathd` exists. |
+| `/usr/share/rpcd/acl.d/luci-app-wgpathd.json` | 0644 | The `luci-app-wgpathd` ACL; see below. |
+
+### ACL
+
+| Access | Grants |
+| :--- | :--- |
+| read | ubus `wgpathd` `status`; ubus `wgpathd.config` `check`; UCI `wgpathd` and `network` |
+| write | UCI `wgpathd` and `network` |
+
+`network` is included because a peer's wgpathd settings are the `wgpathd_relay` and `wgpathd_tunnel` options of its `wireguard_<mesh_iface>` section; see [Substrate annotations](substrate.md#options-read-per-peer).
+
+### Package scripts
+
+| Script | Effect |
+| :--- | :--- |
+| post-install (install and upgrade) | OpenWrt's default first, then the same as LuCI's own applications: delete LuCI's menu and module caches (`/tmp/luci-indexcache.*`, `/tmp/luci-modulecache/`) so the new menu entries appear, and `/etc/init.d/rpcd reload` so rpcd reads the new ACL. |
+| post-remove | The same cache deletion and `rpcd` reload. |
+
+Both are skipped when the package is installed into a firmware image rather than on a running router.
+
+### Dependencies
+
+| Package | Used for |
+| :--- | :--- |
+| `luci-base` | LuCI itself |
+| `wgpathd`, exactly the same version and release (`wgpathd=0.1.0-r2`) | The ubus objects and the configuration the pages read and write. apk refuses to install the app next to any other wgpathd release, and keeps the daemon while the app is installed. |

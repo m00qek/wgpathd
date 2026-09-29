@@ -12,11 +12,11 @@ All targets run in Docker. Nothing is installed on the host.
 | `unit` | Run the unit suite only. |
 | `integration` | Run the integration suite only. |
 | `watch` | Run all tests, then re-run whenever a file under `src/`, `test/` or `files/` changes. |
-| `lint` | Compile-check every ucode file, `sh -n` every shell script, and check the pinned documentation links with `devenv/scripts/docs-links.sh` (see [Link check](docs-publishing.md#link-check)). |
+| `lint` | Compile-check every ucode file, `sh -n` every shell script, parse every JSON file under `luci/` with ucode and every LuCI view under `luci/` with quickjs (as the function body LuCI compiles it into), and check the pinned documentation links with `devenv/scripts/docs-links.sh` (see [Link check](docs-publishing.md#link-check)). |
 | `shell` | Open a throwaway shell in the development image. |
 | `image` | Rebuild the development image, pulling the base image again. |
-| `package` | Build `bin/wgpathd-<version>-r<release>.apk` in the OpenWrt SDK. |
-| `package-check` | Run `package`, then install the result offline in an OpenWrt rootfs container that already carries its dependencies (no network, `NET_ADMIN` in its own empty namespace) and check files, modes, package scripts, clean failure paths, that fw4 loads and unloads the firewall rules, and removal. |
+| `package` | Build `bin/wgpathd-<version>-r<release>.apk` and `bin/luci-app-wgpathd-<version>-r<release>.apk` in the OpenWrt SDK. |
+| `package-check` | Run `package`, then install both packages offline in an OpenWrt rootfs container that already carries their dependencies (no network, `NET_ADMIN` in its own empty namespace) and check files, modes, package scripts, clean failure paths, that fw4 loads and unloads the firewall rules, the app's pin to the daemon's version, that the app's JSON and views parse and its scripts clear LuCI's caches, and removal. |
 | `e2e` | Run `package`, then the end-to-end failover scenarios against a hub and two spokes in OpenWrt containers (procd as PID 1, kernel WireGuard, fw4), compose project `wgpathd-e2e`, image `wgpathd-e2e:<arch>-<version>`. Refuses to start while another project's containers run, guards the host's Wi-Fi interface for the whole run, and always tears down. Results in `bin/e2e/`. |
 | `lab-up` | Run `package`, then start the e2e topology as compose project `wgpathd-lab` (containers `wgpathd-lab-hub`, `wgpathd-lab-spoke-a`, `wgpathd-lab-spoke-b`) with the WireGuard substrate in place and wgpathd installed but disabled (shipped `/etc/config/wgpathd`, `enabled '0'`) on every node. Returns once the hub has handshakes with both spokes on `wg_hub` and `wg_mesh`. The same host guards as `e2e` apply, and the watchdog keeps running in the background until `lab-down`. Guard logs in `bin/lab/`. |
 | `lab-down` | Stop the lab's watchdog, tear the lab down and print the host report (sysctls, Wi-Fi interface, kernel log). Safe to run when the lab is not up. |
@@ -27,7 +27,7 @@ All targets run in Docker. Nothing is installed on the host.
 | `docs-test` | Test the docs publishing tooling (same as `make -C docs test`). |
 | `docs-serve` | Serve the documentation with live reload (same as `make -C docs serve`). |
 
-`test`, `unit`, `integration`, `watch`, `lint` and `shell` run in the `wgpathd-openwrt:<arch>-<version>` image, which is built on first use from `devenv/services/openwrt/Dockerfile` and rebuilt when that file or `openwrt/wgpathd/Makefile` changes. The container has no network.
+`test`, `unit`, `integration`, `watch`, `lint` and `shell` run in the `wgpathd-openwrt:<arch>-<version>-<hash>` image, which is built on first use from `devenv/services/openwrt/Dockerfile` and rebuilt when that file or `openwrt/wgpathd/Makefile` changes. `<hash>` is taken from the Dockerfile and the daemon's dependencies, so two checkouts that need different images never overwrite each other's; images left behind by older hashes can be removed with `docker image rm`. The container has no network.
 
 ### Variables
 
