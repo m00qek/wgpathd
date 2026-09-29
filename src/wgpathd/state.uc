@@ -29,7 +29,8 @@ export function relay(ctl) {
 		trial_deadline: null, direct_since: null, target: null };
 };
 
-// Starting a trial ends a give-up; the count stays, so the trial failing gives up again.
+// Starting a trial ends a give-up. The count stays, so if the trial is on the same
+// target and fails, the target is given up again at once.
 export function trialing(ctl, target, deadline) {
 	return { ...ctl, state: TRIALING, up_streak: 0, down_streak: 0,
 		trial_deadline: deadline, target: target, given_up_at: null };
