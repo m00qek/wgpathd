@@ -38,6 +38,9 @@
 			"since": 1790456410,
 			"trial_deadline": null,
 			"next_trial": null,
+			"failed_target": null,
+			"failed_trials": 0,
+			"given_up": null,
 			"switches": 3,
 			"relayed_answers": 0,
 			"last_change": {
@@ -62,9 +65,42 @@
 			"since": 1790456410,
 			"trial_deadline": null,
 			"next_trial": null,
+			"failed_target": null,
+			"failed_trials": 0,
+			"given_up": null,
 			"switches": 0,
 			"relayed_answers": 0,
 			"last_change": null
+		},
+		"hQrcvDZE8wGkiQzp3/zDaTL3dY0PfbFTcQ4r3sG1UUk=": {
+			"state": "RELAY",
+			"section": "lab",
+			"up_streak": 9,
+			"down_streak": 0,
+			"backoff": 120,
+			"ready": false,
+			"endpoint": "10.10.0.14:51820",
+			"target": null,
+			"candidate": "[2001:db8:77::1]:51820",
+			"candidate_refused": null,
+			"last_target": "[2001:db8:77::1]:51820",
+			"since": 1790455300,
+			"trial_deadline": null,
+			"next_trial": null,
+			"failed_target": "[2001:db8:77::1]:51820",
+			"failed_trials": 3,
+			"given_up": {
+				"since": 1790455300,
+				"until": 1790476900
+			},
+			"switches": 6,
+			"relayed_answers": 0,
+			"last_change": {
+				"ts": 1790455300,
+				"from": "TRIALING",
+				"to": "RELAY",
+				"reason": "trial_timeout"
+			}
 		}
 	},
 	"unmanaged": [

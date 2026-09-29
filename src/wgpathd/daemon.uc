@@ -126,6 +126,12 @@ function next_trial(ctl, params, now) {
 	return held ? ctl.backoff_until : null;
 }
 
+function given_up_status(ctl, params, wall) {
+	if (ctl.given_up_at == null)
+		return null;
+	return { since: wall(ctl.given_up_at), until: wall(ctl.given_up_at + params.give_up_pause) };
+}
+
 function peer_status(rec, candidate, params, clock) {
 	let wall = wall_clock(clock);
 	let ctl = rec.ctl;
@@ -135,6 +141,8 @@ function peer_status(rec, candidate, params, clock) {
 		since: wall(ctl.last_change?.ts ?? rec.managed_at),
 		trial_deadline: wall(ctl.trial_deadline),
 		next_trial: wall(next_trial(ctl, params, clock.now())),
+		failed_target: ctl.failed_target, failed_trials: ctl.failed_trials,
+		given_up: given_up_status(ctl, params, wall),
 		switches: rec.switches, relayed_answers: rec.relayed_answers, last_change: change };
 }
 
@@ -422,6 +430,11 @@ function create_spoke(deps, cfg, params) {
 				step.probe = e.tunnel_probe;
 			else if (exists(e, 'log'))
 				record_log(rec, e.log, now);
+			else if (exists(e, 'given_up'))
+				log_peer('notice', rec.peer, `direct address given up endpoint=${e.given_up.endpoint} `
+					+ `failed_trials=${e.given_up.failed_trials} pause=${params.give_up_pause}s`);
+			else if (exists(e, 'resumed'))
+				log_peer('notice', rec.peer, `direct address trials resumed reason=${e.resumed.reason} endpoint=${e.resumed.endpoint}`);
 			else if (exists(e, 'metric')) {
 				note_readiness(rec, e.metric, target);
 				rec.metric = e.metric;

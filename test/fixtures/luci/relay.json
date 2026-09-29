@@ -38,6 +38,9 @@
 			"since": 1790456480,
 			"trial_deadline": null,
 			"next_trial": 1790456510,
+			"failed_target": "[2001:db8:90::5]:51820",
+			"failed_trials": 1,
+			"given_up": null,
 			"switches": 1,
 			"relayed_answers": 0,
 			"last_change": {
@@ -62,6 +65,9 @@
 			"since": 1790455900,
 			"trial_deadline": null,
 			"next_trial": null,
+			"failed_target": null,
+			"failed_trials": 0,
+			"given_up": null,
 			"switches": 0,
 			"relayed_answers": 0,
 			"last_change": null
@@ -81,6 +87,9 @@
 			"since": 1790455900,
 			"trial_deadline": null,
 			"next_trial": null,
+			"failed_target": null,
+			"failed_trials": 0,
+			"given_up": null,
 			"switches": 0,
 			"relayed_answers": 0,
 			"last_change": null
@@ -100,6 +109,9 @@
 			"since": 1790455900,
 			"trial_deadline": null,
 			"next_trial": null,
+			"failed_target": null,
+			"failed_trials": 0,
+			"given_up": null,
 			"switches": 0,
 			"relayed_answers": 0,
 			"last_change": null

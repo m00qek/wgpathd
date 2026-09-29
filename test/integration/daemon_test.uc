@@ -939,6 +939,7 @@ describe('daemon: status', () => {
 			discovery: { fresh: false, last_ok: null, url: URL },
 			peers: { [SPOKE_B]: { state: 'RELAY', section: 'spoke_b', endpoint: null, target: null, candidate: null, candidate_refused: null,
 				last_target: null, since: 1790456500, trial_deadline: null, next_trial: null, up_streak: 0, down_streak: 0,
+				failed_target: null, failed_trials: 0, given_up: null,
 				backoff: 0, ready: false, switches: 0, relayed_answers: 0, last_change: null } },
 			unmanaged: [ HUB_UNMANAGED ],
 			history: [],
@@ -952,6 +953,7 @@ describe('daemon: status', () => {
 		cycles(w, d, 2);
 		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, candidate: SPOKE_B_DIRECT, candidate_refused: null,
 			last_target: null, since: 1790456500, trial_deadline: null, next_trial: null, up_streak: 2, down_streak: 0,
+			failed_target: null, failed_trials: 0, given_up: null,
 			backoff: 0, ready: false, switches: 0, relayed_answers: 0, last_change: null }, d.status().peers[SPOKE_B]);
 	});
 
@@ -1057,6 +1059,112 @@ describe('daemon: status history', () => {
 	});
 });
 
+describe('daemon: giving up a direct address', () => {
+	const FAST = { n_up: 1, trial_window: 6, backoff_min: 1, backoff_max: 1, give_up_after: 2, give_up_pause: 60 };
+
+	// spoke-b's direct address answers the echo but not the tunnel probe, until it is given up.
+	function given_up(extra) {
+		let t = failed_trial({ overrides: { ...FAST, ...(extra ?? {}) } });
+		for (let i = 0; i < 20 && t.peer().given_up == null; i++)
+			cycle(t.w, t.d);
+		assert.match('object', type(t.peer().given_up), 'given up');
+		return t;
+	}
+
+	let last_logs = (t, re, n) => slice(t.w.logs.matching(re), -n);
+
+	it('logs the give-up after the timeout that causes it, and shows it in the status', () => {
+		let t = given_up();
+		let at = t.w.clock.wall() - 3;
+		assert.match([
+			[ 'notice', `${B}: transition TRIALING -> RELAY reason=trial_timeout backoff=1s endpoint=${SPOKE_B_RELAY}` ],
+			[ 'notice', `${B}: direct address given up endpoint=${SPOKE_B_DIRECT} failed_trials=2 pause=60s` ],
+		], last_logs(t, /transition|given up/, 2));
+		assert.match(1, length(t.w.logs.matching(/given up/)));
+		assert.match(contains({ state: 'RELAY', endpoint: SPOKE_B_RELAY, last_target: SPOKE_B_DIRECT, failed_target: SPOKE_B_DIRECT,
+			failed_trials: 2, given_up: { since: at, until: at + 60 }, ready: false }), t.peer());
+		assert.match([ 'trial_timeout', 'trial_start' ], map(slice(t.d.status().history, 0, 2), (e) => e.reason),
+			'the give-up is no path change');
+	});
+
+	it('counts a failed trial before it gives the address up', () => {
+		let t = failed_trial({ overrides: FAST });
+		cycles(t.w, t.d, 3);
+		assert.match(contains({ state: 'RELAY', failed_target: SPOKE_B_DIRECT, failed_trials: 1, given_up: null }), t.peer());
+	});
+
+	it('sets only the relay and sends only the underlay probe while the address is given up', () => {
+		let t = given_up();
+		let seen = length(t.w.exec.commands());
+		let probed = length(t.w.icmp.sent);
+		cycles(t.w, t.d, 15);
+		assert.match([ set_all(SPOKE_B, SPOKE_B_RELAY) ], uniq(filter(commands_since(t.w, seen), (c) => index(c, 'wg set') == 0)));
+		assert.match([ '2001:db8::12' ], uniq(probed_since(t.w, probed)));
+		assert.match(contains({ state: 'RELAY', ready: false, up_streak: 15 }), t.peer());
+		assert.match([], t.w.logs.matching(/resumed/));
+	});
+
+	it('tries once more after the pause, and gives the address up again at once when that fails', () => {
+		let t = given_up();
+		t.w.clock.advance(60);
+		cycle(t.w, t.d);
+		assert.match([
+			[ 'notice', `${B}: direct address trials resumed reason=pause_over endpoint=${SPOKE_B_DIRECT}` ],
+			[ 'notice', `${B}: transition RELAY -> TRIALING reason=trial_start endpoint=${SPOKE_B_DIRECT}` ],
+		], last_logs(t, /resumed|transition/, 2));
+		assert.match(contains({ state: 'TRIALING', failed_trials: 2, given_up: null }), t.peer());
+		cycles(t.w, t.d, 2);
+		assert.match([ 'notice', `${B}: direct address given up endpoint=${SPOKE_B_DIRECT} failed_trials=3 pause=60s` ],
+			t.w.logs.entries[-1]);
+	});
+
+	it('trials a roam at once, and says why', () => {
+		let t = given_up();
+		t.w.kernel[SPOKE_B].endpoint = SPOKE_B_ROAMED;
+		cycle(t.w, t.d);
+		assert.match([
+			[ 'notice', `${B}: direct address trials resumed reason=roam endpoint=${SPOKE_B_DIRECT}` ],
+			[ 'notice', `${B}: transition RELAY -> TRIALING reason=trial_start endpoint=${SPOKE_B_ROAMED}` ],
+		], last_logs(t, /resumed|transition/, 2));
+	});
+
+	it('trials another address the hub publishes, and says why', () => {
+		let t = given_up({ give_up_pause: 3600 });
+		t.w.payload = payload({ [SPOKE_B]: SPOKE_B_ROAMED });
+		t.w.reachable['2001:db8::99'] = true;
+		t.w.clock.advance(60);
+		for (let i = 0; i < 3 && t.peer().state == 'RELAY'; i++)
+			cycle(t.w, t.d);
+		assert.match([
+			[ 'notice', `${B}: direct address trials resumed reason=new_candidate endpoint=${SPOKE_B_DIRECT}` ],
+			[ 'notice', `${B}: transition RELAY -> TRIALING reason=trial_start endpoint=${SPOKE_B_ROAMED}` ],
+		], last_logs(t, /resumed|transition/, 2));
+	});
+
+	it('keeps the give-up of a peer a reload keeps, and forgets it for a peer the reload changes', () => {
+		let t = given_up({ give_up_pause: 3600 });
+		let since = t.peer().given_up.since;
+		let cfg = spoke_cfg({ overrides: { ...FAST, give_up_pause: 7200 } });
+		t.d.reload(cfg, params.build(cfg));
+		assert.match(contains({ failed_trials: 2, given_up: { since: since, until: since + 7200 } }), t.peer());
+		cycles(t.w, t.d, 3);
+		assert.match(contains({ state: 'RELAY', ready: false }), t.peer());
+
+		let changed = spoke_cfg({ overrides: FAST, peers: { managed: [ { ...SPOKE_B_PEER, tunnel: '10.20.0.99' } ], unmanaged: [] } });
+		t.d.reload(changed, params.build(changed));
+		assert.match(contains({ failed_target: null, failed_trials: 0, given_up: null }), t.peer());
+	});
+
+	it('does not call a given-up peer ready in observe mode', () => {
+		let t = given_up({ give_up_pause: 3600 });
+		let cfg = spoke_cfg({ mode: 'observe', overrides: { ...FAST, give_up_pause: 3600 } });
+		t.d.reload(cfg, params.build(cfg));
+		cycles(t.w, t.d, 5);
+		assert.match(contains({ state: 'RELAY', ready: false }), t.peer());
+		assert.match([], t.w.logs.matching(/ready/));
+	});
+});
+
 describe('daemon: scenario through the real decide', () => {
 	it('goes RELAY -> TRIALING -> DIRECT, follows a roam, and is demoted back to RELAY', () => {
 		let w = h.world({ [SPOKE_B]: { endpoint: SPOKE_B_RELAY, hs: 1790456000 } },
@@ -1091,6 +1199,7 @@ describe('daemon: scenario through the real decide', () => {
 		cycle(w, d);
 		assert.match({ state: 'RELAY', section: 'spoke_b', endpoint: SPOKE_B_RELAY, target: null, candidate: SPOKE_B_DIRECT, candidate_refused: null,
 			last_target: SPOKE_B_ROAMED, since: demoted_at, trial_deadline: null, next_trial: demoted_at + 30,
+			failed_target: null, failed_trials: 0, given_up: null,
 			up_streak: 0, down_streak: 0, backoff: 30, ready: false, switches: 3, relayed_answers: 0,
 			last_change: { ts: demoted_at, from: 'DIRECT', to: 'RELAY', reason: 'demoted' } }, peer());
 		assert.match(SPOKE_B_RELAY, w.kernel[SPOKE_B].endpoint);
@@ -1398,13 +1507,14 @@ describe('daemon: status fields of the LuCI browser fixtures', () => {
 		return out;
 	}
 
-	// A spoke with every field set: a peer back on the hub after a failed trial, with
-	// its last change and the history, and an unmanaged peer.
+	// A spoke with every field set: a peer back on the hub after a failed trial that
+	// gave its address up, with its last change and the history, and an unmanaged peer.
 	function spoke_reply() {
-		let t = failed_trial();
+		let t = failed_trial({ overrides: { n_up: 1, trial_window: 6, give_up_after: 1 } });
 		cycles(t.w, t.d, 3);
 		let reply = t.d.status();
 		assert.match('object', type(reply.peers[SPOKE_B].last_change));
+		assert.match('object', type(reply.peers[SPOKE_B].given_up));
 		assert.match(true, length(reply.history) > 0 && length(reply.unmanaged) > 0);
 		return reply;
 	}

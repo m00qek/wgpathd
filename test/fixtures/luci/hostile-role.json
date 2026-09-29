@@ -38,6 +38,9 @@
 			"since": 1790448460,
 			"trial_deadline": null,
 			"next_trial": null,
+			"failed_target": null,
+			"failed_trials": 0,
+			"given_up": null,
 			"switches": 1,
 			"relayed_answers": 0,
 			"last_change": {

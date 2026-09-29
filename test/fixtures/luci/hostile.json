@@ -38,6 +38,9 @@
 			"since": 1790456440,
 			"trial_deadline": null,
 			"next_trial": null,
+			"failed_target": null,
+			"failed_trials": 0,
+			"given_up": null,
 			"switches": 0,
 			"relayed_answers": 0,
 			"last_change": {
@@ -62,6 +65,12 @@
 			"since": 1790456440,
 			"trial_deadline": null,
 			"next_trial": null,
+			"failed_target": "<img src=x onerror=window.__xss=1>",
+			"failed_trials": 3,
+			"given_up": {
+				"since": 1790456440,
+				"until": 1790478040
+			},
 			"switches": 0,
 			"relayed_answers": 0,
 			"last_change": {
@@ -86,6 +95,9 @@
 			"since": 1790456440,
 			"trial_deadline": null,
 			"next_trial": null,
+			"failed_target": null,
+			"failed_trials": 0,
+			"given_up": null,
 			"switches": 0,
 			"relayed_answers": 0,
 			"last_change": null
