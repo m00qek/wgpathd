@@ -27,9 +27,7 @@ docs/
 ├── how-to/        # Goal-oriented: substrate, install, configure, steer, troubleshoot
 ├── reference/     # Information-oriented: UCI, ubus status, discovery API, logs, errors
 ├── explanation/   # Understanding-oriented: state machine, discovery, trust model, architecture
-├── overrides/     # Theme override for the versioned site (outdated-version banner)
-├── design.md      # Internal design record (kept as written)
-└── history.md     # Substrate build log (kept as written)
+└── overrides/     # Theme override for the versioned site (outdated-version banner)
 ```
 
 For contribution guidelines, see [how-to/developer/documentation.md](how-to/developer/documentation.md).

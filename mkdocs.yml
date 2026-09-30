@@ -101,6 +101,3 @@ nav:
       - Trust Model: explanation/trust-model.md
       - Architecture: explanation/architecture.md
       - About Versioned Documentation: explanation/versioned-docs.md
-  - Project:
-      - Design Record: design.md
-      - Substrate Build History: history.md

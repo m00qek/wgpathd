@@ -37,7 +37,7 @@ Pick the folder by what the reader is doing, following [Diátaxis](https://diata
 
 Keep one type per page and link to the others instead of mixing them. Add every new page to `nav` in `mkdocs.yml` and to the `index.md` of its folder. Link between pages with relative paths, never with the site's URL, so each published version links to itself.
 
-the design record and the build history are project records. Link to them for deep rationale; do not edit them to match the user docs.
+Design notes and build logs are not kept in the repository. The reasoning a reader needs lives in the explanation pages: when a change rests on a new reason, write it there, in the same change, rather than pointing to a record outside the site. Code and test comments follow the same rule: give the reason in a few words, or point to the explanation page that holds it.
 
 ## Keep it true
 

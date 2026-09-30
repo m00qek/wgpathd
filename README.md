@@ -4,8 +4,8 @@ Hub-and-spoke path selection for a WireGuard mesh: **relay inter-site traffic
 through the hub by default, and upgrade a peer pair to a direct point-to-point
 path whenever at least one peer is reachable on public IPv6.** ucode, OpenWrt-native.
 
-- **Design & rationale:** [the design record](the design record) — the full design doc
-  (requirements, state machine, failure-mode catalog, decision-core seam, e2e harness).
+- **Design & rationale:** the explanation pages in [`docs/explanation/`](docs/explanation/index.md)
+  (direct and relay, state machine, discovery, trust model, architecture).
 - **Reference implementation** for structure/conventions: `../luci-sso`.
 
 ## Documentation
@@ -41,5 +41,3 @@ make pot                       # regenerate the LuCI translation template with o
 `OPENWRT_VERSION` / `OPENWRT_ARCH` select the rootfs (default `25.12.5` / `x86_64`).
 
 Status: **implemented, packaged and end-to-end tested** — unit, integration and a docker failover harness (all fourteen scenarios); not yet deployed.
-Build order (see design §Phases): devenv → decide+utest → shell+integration → e2e (incl. relay floor) → deploy.
-Substrate build log (Phases 0–2): [the build history](the build history).
