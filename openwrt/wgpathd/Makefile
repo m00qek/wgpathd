@@ -12,7 +12,7 @@ define Package/wgpathd
   SECTION:=net
   CATEGORY:=Network
   TITLE:=WireGuard path selection (hub/spoke direct-vs-relay failover)
-  URL:=https://example.invalid/wgpathd
+  URL:=https://m00qek.github.io/wgpathd/0.1/
   DEPENDS:=+ucode +ucode-mod-uloop +ucode-mod-fs +ucode-mod-ubus +ucode-mod-uci +ucode-mod-log +ucode-mod-socket +ucode-mod-rtnl +ucode-mod-uclient +rpcd-mod-wireguard +rpcd-mod-ucode +wireguard-tools +kmod-wireguard
   PKGARCH:=all
 endef
@@ -74,7 +74,7 @@ define Package/luci-app-wgpathd
   CATEGORY:=LuCI
   SUBMENU:=3. Applications
   TITLE:=LuCI support for wgpathd
-  URL:=https://example.invalid/wgpathd
+  URL:=https://m00qek.github.io/wgpathd/0.1/
   DEPENDS:=+luci-base +wgpathd
   EXTRA_DEPENDS:=wgpathd (=$(PKG_VERSION)-r$(PKG_RELEASE))
   PKGARCH:=all

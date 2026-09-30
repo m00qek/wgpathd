@@ -1,5 +1,8 @@
 site_name: wgpathd
 site_description: Direct-or-relay path selection for WireGuard hub-and-spoke on OpenWrt.
+site_url: https://m00qek.github.io/wgpathd/
+repo_url: https://github.com/m00qek/wgpathd
+repo_name: m00qek/wgpathd
 site_dir: bin/site
 
 exclude_docs: |
@@ -95,6 +98,7 @@ nav:
       - Documentation Publishing: reference/docs-publishing.md
   - Explanation:
       - Overview: explanation/index.md
+      - Why wgpathd?: explanation/why.md
       - About wgpathd: explanation/about.md
       - About the Path State Machine: explanation/state-machine.md
       - About Discovery: explanation/discovery.md
