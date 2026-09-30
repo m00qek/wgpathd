@@ -82,7 +82,7 @@ describe('decide: first cycle and cold boot', () => {
 		assert.match(RELAY_EP, sim().cycle({}).ctl.asserted);
 	});
 
-	it('cold boot (R1): stale discovery, empty cache still sets the relay', () => {
+	it('cold boot: stale discovery, empty cache still sets the relay', () => {
 		let out = sim().cycle({ discovery_fresh: false, direct_cand: null, underlay_ok: null });
 		assert.match(RELAY_EP, endpoint(out));
 		assert.match(true, has(out, 'refresh_discovery'));
@@ -161,7 +161,7 @@ describe('decide: RELAY', () => {
 		assert.match(true, of_kind(out.effects, 'metric')[0].ready);
 	});
 
-	it('a roam starts a trial at once, toward the roam source (R4)', () => {
+	it('a roam starts a trial at once, toward the roam source', () => {
 		let s = sim();
 		s.cycle({});
 		let out = s.cycle({ cur_endpoint: ROAM, underlay_ok: false });
@@ -237,7 +237,7 @@ describe('decide: TRIALING', () => {
 		assert.match({ ts: now, from: state.TRIALING, to: state.DIRECT, reason: 'trial_ok' }, out.ctl.last_change);
 	});
 
-	it('an answer that came back over the relay does not commit (R4)', () => {
+	it('an answer that came back over the relay does not commit', () => {
 		let s = sim();
 		to_trialing(s);
 		let out = s.cycle({ tunnel_ok: true, answered_via: RELAY_EP });
@@ -248,7 +248,7 @@ describe('decide: TRIALING', () => {
 		assert.match(state.DIRECT, s.cycle({ tunnel_ok: true }).ctl.state);
 	});
 
-	it('answers that only ever come over the relay time out with backoff (R4)', () => {
+	it('answers that only ever come over the relay time out with backoff', () => {
 		let s = sim();
 		let deadline = to_trialing(s).ctl.trial_deadline;
 		while (s.now < deadline)
@@ -385,7 +385,7 @@ describe('decide: DIRECT', () => {
 		assert.match(state.DIRECT, s.cycle({ tunnel_ok: false }).ctl.state);
 	});
 
-	it('roam in DIRECT (#9): adopts the new source, never the old target', () => {
+	it('roam in DIRECT: adopts the new source, never the old target', () => {
 		let s = sim();
 		to_direct(s);
 		let before = s.ctl.last_change;
@@ -458,7 +458,7 @@ describe('decide: DIRECT', () => {
 	});
 });
 
-describe('decide: backoff (G1)', () => {
+describe('decide: backoff', () => {
 	// One flap: wait out any backoff, earn a trial, commit, then fail m_down probes.
 	function flap(s) {
 		if (s.now < s.ctl.backoff_until)
@@ -509,7 +509,7 @@ describe('decide: backoff (G1)', () => {
 	});
 });
 
-describe('decide: failure-mode catalog', () => {
+describe('decide: failure modes', () => {
 	it('trial false positive: echo ok but the tunnel never answers', () => {
 		let s = sim();
 		let deadline = to_trialing(s).ctl.trial_deadline;
@@ -520,7 +520,7 @@ describe('decide: failure-mode catalog', () => {
 		assert.match(true, out.ctl.backoff_until > s.now);
 	});
 
-	it('no handshake needed (#18): frozen last_hs_ts, tunnel answers → commits and holds', () => {
+	it('no handshake needed: frozen last_hs_ts, tunnel answers → commits and holds', () => {
 		let s = sim();
 		let frozen = T0 - 600;
 		to_trialing(s, { last_hs_ts: frozen });
@@ -529,7 +529,7 @@ describe('decide: failure-mode catalog', () => {
 			assert.match(state.DIRECT, s.cycle({ tunnel_ok: true, last_hs_ts: frozen }).ctl.state);
 	});
 
-	it('unidirectional loss (#10): every trial fails → never committed', () => {
+	it('unidirectional loss: every trial fails → never committed', () => {
 		let s = sim();
 		let trials = 0;
 		for (let i = 0; i < 2000; i++) {
@@ -541,7 +541,7 @@ describe('decide: failure-mode catalog', () => {
 		assert.match(true, trials >= 3);
 	});
 
-	it('anchor (#17): echo fails but an authenticated roam promotes with the roam as target', () => {
+	it('anchor: echo fails but an authenticated roam promotes with the roam as target', () => {
 		let s = sim();
 		s.cycle({ underlay_ok: false });
 		let out = s.cycle({ underlay_ok: false, cur_endpoint: ROAM });
@@ -566,7 +566,7 @@ describe('decide: failure-mode catalog', () => {
 		}
 	});
 
-	it('neither end reachable (#15): parks in RELAY', () => {
+	it('neither end reachable: parks in RELAY', () => {
 		let s = sim();
 		for (let i = 0; i < 100; i++) {
 			let out = s.cycle({ underlay_ok: false });
@@ -574,14 +574,14 @@ describe('decide: failure-mode catalog', () => {
 		}
 	});
 
-	it('lying hub (#5): a bogus candidate fails its trial and backs off', () => {
+	it('lying hub: a bogus candidate fails its trial and backs off', () => {
 		let s = sim();
 		to_trialing(s, { direct_cand: CAND2 });
 		let out = s.cycles(3, { direct_cand: CAND2 });
 		assert.match([ state.RELAY, 30 ], [ out.ctl.state, out.ctl.backoff ]);
 	});
 
-	it('whole hub down, no roam (#2): DIRECT keeps working without discovery', () => {
+	it('whole hub down, no roam: DIRECT keeps working without discovery', () => {
 		let s = sim();
 		to_direct(s);
 		let out = s.cycles(50, { tunnel_ok: true, discovery_fresh: false, direct_cand: null });

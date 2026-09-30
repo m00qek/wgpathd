@@ -1,6 +1,6 @@
 'use strict';
 
-// Spoke side of discovery: R3 payload validation and the tmpfs cache.
+// Spoke side of discovery: payload validation and the tmpfs cache.
 
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';

@@ -1,6 +1,6 @@
-# Only spoke-a is inbound-reachable (the real estate). spoke-b promotes on its
+# Only spoke-a is inbound-reachable, the common case. spoke-b promotes on its
 # underlay echo; spoke-a cannot echo spoke-b and promotes on spoke-b's
-# authenticated roams instead (design R2, catalog #17).
+# authenticated roams instead.
 
 baseline
 unreachable spoke-b

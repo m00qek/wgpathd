@@ -1,6 +1,6 @@
 #!/bin/sh
 # Entrypoint of hub, spoke-a and spoke-b: install the built package, render the
-# node's UCI config (the substrate the design's render layer owns, plus
+# node's UCI config (the WireGuard substrate the operator owns, plus
 # /etc/config/wgpathd outside the lab), then hand over to procd so netifd, fw4,
 # rpcd and the wgpathd service boot for real.
 set -e
@@ -241,7 +241,7 @@ hub_wgpathd() {
 	EOF
 }
 
-# Fast parameters, so a failover completes in seconds (design "Running it"), and the
+# Fast parameters, so a failover completes in seconds, and the
 # other spoke's relay endpoint and tunnel address.
 spoke_wgpathd() {
 	peer=$(other_spoke "$node")

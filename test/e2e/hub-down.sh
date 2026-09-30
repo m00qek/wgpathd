@@ -1,5 +1,5 @@
 # The whole hub goes dark: established direct sessions are peer to peer and
-# survive (catalog #2), and a roamer is still followed without it (#3).
+# survive, and a roamer is still followed without it.
 # The hub is cut off inside its own namespace, not stopped, to spare docker
 # network churn on the host.
 

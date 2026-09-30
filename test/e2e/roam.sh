@@ -1,6 +1,6 @@
 # spoke-b's IPv6 address changes while DIRECT: its next packets reach spoke-a from
-# the new source, spoke-a adopts the authenticated roam (design R2, catalog #9)
-# and both stay or get back to DIRECT.
+# the new source, spoke-a adopts the authenticated roam and both stay or get
+# back to DIRECT.
 
 followed() { follows "$1" && converged; }
 

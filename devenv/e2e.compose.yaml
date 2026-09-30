@@ -1,4 +1,4 @@
-# e2e failover topology (the design record, "E2E test harness"), driven by
+# e2e failover topology (test/e2e/README.md), driven by
 # devenv/scripts/e2e.sh and, as project wgpathd-lab with E2E_LAB=1, by
 # devenv/scripts/lab.sh. Addresses mirror services/e2e/topology.sh.
 #

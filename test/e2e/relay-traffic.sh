@@ -2,7 +2,7 @@
 # (so only spoke-b trials), and spoke-a keeps sending through the relay. Each of
 # its packets roams spoke-b's kernel endpoint back onto the relay, so spoke-b's
 # trial probe can leave and be answered over the relay. Only an answer that came
-# back direct counts (design R4): spoke-b is never committed, its trials time
+# back direct counts: spoke-b is never committed, its trials time
 # out and its backoff grows. The traffic itself keeps crossing the relay, apart
 # from what each failed trial blackholes. spoke-b does not give the address up
 # here: after three failed trials it would stop trialing (direct-filtered shows

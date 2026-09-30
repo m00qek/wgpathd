@@ -339,7 +339,7 @@ function create_spoke(deps, cfg, params) {
 
 	// The kernel is read after the underlay probes, just before deciding. The cycle
 	// re-asserts every endpoint, and a roam that landed while the probes waited
-	// would be overwritten before any cycle had seen it (R2).
+	// would be overwritten before any cycle had seen it.
 	let gather = function(cb) {
 		let underlay = {};
 		probe_all(underlay_probes(), (p, answered, finish) => {
@@ -460,8 +460,9 @@ function create_spoke(deps, cfg, params) {
 		return probes;
 	};
 
-	// The answer moved the kernel endpoint onto the path it came back on: read it
-	// before the peer's next packet can move it again (R4).
+	// The answer moved the kernel endpoint onto the path it came back on, and a trial
+	// commits only on an answer from its target: read it before the peer's next packet
+	// can move it again.
 	let take_answer = function(p, answered, finish) {
 		p.rec.tunnel_ok = answered;
 		if (!answered)
@@ -480,7 +481,7 @@ function create_spoke(deps, cfg, params) {
 	// The probes are chosen before the command runs, and once it returns each costs
 	// only its header, the payload's sum being kept per size: a relayed packet from
 	// the peer roams the endpoint back, and the sooner a probe leaves, the less likely
-	// it is that one has landed first (R4).
+	// it is that one has landed first.
 	let apply = function(steps, done) {
 		let sets = [];
 		for (let s in steps)

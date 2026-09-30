@@ -1,5 +1,5 @@
 #!/bin/sh
-# End-to-end failover suite (the design record, "E2E test harness"). Runs on the
+# End-to-end failover suite (test/e2e/README.md). Runs on the
 # host and drives one long-lived topology through docker.
 # usage: e2e.sh [SCENARIO...]   (default: every scenario, in the order of ALL)
 #

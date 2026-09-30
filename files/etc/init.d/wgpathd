@@ -33,7 +33,7 @@ start_service() {
 	procd_open_instance wgpathd          # instance name used by the watchdog ping
 	procd_set_param command "$LIBEXEC/daemon.uc"
 	procd_set_param respawn 3600 5 0   # fail-safe: respawn -> start-in-RELAY
-	# Design G2: passive watchdog (mode 1), 30 s. The daemon re-arms it at the end
+	# Passive watchdog (mode 1), 30 s. The daemon re-arms it at the end
 	# of each completed cycle via
 	#   ubus call service watchdog '{"name":"wgpathd","instance":"wgpathd"}'
 	# so a HUNG uloop stops pinging and procd restarts it (respawn is set).

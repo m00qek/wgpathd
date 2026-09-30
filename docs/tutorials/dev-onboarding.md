@@ -55,13 +55,13 @@ This time we see test names:
 
 ```
 [test/unit/wgpathd/decide_test.uc] test/unit/wgpathd/decide_test.uc (61 tests)
-  [PASS] anchor (#17): echo fails but an authenticated roam promotes with the roam as target
-  [PASS] lying hub (#5): a bogus candidate fails its trial and backs off
+  [PASS] anchor: echo fails but an authenticated roam promotes with the roam as target
+  [PASS] lying hub: a bogus candidate fails its trial and backs off
   [PASS] trial false positive: echo ok but the tunnel never answers
   ...
 ```
 
-Notice the numbers such as `#17` and `#5`. Each one is a row of the failure-mode catalog in the [design record](../design.md). The tests read like a list of the situations wgpathd must survive. The ones starting with `I1`, `I4` or `I5` are the property tests that use random inputs.
+Notice the names such as `anchor` and `lying hub`. Each one is a situation wgpathd must survive, from [When things fail](../explanation/state-machine.md#when-things-fail), so the tests read like that list. The ones starting with `I1`, `I4` or `I5` are the property tests that use random inputs; each number is an invariant listed in [How the core is tested](../explanation/architecture.md#how-the-core-is-tested).
 
 Now let's run just the tests with "roam" in their name:
 
@@ -137,7 +137,7 @@ Notice the three lines starting with `->`. The shipped configuration names no ro
 
 ## What we did
 
-We ran the full test suite in an OpenWrt container, looked at the decision core's tests and how they map to the design's failure modes, narrowed a run with `MODULES` and `FILTER`, built the `.apk` in the OpenWrt SDK, and proved it installs and fails safely on a clean system.
+We ran the full test suite in an OpenWrt container, looked at the decision core's tests and how they map to the failures wgpathd must survive, narrowed a run with `MODULES` and `FILTER`, built the `.apk` in the OpenWrt SDK, and proved it installs and fails safely on a clean system.
 
 ## Where to go next
 

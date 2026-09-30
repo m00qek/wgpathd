@@ -1,7 +1,7 @@
-# Host safety for the e2e runner and the lab (the design record, "As built"),
-# sourced by both. Nothing starts while another project's containers run, the
-# host's IPv6 sysctls are recorded before and after, and a watchdog tears the
-# stack down as soon as the Wi-Fi interface drops or the kernel log mentions it.
+# Host safety for the e2e runner and the lab, sourced by both. Nothing starts
+# while another project's containers run, the host's IPv6 sysctls are recorded
+# before and after, and a watchdog tears the stack down as soon as the Wi-Fi
+# interface drops or the kernel log mentions it.
 # The caller sets PROJECT (the compose project) and OUT (where the logs go).
 
 export E2E_PROJECT=$PROJECT

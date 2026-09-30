@@ -1,11 +1,12 @@
 'use strict';
 
 // The pure decision core for one peer: decide(ctl, obs, params, now) -> { ctl, effects }.
+// The rules and their reasons: docs/explanation/state-machine.md.
 
 import * as state from 'wgpathd.state';
 import * as fx from 'wgpathd.effects';
 
-// A kernel endpoint we did not set, other than the relay, is an authenticated roam (R2).
+// A kernel endpoint we did not set, other than the relay, is an authenticated roam.
 function derive_roam(ctl, obs) {
 	let cur = obs.cur_endpoint;
 	if (ctl.asserted == null || cur == null || cur == ctl.asserted || cur == obs.relay_endpoint)
@@ -21,7 +22,7 @@ function derive_evidence(ctl, obs) {
 
 // A roam comes from a peer that is itself trialing or DIRECT toward us, and keeps
 // coming only while we answer it directly: a re-asserted relay roams the peer back
-// and fails its probe, so waiting n_up cycles would outlast its trial (R2, R4).
+// and fails its probe, so waiting n_up cycles would outlast its trial.
 function is_ready(ctl, ev, params) {
 	return (ctl.state == state.RELAY && ev.roam != null) || state.is_ready(ctl, params);
 }
@@ -47,7 +48,7 @@ function resume_reason(ctl, ev) {
 
 // Relay traffic from the peer roams the kernel back onto the relay, so the probe may
 // have left and come back that way. A trial commits to its target, so only an answer
-// that came back from the target proves it (R4).
+// that came back from the target proves it.
 function trial_proven(ctl, obs) {
 	return obs.tunnel_ok === true && obs.answered_via != null && obs.answered_via == ctl.target;
 }
@@ -72,8 +73,8 @@ function trialing_step(ctl, obs, params, now) {
 
 // Any answer holds DIRECT, even one read back on the relay: while the peer still
 // sends through the relay, its packets roam the kernel back after nearly every direct
-// answer, and R4 here would demote a healthy path. A roam to another direct address
-// is adopted below (R2).
+// answer, and the trial's rule here would demote a healthy path. A roam to
+// another direct address is adopted below.
 function direct_step(ctl, obs, ev, params, now) {
 	let down = (obs.tunnel_ok === true) ? 0 : ctl.down_streak + 1;
 	if (down >= params.m_down)

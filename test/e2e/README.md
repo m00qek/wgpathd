@@ -2,7 +2,8 @@
 
 Real OpenWrt nodes (procd as PID 1, netifd, fw4, rpcd, logd, kernel WireGuard)
 running the built package, driven from the host with `docker exec`. See
-the design record (E2E test harness) and `docs/how-to/developer/testing.md`.
+`docs/how-to/developer/testing.md`; the failures the scenarios reproduce are
+explained in `docs/explanation/state-machine.md` ("When things fail").
 
 ```bash
 make e2e                                   # every scenario
@@ -24,12 +25,12 @@ make e2e SCENARIO=kill-direct              # one (or several, space-separated)
 | `baseline` | both DIRECT, cross-site ping, status/check/discovery, the firewall rules the check confirms |
 | `kill-direct` | direct dies → both RELAY, traffic survives via the hub; restore → DIRECT |
 | `mtu-blackhole` | the direct path drops full-size packets only → both RELAY on the full-size tunnel probe, full-size traffic crosses via the hub; restore → DIRECT |
-| `anchor-only` | spoke-b unreachable → both DIRECT (anchor promotes on roams, R2) |
-| `anchor-traffic` | spoke-b unreachable, 100–1000 packets/s from either site, both daemons restarted → both still DIRECT (R4) |
-| `relay-traffic` | direct dead, relay traffic from spoke-a → it keeps crossing, spoke-b's answers over the relay are refused (`relayed_answers`), it is never committed, its backoff grows (R4); giving up is off here, so trials go on |
+| `anchor-only` | spoke-b unreachable → both DIRECT (the anchor promotes on roams) |
+| `anchor-traffic` | spoke-b unreachable, 100–1000 packets/s from either site, both daemons restarted → both still DIRECT, only answers from the target commit |
+| `relay-traffic` | direct dead, relay traffic from spoke-a → it keeps crossing, spoke-b's answers over the relay are refused (`relayed_answers`), it is never committed, its backoff grows; giving up is off here, so trials go on |
 | `direct-filtered` | direct UDP filtered, ICMPv6 answers → 3 trial timeouts, the address given up, no more trials and no gaps in relayed traffic; filter lifted → nothing until a new address (spoke-a) and a roam (spoke-b) resume, both DIRECT; again with a short pause → resumed when it is over |
 | `crash` | `kill -9` → procd respawn → RELAY → DIRECT |
-| `hang` | `kill -STOP` → procd watchdog restart (G2) → RELAY → DIRECT |
+| `hang` | `kill -STOP` → procd watchdog restart → RELAY → DIRECT |
 | `neither-reachable` | no anchor → both stay RELAY |
 | `one-way` | direct loss in one direction → never promoted, both give the address up |
 | `roam` | spoke-b changes its v6 → spoke-a follows |

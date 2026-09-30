@@ -1,5 +1,5 @@
 # The daemon hangs without dying: it stops pinging the procd watchdog, procd
-# restarts it (design G2), and it earns DIRECT again.
+# restarts it, and it earns DIRECT again.
 
 baseline
 pid=$(daemon_pid spoke-b)

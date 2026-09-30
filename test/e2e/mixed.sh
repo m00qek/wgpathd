@@ -1,6 +1,6 @@
 # One side DIRECT, the other held in RELAY by a long backoff: the RELAY side's
 # re-assert and the DIRECT side's packets move its endpoint back and forth each
-# cycle, and site traffic loses nothing (design "States & transitions").
+# cycle, and site traffic loses nothing: each side decides only where it sends.
 
 uci_set spoke-b backoff_min 300 backoff_max 300
 # A fresh daemon has no backoff yet, so its demotion sets backoff_min exactly.

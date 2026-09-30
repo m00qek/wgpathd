@@ -1,5 +1,5 @@
 # No anchor: neither spoke accepts unsolicited IPv6, so neither has evidence and
-# both stay on the relay for good (catalog #15), with site traffic intact.
+# both stay on the relay for good, with site traffic intact.
 
 baseline
 unreachable spoke-a

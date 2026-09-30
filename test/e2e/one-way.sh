@@ -1,6 +1,6 @@
 # Direct datagrams get from spoke-b to spoke-a but never back, while ICMPv6 answers
-# both ways: the in-tunnel round trip fails every trial, so neither is promoted
-# (catalog #10). After give_up_after (3) failed trials on the address each spoke
+# both ways: the in-tunnel round trip fails every trial, so neither is promoted.
+# After give_up_after (3) failed trials on the address each spoke
 # gives it up, and once both have, no trial starts again.
 
 baseline

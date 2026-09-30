@@ -1,8 +1,8 @@
 # Only spoke-a is reachable, and steady traffic crosses between the sites while
 # both spokes start over in RELAY. Traffic sent through the relay keeps roaming
 # the other side's kernel back onto it, yet the answer to spoke-b's trial must
-# come back direct (design R4). spoke-a trials on the first authenticated roam
-# (R2), so both still reach DIRECT, with each kernel really on the direct path.
+# come back direct. spoke-a trials on the first authenticated roam, so both
+# still reach DIRECT, with each kernel really on the direct path.
 
 restarted() { pid_changed spoke-a "$pid_a" && pid_changed spoke-b "$pid_b"; }
 
