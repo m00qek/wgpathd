@@ -44,7 +44,7 @@ test.describe('Status → Mesh paths, spoke in steer mode', () => {
 
   test('greys out an unmanaged peer and says why it is not steered', async ({ page }) => {
     const hub = h.peerRow(page, 'hub');
-    await expect(hub.locator('td')).toHaveText([ 'hub', 'Not steered', 'No relay endpoint or tunnel address set' ]);
+    await expect(hub.locator('td')).toHaveText([ 'hub', 'Not steered', 'Reached at the fixed endpoint of its WireGuard settings' ]);
     await expect(hub).toHaveCSS('opacity', '0.6');
   });
 

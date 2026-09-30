@@ -70,7 +70,7 @@ peers:
   spoke_b  SpokeBme  DIRECT  [2001:db8:b::20]:51820  5m ago (trial_ok)  2 switches
   spoke_c  SpokeCme  RELAY   10.10.0.13:51820        no change yet      0 switches
 unmanaged:
-  hub  HubMeshP  not configured
+  hub  HubMeshP  fixed endpoint
 ```
 
 | Line | Content |
@@ -116,7 +116,7 @@ ok    config: spoke, mode observe, 1 steered peer, 2 not steered
 ok    wg_mesh: up, 3 peers
 ok    wg_hub: up, 1 peer
 ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12
-skip  peer hub: not steered (not configured)
+skip  peer hub: not steered (fixed endpoint)
 FAIL  peer spoke_c: not steered (invalid relay)
 ok    firewall: ICMP echo-request (tunnel probe) from wg_mesh (zone vpn): accepted
 warn  firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): no rule accepts it
@@ -173,7 +173,8 @@ A firewall warning that can name the rule to add is followed by it, indented, bo
 | `FAIL` | `peer <section>: relay routes into <mesh_iface>` | The relay host routes into the mesh. |
 | `warn` | `peer <section>: relay route lookup failed: <CODE> (<detail>) (retried every cycle)` | No route to the relay host yet. |
 | `warn` | `peer <section>: not in <mesh_iface> yet, skipped until it appears` | The peer is managed but not in the kernel's peer table. |
-| `skip` | `peer <section>: not steered (not configured)` | No `peer` section has the peer's key, as for the hub peer. |
+| `skip` | `peer <section>: not steered (fixed endpoint)` | No `peer` section has the peer's key, and it has an `endpoint_host` in `/etc/config/network`, as the hub peer does. |
+| `skip` | `peer <section>: not steered (not configured)` | No `peer` section has the peer's key, and it has no `endpoint_host`. |
 | `FAIL` | `peer <section>: not steered (configured more than once)` | Two or more `peer` sections have the peer's key. |
 | `FAIL` | `peer <section>: not steered (missing <option>)` | The peer's `peer` section has no `relay` or no `tunnel`. |
 | `FAIL` | `peer <section>: not steered (invalid <option>)` | The peer's `public_key` in `/etc/config/network`, or the `relay` or `tunnel` of its `peer` section, is malformed. |

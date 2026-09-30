@@ -5,7 +5,7 @@ The package registers the ubus object `wgpathd.config` with three read-only meth
 | Method | Answers |
 | :--- | :--- |
 | [`check`](#check) | The configuration check of [`service wgpathd check`](service-commands.md#check), for the saved configuration or for values that are not saved yet. |
-| [`peers`](#peers) | The WireGuard interfaces, and the name, public key and description of each peer of one of them. |
+| [`peers`](#peers) | The WireGuard interfaces, and the name, public key and description of each peer of one of them, and whether it has a fixed endpoint. |
 | [`schema`](#schema) | Every timing parameter with its default and bounds. |
 
 ```bash
@@ -17,7 +17,7 @@ ubus call wgpathd.config schema
 
 None of them changes anything. rpcd serves the object through the plugin `/usr/share/rpcd/ucode/wgpathd.uc`, so it answers whether or not the daemon runs, is enabled or has a valid configuration. rpcd loads the plugin when it starts or reloads; the package reloads rpcd when it is installed, upgraded or removed. The plugin reads the configuration afresh on every call.
 
-Who may call it is up to rpcd's ACLs. The `wgpathd` package ships none; `luci-app-wgpathd` grants all three methods to its pages (see [Files and dependencies](files.md#acl)). Grant them as you would grant reading the configuration. A caller learns from the replies what the router holds: the WireGuard interfaces, the section names, public keys and descriptions of their peers, which peers have settings, through the relay and discovery route checks, whether the router would reach any address the caller puts in a candidate's `relay` or `discovery`, and by which interface, and, through the firewall lines, the firewall zones of the interfaces wgpathd uses and whether the firewall accepts wgpathd's traffic. It learns no private or preshared key, endpoint or allowed IP from `/etc/config/network`, and nothing else of `/etc/config/firewall`. The plugin reads both files itself, as root inside rpcd, so a caller needs no access to either.
+Who may call it is up to rpcd's ACLs. The `wgpathd` package ships none; `luci-app-wgpathd` grants all three methods to its pages (see [Files and dependencies](files.md#acl)). Grant them as you would grant reading the configuration. A caller learns from the replies what the router holds: the WireGuard interfaces, the section names, public keys and descriptions of their peers, which of them have a fixed endpoint, which peers have settings, through the relay and discovery route checks, whether the router would reach any address the caller puts in a candidate's `relay` or `discovery`, and by which interface, and, through the firewall lines, the firewall zones of the interfaces wgpathd uses and whether the firewall accepts wgpathd's traffic. It learns no private or preshared key, endpoint or allowed IP from `/etc/config/network`, and nothing else of `/etc/config/firewall`. The plugin reads both files itself, as root inside rpcd, so a caller needs no access to either.
 
 ---
 
@@ -199,7 +199,7 @@ An `iface` that is not the plain name of a WireGuard interface, the empty string
 	"interfaces": [ "wg_hub", "wg_mesh" ],
 	"peers": [
 		{ "section": "spoke_b", "public_key": "O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=", "description": "beach" },
-		{ "section": "hub", "public_key": "W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=" }
+		{ "section": "hub", "public_key": "W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=", "fixed_endpoint": true }
 	]
 }
 ```
@@ -212,6 +212,7 @@ An `iface` that is not the plain name of a WireGuard interface, the empty string
 | `peers[].section` | string | The section name; for an anonymous section, the id UCI gave it, such as `cfg09cdcd`. |
 | `peers[].public_key` | string or null | The peer's `public_key` as written, or `null` when it has none. |
 | `peers[].description` | string | The peer's `description`, when it has one. |
+| `peers[].fixed_endpoint` | boolean | `true` when the peer has a non-empty `endpoint_host`, as the hub peer does; absent otherwise. The endpoint itself is not given. wgpathd leaves such a peer alone unless it has a [`peer` section](uci-config.md#managed-and-unmanaged-peers). |
 
 Nothing else of a peer or an interface is returned: no private or preshared key, endpoint, allowed IP, listen port or address.
 

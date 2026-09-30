@@ -212,7 +212,9 @@ function withinBounds(value, p) {
 
 // The peers of the mesh interface, one row each, with the relay endpoint and tunnel
 // address of the `peer` section of their public key. A row cleared of both has no
-// section; every section of a key a row changes is changed alike.
+// section; every section of a key a row changes is changed alike. A peer with a fixed
+// endpoint and no section, such as the hub, shows no fields until it is chosen to be
+// steered: another spoke may have one too, as a roamer gives an anchor its stable address.
 const PeerTable = form.Value.extend({
 	__name__: 'CBI.WgpathdPeers',
 
@@ -266,8 +268,14 @@ const PeerTable = form.Value.extend({
 			])
 		];
 
+		const fixed = this.peers.some((peer) => peer.fixed_endpoint === true);
+
 		return E([], [
 			this.iface ? E('p', {}, wgpathd.fill(_('The peers of %s.'), this.iface)) : E([], []),
+			fixed ? E('p', {}, [
+				_('Peers with a fixed endpoint in their WireGuard settings, such as the hub, keep that endpoint and are not steered.'), ' ',
+				_('Steer one only if it is another spoke: wgpathd then sets its endpoint instead.')
+			]) : E([], []),
 			E('table', { 'class': 'table' }, [
 				E('tr', { 'class': 'tr table-titles' }, headers.map((h) => E('th', { 'class': 'th' }, [ h ])))
 			].concat(body))
@@ -295,7 +303,7 @@ const PeerTable = form.Value.extend({
 			input.addEventListener('input', () => this.showSteered(row));
 			return widget;
 		};
-		const row = { key: usable ? key : null, peer: peer, steered: steered };
+		const row = { key: usable ? key : null, peer: peer, steered: steered, fixed: peer.fixed_endpoint === true };
 
 		row.relay = field('relay', _('address:port'), 'ipaddrport(1)', headers[2]);
 		row.tunnel = field('tunnel', _('address'), 'ipaddr(1)', headers[3]);
@@ -305,22 +313,47 @@ const PeerTable = form.Value.extend({
 		if (peer.description)
 			name.push(E('br'), E('small', {}, [ peer.description ]));
 
+		const settings = [
+			E('td', { 'class': 'td', 'data-title': headers[2] }, [ row.relay.node ]),
+			E('td', { 'class': 'td', 'data-title': headers[3] }, [ row.tunnel.node ])
+		];
+
 		row.node = E('tr', { 'class': 'tr cbi-rowstyle-' + (1 + i % 2), 'data-key': usable ? key : null }, [
 			E('td', { 'class': 'td', 'data-title': headers[0] }, name),
 			E('td', { 'class': 'td', 'data-title': headers[1] }, usable
 				? [ E('code', {}, [ key.substring(0, 8) + '…' ]) ]
 				: [ E('em', {}, [ _('No valid public key') ]) ]),
-			E('td', { 'class': 'td', 'data-title': headers[2] }, [ row.relay.node ]),
-			E('td', { 'class': 'td', 'data-title': headers[3] }, [ row.tunnel.node ]),
+			...((row.fixed && !lookup(this.saved, key)) ? [ this.renderFixed(row, settings) ] : settings),
 			E('td', { 'class': 'td', 'data-title': headers[4] }, [ steered ])
 		]);
 
 		return row;
 	},
 
+	renderFixed(row, settings) {
+		const cell = E('td', { 'class': 'td', 'colspan': '2', 'data-title': _('Endpoint') }, [
+			E('em', {}, [ _('Fixed endpoint') ]), ' ',
+			E('button', {
+				'class': 'cbi-button cbi-button-neutral',
+				'type': 'button',
+				'disabled': (row.key == null || this.map.readonly) ? '' : null,
+				'click': () => {
+					cell.replaceWith(...settings);
+					settings[0].querySelector('input').focus();
+				}
+			}, [ _('Steer this peer') ])
+		]);
+
+		return cell;
+	},
+
 	showSteered(row) {
 		const set = row.relay.getValue() !== '' && row.tunnel.getValue() !== '';
-		dom.content(row.steered, [ set ? _('Yes') : _('No') ]);
+		const words = row.fixed
+			? (set ? _('Yes, in place of its fixed endpoint') : _('No, it keeps its fixed endpoint'))
+			: (set ? _('Yes') : _('No'));
+
+		dom.content(row.steered, [ words ]);
 	},
 
 	// A finding marks a field until its value changes.

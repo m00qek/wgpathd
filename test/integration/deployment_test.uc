@@ -37,16 +37,19 @@ function other_spoke(name) {
 	return (name == 'spoke_a') ? SPOKES.spoke_b : SPOKES.spoke_a;
 }
 
-// A spoke's network: its two tunnels, the other spoke, and the hub as a mesh peer.
+// A spoke's network: its two tunnels, the other spoke, and the hub as a mesh peer with a
+// fixed endpoint. spoke_b, the roamer, gives spoke_a, the anchor, its stable address as
+// a fixed endpoint too, and steers it all the same.
 function spoke_network(name) {
 	let self = SPOKES[name];
 	let other = (name == 'spoke_a') ? 'spoke_b' : 'spoke_a';
+	let anchor = (name == 'spoke_b') ? { endpoint_host: '2001:db8:a::1', endpoint_port: '51820' } : {};
 	return {
 		wg_mesh: { '.type': 'interface', proto: 'wireguard', listen_port: '51820', addresses: [ `${self.tunnel}/24` ] },
 		[self.hub_iface]: { '.type': 'interface', proto: 'wireguard', addresses: [ `${self.relay}/24` ] },
 		wgmesh_hub: { '.type': 'wireguard_wg_mesh', public_key: HUB, endpoint_host: '2001:db8:4b::1',
 			endpoint_port: '51820' },
-		[`wgmesh_${other}`]: { '.type': 'wireguard_wg_mesh', public_key: SPOKES[other].key },
+		[`wgmesh_${other}`]: { '.type': 'wireguard_wg_mesh', public_key: SPOKES[other].key, ...anchor },
 	};
 }
 
@@ -134,6 +137,7 @@ describe('deployment: service wgpathd check', () => {
 				let peer = (name == 'spoke_a') ? 'wgmesh_spoke_b' : 'wgmesh_spoke_a';
 				assert.match(`ok    peer ${peer}: relay ${other.relay}:51820 via ${self.hub_iface}, probes ${other.tunnel}`,
 					split(res.report, '\n')[3], name);
+				assert.match('skip  peer wgmesh_hub: not steered (fixed endpoint)', split(res.report, '\n')[4], name);
 				assert.match(`ok    firewall: UDP port 51820 (relayed WireGuard) from ${self.hub_iface} (zone mgmt): accepted`,
 					split(res.report, '\n')[6], name);
 			}
@@ -197,7 +201,8 @@ describe('deployment: the daemon', () => {
 		let other = other_spoke(name);
 		let loaded = config.load({ uci: cursor() });
 		assert.match(true, loaded.ok, name);
-		let w = h.world({ [other.key]: { endpoint: null, hs: 0 }, [HUB]: { endpoint: '[2001:db8:4b::1]:51820', hs: 0 } });
+		let fixed = (name == 'spoke_b') ? DIRECT[other.key] : null;
+		let w = h.world({ [other.key]: { endpoint: fixed, hs: 0 }, [HUB]: { endpoint: '[2001:db8:4b::1]:51820', hs: 0 } });
 		w.deps.route_get = route_via(self.hub_iface);
 		w.payload = sprintf('%J', { [SPOKE_A]: { direct: DIRECT[SPOKE_A] }, [SPOKE_B]: { direct: DIRECT[SPOKE_B] },
 			[HUB]: { direct: '[2001:db8:4b::1]:51820' } });

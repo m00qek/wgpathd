@@ -87,10 +87,19 @@ describe('rpc: wgpathd.config check, committed config', () => {
 			{ level: 'ok', subject: 'peer', section: 'spoke_b', public_key: SPOKE_B,
 				message: 'peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12' },
 			{ level: 'skip', subject: 'peer', section: 'hub', public_key: HUB,
-				message: 'peer hub: not steered (not configured)' },
+				message: 'peer hub: not steered (fixed endpoint)' },
 			...FIREWALL_OK,
 		] }, call(p));
 		assert.match([ '10.10.0.12', '10.10.0.1' ], p.lookups, 'the relay host, then the discovery host');
+	});
+
+	it('steers a peer with a fixed endpoint once it has settings, as a roamer steers an anchor', () => {
+		let p = plugin_deps();
+		p.uci.data.network.spoke_b.endpoint_host = '2001:db8:b::1';
+		assert.match([
+			[ 'ok', 'peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12' ],
+			[ 'skip', 'peer hub: not steered (fixed endpoint)' ],
+		], map(filter(call(p).findings, (f) => f.subject == 'peer'), (f) => [ f.level, f.message ]));
 	});
 
 	it('reads /etc/config/firewall itself, and gives a missing rule with the rule to add', () => {
@@ -191,16 +200,25 @@ describe('rpc: wgpathd.config check, candidate', () => {
 });
 
 describe('rpc: wgpathd.config peers', () => {
-	const ALLOWED = [ 'section', 'public_key', 'description' ];
+	const ALLOWED = [ 'section', 'public_key', 'description', 'fixed_endpoint' ];
 
 	it('lists the peers of the committed mesh interface, and the WireGuard interfaces', () => {
 		assert.match({ iface: 'wg_mesh', interfaces: [ 'wg_hub', 'wg_mesh' ], peers: [
 			{ section: 'spoke_b', public_key: SPOKE_B, description: 'beach' },
-			{ section: 'hub', public_key: HUB },
+			{ section: 'hub', public_key: HUB, fixed_endpoint: true },
 		] }, call(plugin_deps(), {}, 'peers'));
 	});
 
-	it('gives a peer\'s name, key and description only: no key, endpoint or address of network leaves', () => {
+	it('tells which peers have a fixed endpoint, steered or not, and not one whose endpoint_host is empty', () => {
+		let p = plugin_deps();
+		p.uci.data.network.spoke_b.endpoint_host = '2001:db8:b::1';
+		let hub = p.uci.data.network.hub;
+		assert.match([ true, true ], map(call(p, {}, 'peers').peers, (peer) => peer.fixed_endpoint));
+		hub.endpoint_host = '';
+		assert.match([ true, null ], map(call(p, {}, 'peers').peers, (peer) => peer.fixed_endpoint));
+	});
+
+	it('gives a peer\'s name, key, description and whether it has a fixed endpoint only: no key, endpoint or address of network leaves', () => {
 		for (let args in [ {}, { iface: 'wg_mesh' }, { iface: 'wg_hub' } ]) {
 			let reply = call(plugin_deps(), args, 'peers');
 			assert.match([ 'iface', 'interfaces', 'peers' ], keys(reply));
@@ -212,7 +230,8 @@ describe('rpc: wgpathd.config peers', () => {
 	});
 
 	it('lists the peers of another WireGuard interface when asked', () => {
-		assert.match({ iface: 'wg_hub', interfaces: [ 'wg_hub', 'wg_mesh' ], peers: [ { section: 'hub_transit', public_key: HUB } ] },
+		assert.match({ iface: 'wg_hub', interfaces: [ 'wg_hub', 'wg_mesh' ],
+			peers: [ { section: 'hub_transit', public_key: HUB, fixed_endpoint: true } ] },
 			call(plugin_deps(), { iface: 'wg_hub' }, 'peers'));
 	});
 

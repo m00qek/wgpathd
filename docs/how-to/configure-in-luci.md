@@ -41,7 +41,9 @@ For each peer to steer, fill in:
 - **Relay endpoint**: the peer's address on the hub tunnel and its mesh listen port, for example `10.10.0.12:51820`.
 - **Tunnel address**: the peer's address inside the mesh, which must be in its allowed IPs, for example `10.20.0.12`.
 
-**Steered** shows **Yes** once both are set. Leave the hub's own row empty. To stop steering a peer, clear both fields.
+**Steered** shows **Yes** once both are set. To stop steering a peer, clear both fields.
+
+A peer with a fixed endpoint in its WireGuard settings (`endpoint_host`) and no settings here, such as the hub, shows **Fixed endpoint** instead of the fields, and **No, it keeps its fixed endpoint** under **Steered**. Leave the hub so. Another spoke may have a fixed endpoint too, as when a roaming site keeps the stable address of an anchor site: click **Steer this peer** to show its fields and fill them in. **Steered** then says **Yes, in place of its fixed endpoint**: wgpathd sets the peer's endpoint from then on. A peer with a fixed endpoint and settings shows its fields from the start. Clearing both stops steering it; the peer gets its fixed endpoint back when its interface next comes up.
 
 ## 4. Change timing only if you need to
 

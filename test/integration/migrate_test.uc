@@ -92,7 +92,7 @@ describe('migrate: settings kept in network', () => {
 		let after = config.load({ uci: uci.cursor(s.dir) }).data;
 		assert.match([ [], [ HUB, SPOKE_B, SPOKE_C ] ], [ before.managed, map(before.unmanaged, (u) => u.pubkey) ]);
 		assert.match(MIGRATED, map(after.peers.managed, (p) => ({ public_key: p.pubkey, relay: p.relay, tunnel: p.tunnel })));
-		assert.match([ { section: 'hub', pubkey: HUB, reason: 'not configured' } ], after.peers.unmanaged);
+		assert.match([ { section: 'hub', pubkey: HUB, reason: 'fixed endpoint' } ], after.peers.unmanaged);
 		assert.match([], after.leftovers);
 	});
 

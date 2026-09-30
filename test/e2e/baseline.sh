@@ -19,8 +19,8 @@ for n in spoke-a spoke-b; do
 		[ "$(kernel_endpoint "$n")" = "[$(transit6 "$(other_spoke "$n")")]:$MESH_PORT" ]
 	check "$n: status endpoint matches the kernel" \
 		[ "$(peer "$n" endpoint)" = "$(kernel_endpoint "$n")" ]
-	check "$n: hub peer listed as unmanaged" \
-		[ "$(status "$n" '@.unmanaged[*].reason')" = "not configured" ]
+	check "$n: hub peer listed as unmanaged, for its fixed endpoint" \
+		[ "$(status "$n" '@.unmanaged[*].reason')" = "fixed endpoint" ]
 	check "$n: discovery fresh" [ "$(status "$n" '@.discovery.fresh')" = true ]
 	check "$n: service wgpathd check passes" x "$n" 'service wgpathd check >/dev/null'
 	check "$n: service wgpathd status shows DIRECT" x "$n" 'service wgpathd status | grep -q DIRECT'

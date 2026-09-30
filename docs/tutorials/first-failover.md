@@ -186,7 +186,7 @@ ok    config: spoke, mode observe, 1 steered peer, 1 not steered
 ok    wg_mesh: up, 2 peers
 ok    wg_hub: up, 1 peer
 ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12
-skip  peer hub: not steered (not configured)
+skip  peer hub: not steered (fixed endpoint)
 ok    firewall: ICMP echo-request (tunnel probe) from wg_mesh (zone vpn): accepted
 ok    firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): accepted
 ok    firewall: ICMPv6 echo-request (underlay probe) from zone wan: accepted
@@ -206,7 +206,7 @@ discovery: fresh (last success 3s ago)
 peers:
   spoke_b  uPLXea2j  RELAY  10.10.0.12:51820  no change yet  0 switches
 unmanaged:
-  hub  u8maAxX3  not configured
+  hub  u8maAxX3  fixed endpoint
 ```
 
 spoke-b is in `RELAY`, with its relay address as the endpoint. `discovery: fresh` means spoke-a has fetched the hub's list.
@@ -247,7 +247,7 @@ The check lists `peer spoke_a` this time, and the status ends like this:
 peers:
   spoke_a  LYDoEcV/  RELAY  10.10.0.11:51820  no change yet  0 switches
 unmanaged:
-  hub  u8maAxX3  not configured
+  hub  u8maAxX3  fixed endpoint
 ```
 
 Both spokes now hold each other on the relay.
@@ -283,7 +283,7 @@ About 15 seconds after the start, a line like the last one here appears:
 
 ```
 Sun Sep 27 16:00:07 2026 daemon.warn procd: failed adding instance cgroup for wgpathd: Operation not permitted
-Sun Sep 27 16:00:07 2026 daemon.warn wgpathd[1329]: peer hub (u8maAxX3): unmanaged reason=not configured
+Sun Sep 27 16:00:07 2026 daemon.warn wgpathd[1329]: peer hub (u8maAxX3): unmanaged reason=fixed endpoint
 Sun Sep 27 16:00:07 2026 daemon.info wgpathd[1329]: discovery cache: none usable
 Sun Sep 27 16:00:07 2026 daemon.notice wgpathd[1329]: started role=spoke mode=observe managed=1 unmanaged=1
 Sun Sep 27 16:00:22 2026 daemon.notice wgpathd[1329]: peer spoke_b (uPLXea2j): ready, steer would trial endpoint=[fd77:e2e0:0:1::12]:51820
@@ -349,7 +349,7 @@ ubus call wgpathd status
 		{
 			"section": "hub",
 			"pubkey": "u8maAxX3TJoR2m/cKuXIdWp9UrsA5JI0AIzUG7rqDgU=",
-			"reason": "not configured"
+			"reason": "fixed endpoint"
 		}
 	],
 	"history": []
@@ -395,7 +395,7 @@ discovery: fresh (last success 23s ago)
 peers:
   spoke_b  uPLXea2j  DIRECT  [fd77:e2e0:0:1::12]:51820  3s ago (trial_ok)  2 switches
 unmanaged:
-  hub  u8maAxX3  not configured
+  hub  u8maAxX3  fixed endpoint
 ```
 
 Let's confirm it with WireGuard itself:
@@ -474,7 +474,7 @@ discovery: fresh (last success 48s ago)
 peers:
   spoke_b  uPLXea2j  RELAY  10.10.0.12:51820  10s ago (demoted)  3 switches
 unmanaged:
-  hub  u8maAxX3  not configured
+  hub  u8maAxX3  fixed endpoint
 ```
 
 ```bash
@@ -540,7 +540,7 @@ discovery: fresh (last success 11s ago)
 peers:
   spoke_b  uPLXea2j  DIRECT  [fd77:e2e0:0:1::12]:51820  2s ago (trial_ok)  5 switches
 unmanaged:
-  hub  u8maAxX3  not configured
+  hub  u8maAxX3  fixed endpoint
 ```
 
 Direct again, with 5 switches counted. spoke-b's status shows `DIRECT` as well.

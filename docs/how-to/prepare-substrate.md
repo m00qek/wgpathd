@@ -124,7 +124,7 @@ config wireguard_wg_mesh 'spoke_b'
 The points that matter:
 
 - **The hub's `wg_hub` peer holds the whole transit range** (`10.10.0.0/24`) with a route. That is what makes a relay endpoint such as `10.10.0.12:51820` travel through `wg_hub`.
-- **The hub is also a `wg_mesh` peer, with a fixed IPv6 endpoint and a keepalive.** The keepalive keeps the hub's view of this spoke's IPv6 endpoint current. wgpathd never steers this peer: you give it no settings in `/etc/config/wgpathd`.
+- **The hub is also a `wg_mesh` peer, with a fixed IPv6 endpoint and a keepalive.** The keepalive keeps the hub's view of this spoke's IPv6 endpoint current. wgpathd never steers this peer: you give it no settings in `/etc/config/wgpathd`, and the check and the LuCI page show it as not steered, for its fixed endpoint.
 - **Every other spoke is a `wg_mesh` peer with no endpoint.** wgpathd sets the endpoint. What it needs to steer the peer, its relay endpoint (that spoke's transit address plus its `wg_mesh` listen port, here `10.10.0.12:51820`) and its tunnel address (`10.20.0.12`, which must be in its `allowed_ips`), goes into `/etc/config/wgpathd` when you [configure the spoke](configure-spoke.md), not here.
 - **No `wg_mesh` peer may include any transit address** in `allowed_ips`. Otherwise the relay endpoint would route into `wg_mesh` and wgpathd would refuse to manage that peer.
 

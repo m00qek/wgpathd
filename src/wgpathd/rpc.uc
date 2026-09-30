@@ -5,7 +5,7 @@
 //
 //   check {}                          -> { ok, findings: [ { level, subject, section?, public_key?, option?, message, fix? } ] }
 //   check { candidate: { main, peers } } the same, for unsaved values over the committed config
-//   peers { iface? }                  -> { iface, interfaces: [ <name> ], peers: [ { section, public_key, description? } ] }
+//   peers { iface? }                  -> { iface, interfaces: [ <name> ], peers: [ { section, public_key, description?, fixed_endpoint? } ] }
 //   schema {}                         -> { parameters: [ { name, default, min, max, whole } ] }
 //
 // A malformed candidate is answered { error: "CHECK_INVALID_CANDIDATE", message }, an
@@ -15,7 +15,7 @@ import * as errors from 'wgpathd.errors';
 import * as check from 'wgpathd.check';
 import * as parameters from 'wgpathd.params';
 import { overlay } from 'wgpathd.candidate';
-import { is_name } from 'wgpathd.config';
+import { is_name, has_fixed_endpoint } from 'wgpathd.config';
 
 // The interface whose peers a role steers or publishes.
 const ROLE_IFACE = { spoke: 'mesh_iface', hub: 'read_iface' };
@@ -43,11 +43,14 @@ function wireguard_interfaces(uci) {
 }
 
 // Only these options of a peer section leave the router: /etc/config/network also holds
-// every private and preshared key.
+// every private and preshared key. Whether the peer has a fixed endpoint is told, not
+// the endpoint.
 function peer_entry(s) {
 	let entry = { section: s['.name'], public_key: (type(s.public_key) == 'string') ? s.public_key : null };
 	if (type(s.description) == 'string')
 		entry.description = s.description;
+	if (has_fixed_endpoint(s))
+		entry.fixed_endpoint = true;
 	return entry;
 }
 

@@ -55,7 +55,7 @@
 		{
 			"section": "hub",
 			"pubkey": "W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=",
-			"reason": "not configured"
+			"reason": "fixed endpoint"
 		}
 	],
 	"history": []

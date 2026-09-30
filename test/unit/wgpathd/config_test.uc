@@ -302,16 +302,29 @@ describe('config: steered peers', () => {
 		assert.match([ [], [] ], [ peers.unmanaged, peers.stale ]);
 	});
 
-	it('leaves a mesh peer without settings, the static hub peer, unmanaged by section', () => {
+	it('leaves a mesh peer without settings, the hub peer with its fixed endpoint, unmanaged by section', () => {
 		let peers = peers_of([ SPOKE_B_PEER, HUB_PEER ], [ SPOKE_B_SETTINGS ]);
 		assert.match([ { section: 'peer0', pubkey: SPOKE_B, relay: '10.10.0.12:51820', tunnel: '10.20.0.12' } ], peers.managed);
-		assert.match([ { section: 'peer1', pubkey: HUB, reason: 'not configured' } ], peers.unmanaged);
+		assert.match([ { section: 'peer1', pubkey: HUB, reason: 'fixed endpoint' } ], peers.unmanaged);
+	});
+
+	// A roamer gives the anchor its stable address, so that the two meet without wgpathd too.
+	it('steers a peer with a fixed endpoint once it has settings', () => {
+		let anchor = { ...SPOKE_B_PEER, endpoint_host: '2001:db8:b::1', endpoint_port: '51820' };
+		let peers = peers_of([ anchor ], [ SPOKE_B_SETTINGS ]);
+		assert.match([ { section: 'peer0', pubkey: SPOKE_B, relay: '10.10.0.12:51820', tunnel: '10.20.0.12' } ], peers.managed);
+		assert.match([], peers.unmanaged);
+	});
+
+	it('takes an empty endpoint_host as no fixed endpoint', () => {
+		assert.match([ 'not configured' ], map(peers_of([ { ...HUB_PEER, endpoint_host: '' } ], []).unmanaged, (u) => u.reason));
 	});
 
 	it('gives the reason a peer is left alone', () => {
 		let cases = {
 			'invalid public_key':        [ mesh_peer('nope'), [ settings('nope', '10.10.0.11:51820', '10.20.0.11') ] ],
 			'not configured':            [ mesh_peer(SPOKE_A), [] ],
+			'fixed endpoint':            [ { ...mesh_peer(SPOKE_A), endpoint_host: '192.0.2.11' }, [] ],
 			'configured more than once': [ mesh_peer(SPOKE_A), [ settings(SPOKE_A, '10.10.0.11:51820', '10.20.0.11'),
 				settings(SPOKE_A, '10.10.0.11:51820', '10.20.0.11') ] ],
 			'missing relay':             [ mesh_peer(SPOKE_A), [ settings(SPOKE_A, null, '10.20.0.11') ] ],
@@ -329,7 +342,7 @@ describe('config: steered peers', () => {
 	it('finds a peer\'s settings by its public key, whatever its section is called', () => {
 		let res = load(SPOKE, { ...IFACES, cfg09cdcd: SPOKE_B_PEER, spoke_b: HUB_PEER }, [ SPOKE_B_SETTINGS ]);
 		assert.match([ [ 'cfg09cdcd', SPOKE_B ] ], map(res.data.peers.managed, (p) => [ p.section, p.pubkey ]));
-		assert.match([ [ 'spoke_b', 'not configured' ] ], map(res.data.peers.unmanaged, (p) => [ p.section, p.reason ]));
+		assert.match([ [ 'spoke_b', 'fixed endpoint' ] ], map(res.data.peers.unmanaged, (p) => [ p.section, p.reason ]));
 	});
 
 	it('ignores wireguard peers of other interfaces, and takes their settings as stale', () => {

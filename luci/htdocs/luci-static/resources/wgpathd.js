@@ -32,6 +32,7 @@ const STATES = {
 const UNMANAGED = {
 	'invalid public_key':        _('No valid public key'),
 	'not configured':            _('No relay endpoint or tunnel address set'),
+	'fixed endpoint':            _('Reached at the fixed endpoint of its WireGuard settings'),
 	'configured more than once': _('Its settings are given more than once'),
 	'missing relay':             _('No relay endpoint set'),
 	'invalid relay':             _('The relay endpoint is not valid'),
@@ -117,7 +118,7 @@ return baseclass.extend({
 		return L.resolveDefault(callStatus(), null);
 	},
 
-	// { iface, interfaces, peers: [ { section, public_key, description? } ] } for `iface`,
+	// { iface, interfaces, peers: [ { section, public_key, description?, fixed_endpoint? } ] } for `iface`,
 	// or for the interface of the committed role when it is left out; null when unreadable.
 	meshPeers(iface) {
 		return L.resolveDefault(callPeers(iface), null);

@@ -92,7 +92,8 @@ Any other peer of `mesh_iface` is **unmanaged**: wgpathd never touches its endpo
 | Reason | Cause | Check level | Rechecked |
 | :--- | :--- | :--- | :--- |
 | `invalid public_key` | The peer's `public_key` in `/etc/config/network` is missing or not a valid key | `FAIL` | On reload |
-| `not configured` | No `peer` section has the peer's key | `skip` | On reload |
+| `not configured` | No `peer` section has the peer's key, and the peer has no `endpoint_host` | `skip` | On reload |
+| `fixed endpoint` | No `peer` section has the peer's key, and the peer has an `endpoint_host`, as the hub peer does | `skip` | On reload |
 | `configured more than once` | Two or more `peer` sections have the peer's key | `FAIL` | On reload |
 | `missing relay` | The `peer` section has no `relay` | `FAIL` | On reload |
 | `invalid relay` | `relay` is not a valid `v4:port` or `[v6]:port` | `FAIL` | On reload |
@@ -103,7 +104,9 @@ Any other peer of `mesh_iface` is **unmanaged**: wgpathd never touches its endpo
 
 Every reload reads the `peer` sections again and repeats the route check, so fixing a peer and reloading is enough. A peer waiting on a failed route lookup is also rechecked at the start of every cycle. Either way, a peer whose relay route now leaves via another interface becomes managed, starting in RELAY, and wgpathd logs `relay route found, now managed`. A waiting peer whose route resolves into `mesh_iface` becomes unmanaged with `relay routes into <mesh_iface>`.
 
-The spoke's own `wg_mesh` peer for the hub normally has no `peer` section, so it is always listed as unmanaged with `not configured`. That is expected: the hub peer keeps its static endpoint.
+The spoke's own `wg_mesh` peer for the hub has a fixed endpoint, `endpoint_host` in `/etc/config/network`, and no `peer` section, so it is always listed as unmanaged with `fixed endpoint`. That is expected: the hub peer keeps its fixed endpoint.
+
+A fixed endpoint alone does not keep wgpathd away. A peer with an `endpoint_host` and a `peer` section is steered like any other: a roamer may give an anchor its stable address as `endpoint_host`, so that the two meet without wgpathd too, and steer it as well. netifd sets the fixed endpoint when the interface comes up, and wgpathd replaces it with the relay endpoint or a direct address from then on. Never give the hub peer a `peer` section: wgpathd would then move the hub's own endpoint.
 
 ## Timing parameters
 

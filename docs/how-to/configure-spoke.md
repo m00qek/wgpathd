@@ -38,7 +38,7 @@ Add one `peer` section for each other spoke:
 - `relay` is that spoke's transit address plus its `wg_mesh` listen port.
 - `tunnel` is its tunnel address, which must be in its `allowed_ips`.
 
-Give the hub peer no `peer` section: wgpathd leaves it alone.
+Give the hub peer no `peer` section: wgpathd leaves it alone, at the fixed endpoint of its `endpoint_host`. Another spoke's peer may have an `endpoint_host` too, a roamer's peer for an anchor for instance: its `peer` section makes wgpathd steer it all the same, in place of that fixed endpoint.
 
 Every option is described in [UCI configuration](../reference/uci-config.md#spoke-options), and the `peer` section in [Peer sections](../reference/uci-config.md#peer-sections).
 
@@ -53,13 +53,13 @@ ok    config: spoke, mode observe, 1 steered peer, 1 not steered
 ok    wg_mesh: up, 2 peers
 ok    wg_hub: up, 1 peer
 ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12
-skip  peer hub: not steered (not configured)
+skip  peer hub: not steered (fixed endpoint)
 ok    firewall: ICMP echo-request (tunnel probe) from wg_mesh (zone vpn): accepted
 ok    firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): accepted
 ok    firewall: ICMPv6 echo-request (underlay probe) from zone wan: accepted
 ```
 
-There should be one `ok  peer` line per other spoke, with its relay `via wg_hub`. The hub peer is always `skip`, since it has no `peer` section. The `firewall:` lines say whether this spoke's firewall accepts what the other spokes send it; a warning comes with the rule to add ([How to open the firewall for wgpathd](open-firewall.md)). Fix every `FAIL` and `warn` line before you go on; [Service commands](../reference/service-commands.md#findings) explains each one, and [Managed and unmanaged peers](../reference/uci-config.md#managed-and-unmanaged-peers) the peer reasons.
+There should be one `ok  peer` line per other spoke, with its relay `via wg_hub`. The hub peer is always `skip`, with its fixed endpoint and no `peer` section. The `firewall:` lines say whether this spoke's firewall accepts what the other spokes send it; a warning comes with the rule to add ([How to open the firewall for wgpathd](open-firewall.md)). Fix every `FAIL` and `warn` line before you go on; [Service commands](../reference/service-commands.md#findings) explains each one, and [Managed and unmanaged peers](../reference/uci-config.md#managed-and-unmanaged-peers) the peer reasons.
 
 ## 3. Start the service and check the relay path
 
@@ -77,7 +77,7 @@ discovery: fresh (last success 2s ago)
 peers:
   spoke_b  SpokeBme  RELAY  10.10.0.12:51820  no change yet  0 switches
 unmanaged:
-  hub  HubMeshP  not configured
+  hub  HubMeshP  fixed endpoint
 ```
 
 Each peer should be in `RELAY` with its `relay` as the endpoint, and discovery should be `fresh`. The log has a matching `started role=spoke mode=observe managed=1 unmanaged=1` line. If the first line is not `running`, look at `logread -e wgpathd | tail -n 5` and find the code in [Log messages](../reference/log-messages.md#startup-and-exit).

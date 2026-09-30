@@ -101,7 +101,7 @@ What a reload applies is listed in [Service commands](service-commands.md#reload
 
 | Level | Message | Meaning |
 | :--- | :--- | :--- |
-| warning | `<peer>: unmanaged reason=<reason>` | A mesh peer will not be steered: `invalid public_key`, `not configured`, `configured more than once`, `missing relay`, `invalid relay`, `missing tunnel`, `invalid tunnel`, or `relay routes into <mesh_iface>`. Logged once per peer at startup, when a reload adds or changes the peer, and when a waiting peer's relay route later resolves into `mesh_iface`. The hub peer, which has no `peer` section, is logged with `not configured`. See [Managed and unmanaged peers](uci-config.md#managed-and-unmanaged-peers). |
+| warning | `<peer>: unmanaged reason=<reason>` | A mesh peer will not be steered: `invalid public_key`, `not configured`, `fixed endpoint`, `configured more than once`, `missing relay`, `invalid relay`, `missing tunnel`, `invalid tunnel`, or `relay routes into <mesh_iface>`. Logged once per peer at startup, when a reload adds or changes the peer, and when a waiting peer's relay route later resolves into `mesh_iface`. The hub peer, which has a fixed endpoint and no `peer` section, is logged with `fixed endpoint`. See [Managed and unmanaged peers](uci-config.md#managed-and-unmanaged-peers). |
 | info | `<peer>: unmanaged reason=relay route lookup failed: <CODE> (<detail>)` | The route lookup for the peer's relay host failed, typically because `wg_hub` is not up yet. It is retried every cycle. |
 | notice | `<peer>: relay route found, now managed` | A peer whose relay route lookup had failed, or that a reload guarded again, now has a route outside `mesh_iface` and is steered from now on. |
 

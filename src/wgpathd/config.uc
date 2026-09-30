@@ -107,12 +107,18 @@ function peer_settings(uci) {
 	return settings;
 }
 
+// A peer netifd gives an endpoint of its own, as the hub, which wgpathd leaves alone
+// unless the peer also has settings.
+export function has_fixed_endpoint(s) {
+	return type(s.endpoint_host) == 'string' && s.endpoint_host != '';
+};
+
 function unmanaged_reason(s, settings) {
 	if (!is_pubkey(s.public_key))
 		return 'invalid public_key';
 	let found = settings.by_key[s.public_key] ?? [];
 	if (length(found) == 0)
-		return 'not configured';
+		return has_fixed_endpoint(s) ? 'fixed endpoint' : 'not configured';
 	if (length(found) > 1)
 		return 'configured more than once';
 	let p = found[0];

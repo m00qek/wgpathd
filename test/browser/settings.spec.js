@@ -100,13 +100,45 @@ test.describe('Network → Mesh paths, a spoke', () => {
     await expect(page.locator('#view tr[data-key]')).toHaveCount(4);
     await expect(peerRow(page, 'home').locator('td').first()).toHaveText('homeHome router');
     await expect(peerRow(page, 'home').locator('td').nth(1)).toHaveText('ckRTxoRC…');
-    await expect(peerField(page, 'home', 'Relay endpoint')).toHaveValue('10.10.0.12:51820');
-    await expect(peerField(page, 'home', 'Tunnel address')).toHaveValue('10.20.0.12');
-    await expect(peerRow(page, 'home').locator('td').last()).toHaveText('Yes');
+    await expect(peerField(page, 'beach', 'Relay endpoint')).toHaveValue('10.10.0.13:51820');
+    await expect(peerField(page, 'beach', 'Tunnel address')).toHaveValue('10.20.0.13');
+    await expect(peerRow(page, 'beach').locator('td').last()).toHaveText('Yes');
     await expect(peerField(page, 'lab', 'Relay endpoint')).toHaveValue('');
     await expect(peerRow(page, 'lab').locator('td').last()).toHaveText('No');
-    await expect(peerRow(page, 'hub').locator('td').last()).toHaveText('No');
     await shot(page, 'settings-peers');
+  });
+
+  test('shows a peer with a fixed endpoint and no settings, the hub, as not steered, without fields', async ({ page }) => {
+    await openTab(page, 'peers');
+    await expect(page.locator('#view [data-tab="peers"] p').filter({ hasText: 'fixed endpoint' })).toHaveText(
+      'Peers with a fixed endpoint in their WireGuard settings, such as the hub, keep that endpoint and are not steered. ' +
+      'Steer one only if it is another spoke: wgpathd then sets its endpoint instead.');
+    const hub = peerRow(page, 'hub');
+    await expect(hub.getByRole('textbox')).toHaveCount(0);
+    await expect(hub.locator('td')).toHaveText([ 'hub', 'W+1CXUTT…', 'Fixed endpoint Steer this peer', 'No, it keeps its fixed endpoint' ]);
+  });
+
+  test('keeps a peer with a fixed endpoint and settings, an anchor seen from a roamer, editable and steered', async ({ page }) => {
+    await openTab(page, 'peers');
+    await expect(peerField(page, 'home', 'Relay endpoint')).toHaveValue('10.10.0.12:51820');
+    await expect(peerField(page, 'home', 'Tunnel address')).toHaveValue('10.20.0.12');
+    await expect(peerRow(page, 'home').locator('td').last()).toHaveText('Yes, in place of its fixed endpoint');
+    await peerField(page, 'home', 'Tunnel address').fill('');
+    await expect(peerRow(page, 'home').locator('td').last()).toHaveText('No, it keeps its fixed endpoint');
+  });
+
+  test('shows the fields of a peer with a fixed endpoint once it is chosen to be steered, and saves them', async ({ page, request }) => {
+    await openTab(page, 'peers');
+    await peerRow(page, 'hub').getByRole('button', { name: 'Steer this peer' }).click();
+    await expect(peerField(page, 'hub', 'Relay endpoint')).toBeFocused();
+    await expect(peerRow(page, 'hub').getByRole('button')).toHaveCount(0);
+    await shot(page, 'settings-peers-steer-fixed');
+    await peerField(page, 'hub', 'Relay endpoint').fill('10.10.0.1:51820');
+    await peerField(page, 'hub', 'Tunnel address').fill('10.20.0.1');
+    await expect(peerRow(page, 'hub').locator('td').last()).toHaveText('Yes, in place of its fixed endpoint');
+    await saveAndApply(page);
+    await applied(page);
+    expect(peerSections(await h.readConfig(request, 'wgpathd'))[KEYS.hub]).toEqual({ relay: '10.10.0.1:51820', tunnel: '10.20.0.1' });
   });
 
   test('has one field per parameter the daemon reports, its default as placeholder', async ({ page, request }) => {
@@ -194,7 +226,7 @@ test.describe('Network → Mesh paths, a spoke', () => {
       /^Warn\s*home: the route to its relay endpoint could not be looked up, tried again every check: /,
       /^Warn\s*beach: the route to its relay endpoint could not be looked up, tried again every check: /,
       /^Fail\s*lab: not steered\. The relay endpoint is not valid$/,
-      /^Skip\s*hub: not steered\. No relay endpoint or tunnel address set$/,
+      /^Skip\s*hub: not steered\. Reached at the fixed endpoint of its WireGuard settings$/,
       /^OK\s*The firewall accepts the tunnel probe \(ICMP echo request\) from wg_mesh \(zone vpn\)$/,
       /^OK\s*The firewall accepts relayed WireGuard packets \(UDP port 51820\) from wg_hub \(zone vpn\)$/,
       /^OK\s*The firewall accepts the underlay probe \(ICMPv6 echo request\) from the wan zone$/,
@@ -344,6 +376,6 @@ test.describe('Network → Mesh paths, with the app\'s ACL alone', () => {
     // The check reads the firewall inside rpcd, as root: the app needs no grant of it.
     await expect(h.call(request, login.ubus_rpc_session, 'uci', 'get', { config: 'firewall' })).rejects.toThrow(/"result":\[6\]/);
     const peers = await h.call(request, login.ubus_rpc_session, 'wgpathd.config', 'peers', {});
-    expect(JSON.stringify(peers)).not.toMatch(/private_key|preshared_key|cHJpdmF0|cHJlc2hhcmVk|endpoint|allowed_ips/);
+    expect(JSON.stringify(peers)).not.toMatch(/private_key|preshared_key|cHJpdmF0|cHJlc2hhcmVk|endpoint_|2001:db8|allowed_ips/);
   });
 });

@@ -78,17 +78,23 @@ describe('check: findings for the config alone', () => {
 describe('check: findings for the peers', () => {
 	it('marks every peer finding with its section and key, and a bad setting with its option', () => {
 		let loaded = spoke([
-			{ section: 'hub', pubkey: HUB, reason: 'not configured' },
+			{ section: 'hub', pubkey: HUB, reason: 'fixed endpoint' },
 			{ section: 'spoke_c', pubkey: null, reason: 'invalid public_key' },
 		]);
 		assert.match([
 			{ level: 'ok', subject: 'peer', section: 'spoke_b', public_key: SPOKE_B,
 				message: 'peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12' },
 			{ level: 'skip', subject: 'peer', section: 'hub', public_key: HUB,
-				message: 'peer hub: not steered (not configured)' },
+				message: 'peer hub: not steered (fixed endpoint)' },
 			{ level: 'fail', subject: 'peer', section: 'spoke_c', option: 'public_key',
 				message: 'peer spoke_c: not steered (invalid public_key)' },
 		], slice(check.findings(loaded, obs()), 1));
+	});
+
+	it('skips a peer without settings, with a fixed endpoint or not', () => {
+		for (let reason in [ 'not configured', 'fixed endpoint' ])
+			assert.match({ level: 'skip', subject: 'peer', section: 'hub', public_key: HUB, message: `peer hub: not steered (${reason})` },
+				check.findings(spoke([ { section: 'hub', pubkey: HUB, reason: reason } ]), obs())[-1], reason);
 	});
 
 	it('fails settings half given, malformed or given twice, marking the option when there is one', () => {

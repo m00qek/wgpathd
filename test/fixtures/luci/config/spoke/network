@@ -18,6 +18,8 @@ config wireguard_wg_mesh 'home'
 	option public_key 'ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc='
 	option preshared_key 'cHJlc2hhcmVkIGtleSBvZiB0aGUgaG9tZSBwZWVyISE='
 	option description 'Home router'
+	option endpoint_host '2001:db8:12::1'
+	option endpoint_port '51820'
 	list allowed_ips '10.20.0.12/32'
 
 config wireguard_wg_mesh 'beach'

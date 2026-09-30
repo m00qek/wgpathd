@@ -18,10 +18,12 @@ const LABELS = { ok: 'ok  ', skip: 'skip', warn: 'warn', fail: 'FAIL' };
 const DISABLED = [ '0', 'no', 'off', 'false', 'disabled' ];
 
 // Each reason a mesh peer is not steered, and the option it is about. A peer without
-// settings is simply not steered; settings half given or malformed are a mistake.
+// settings, with a fixed endpoint or not, is simply not steered; settings half given
+// or malformed are a mistake.
 const UNMANAGED = {
 	'invalid public_key':        { level: 'fail', option: 'public_key' },
 	'not configured':            { level: 'skip' },
+	'fixed endpoint':            { level: 'skip' },
 	'configured more than once': { level: 'fail' },
 	'missing relay':             { level: 'fail', option: 'relay' },
 	'invalid relay':             { level: 'fail', option: 'relay' },

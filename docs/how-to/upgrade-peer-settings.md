@@ -62,7 +62,7 @@ The log says why:
 - `migrate: network section <section> has no valid public_key, its options stay`: that section cannot be keyed. Fix its `public_key`, then run `service wgpathd migrate` and `service wgpathd reload`.
 - `migrate: network section <section>: kept relay '<value>' of /etc/config/wgpathd, dropped wgpathd_relay '<value>'`: `/etc/config/wgpathd` already had a different value, which wins. If the dropped one was right, set it with `uci set` and reload.
 
-Until the settings are moved, the peers are `not configured`: wgpathd leaves their endpoints alone, and the check and the log at startup name every network section still holding the old options.
+Until the settings are moved, the peers are `not configured`, or `fixed endpoint` for one with an `endpoint_host`: wgpathd leaves their endpoints alone, and the check and the log at startup name every network section still holding the old options.
 
 ## To move them by hand
 

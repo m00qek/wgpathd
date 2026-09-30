@@ -101,7 +101,7 @@ The reply depends on the role. Fields that have no value yet are `null`.
 		{
 			"section": "hub",
 			"pubkey": "HubMeshPublicKeyExample00000000000000000000=",
-			"reason": "not configured"
+			"reason": "fixed endpoint"
 		}
 	],
 	"history": [
