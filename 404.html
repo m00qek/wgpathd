@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Page not found</title>
+<script>
+  // GitHub Pages serves this page for every missing path of the project site
+  // /<site>/. Unversioned links from before versioning move under latest/;
+  // paths already in a version folder stay put, so they cannot loop.
+  function latestTarget(location) {
+    var match = /^\/([^/]+)(\/.*)?$/.exec(location.pathname);
+    if (!match) return null;
+    var path = match[2] || "/";
+    var first = path.split("/")[1];
+    if (first === "latest" || first === "dev" || /^\d+\.\d+$/.test(first)) return null;
+    return "/" + match[1] + "/latest" + path + location.search + location.hash;
+  }
+
+  var target = latestTarget(window.location);
+  if (target) window.location.replace(target);
+</script>
+</head>
+<body>
+  <h1>Page not found</h1>
+  <p>This page does not exist in this version of the documentation.</p>
+</body>
+</html>
