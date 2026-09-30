@@ -229,10 +229,10 @@ describe('firewall: the zone of an interface', () => {
 		assert.match(fw.ACCEPTED, verdict_of([ rule({ proto: 'udp', src: '*' }) ], RELAY, zones));
 	});
 
-	it('cannot confirm a zone with options it does not follow, or one a zone by device or subnet may come before', () => {
+	it('cannot confirm a zone with options it does not follow, or one a zone by subnet may come before', () => {
 		let cases = [
 			[ h.zone('vpn', [ 'wg_hub' ], 'ACCEPT', { extra_src: '-m foo' }) ],
-			[ h.zone('dev', null, 'REJECT', { device: 'wg+' }), h.zone('vpn', [ 'wg_hub' ], 'ACCEPT') ],
+			[ h.zone('net', null, 'REJECT', { subnet: '10.10.0.0/24' }), h.zone('vpn', [ 'wg_hub' ], 'ACCEPT') ],
 			[ h.zone('net', null, 'REJECT', { subnet: '10.10.0.0/24' }) ],
 			[ h.zone('vpn', [ 'wg_hub' ], 'ACCEPT', { family: 'ipv6' }) ],
 		];
@@ -249,6 +249,62 @@ describe('firewall: the zone of an interface', () => {
 	it('cannot confirm relayed packets without a port', () => {
 		assert.match({ verdict: fw.UNSURE, zone: 'vpn', reason: fw.NO_PORT },
 			fw.verdict(config(h.spoke_rules('vpn')), { ...RELAY, port: null }));
+	});
+});
+
+describe('firewall: the zone of an interface, by device', () => {
+	let zoned = (zones, rules) => fw.verdict(config(rules ?? [], { zones: zones }), RELAY);
+	let accept_relay = [ rule({ src: 'dev', proto: 'udp' }) ];
+
+	it('takes a WireGuard interface by its device, in a list, singly or in words', () => {
+		for (let device in [ [ 'eth1', 'wg_hub' ], 'wg_hub', 'eth1 wg_hub' ]) {
+			let zones = [ h.zone('dev', null, 'REJECT', { device: device }) ];
+			assert.match({ verdict: fw.MISSING, zone: 'dev', reason: fw.NO_RULE }, zoned(zones), device);
+			assert.match({ verdict: fw.ACCEPTED, zone: 'dev' }, zoned(zones, accept_relay), device);
+		}
+	});
+
+	it('takes a device by a pattern with a trailing +, as fw4 does, and skips a pattern fw4 refuses', () => {
+		let verdict_for = (device) => zoned([ h.zone('dev', null, 'ACCEPT', { device: device }),
+			h.zone('vpn', [ 'wg_hub' ], 'REJECT') ]);
+		assert.match([ 'dev', 'dev', 'vpn', 'vpn' ], map([ 'wg+', 'wg_hub+', 'wg_m+', 'w+g' ], (d) => verdict_for(d).zone));
+	});
+
+	it('takes the first zone that lists the interface or names its device, in the order of the zones', () => {
+		let by_device = h.zone('dev', null, 'ACCEPT', { device: 'wg_hub' });
+		let by_network = h.zone('vpn', [ 'wg_hub' ], 'REJECT');
+		assert.match([ 'dev', 'vpn' ], [ zoned([ by_device, by_network ]).zone, zoned([ by_network, by_device ]).zone ]);
+		assert.match('lan', zoned([ h.zone('lan', [ 'lan' ], 'ACCEPT', { device: 'wg_hub' }), by_network ]).zone);
+	});
+
+	it('passes a zone of other devices by, sure it does not take the interface', () => {
+		let zones = [ h.zone('wan', null, 'REJECT', { device: 'eth0' }), h.zone('dev', null, 'REJECT', { device: 'eth1' }),
+			h.zone('vpn', [ 'wg_hub' ], 'ACCEPT'), h.zone('net', null, 'REJECT', { device: 'eth2', subnet: '10.10.0.0/24' }) ];
+		assert.match({ verdict: fw.ACCEPTED, zone: 'vpn' }, zoned(zones));
+		assert.match({ verdict: fw.ACCEPTED, zone: 'vpn' }, zoned([ zones[3], zones[2] ]));
+	});
+
+	it('cannot confirm a zone that inverts a match, takes any device, or has a device with *, or its device and a subnet', () => {
+		for (let zone in [ { device: '!eth0' }, { network: [ '!lan' ] }, { device: '+' }, { device: 'wg*' },
+			{ device: 'wg_hub', subnet: '10.10.0.0/24' }, { network: [ 'wg_hub' ], subnet: '10.10.0.0/24' },
+			{ network: [ 'lan' ], subnet: '10.10.0.0/24' } ])
+			assert.match({ verdict: fw.UNSURE, zone: 'vpn', reason: fw.MATCHED_BY },
+				zoned([ h.zone('dev', null, 'ACCEPT', zone), h.zone('vpn', [ 'wg_hub' ], 'ACCEPT') ]), zone);
+	});
+
+	it('cannot confirm a named zone that a zone by device may come before', () => {
+		let zones = { zones: [ h.zone('dev', null, 'REJECT', { device: 'eth0' }), h.zone('wan', [ 'wan' ], 'REJECT') ] };
+		assert.match({ verdict: fw.UNSURE, zone: 'wan', reason: fw.MATCHED_BY },
+			fw.verdict(config([ h.ALLOW_ICMPV6_INPUT ], zones), UNDERLAY));
+	});
+
+	it('accepts the peer list on a hub whose zones go by device alone', () => {
+		let zones = [ h.zone('wan', null, 'REJECT', { device: 'eth0', masq: '1' }),
+			h.zone('mesh', null, 'REJECT', { device: [ 'hubtest', 'wg_mesh' ] }) ];
+		let discovery = { kind: 'discovery', option: 'serve_port', family: 4, proto: 'tcp', port: 7780, iface: 'hubtest' };
+		let rules = [ { '.type': 'rule', name: 'wgpathd-discovery', src: 'mesh', proto: 'tcp', dest_port: '7780', target: 'ACCEPT' } ];
+		assert.match({ verdict: fw.ACCEPTED, zone: 'mesh' }, fw.verdict(config(rules, { zones: zones }), discovery));
+		assert.match({ verdict: fw.MISSING, zone: 'mesh', reason: fw.NO_RULE }, fw.verdict(config([], { zones: zones }), discovery));
 	});
 });
 

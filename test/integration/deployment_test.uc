@@ -164,6 +164,19 @@ describe('deployment: service wgpathd check', () => {
 		assert.match([ 'ok', 'ok', 'ok' ], map(res.findings, (f) => f.level), res.report);
 	});
 
+	// The hub's own firewall puts its interfaces in zones by device, not by network.
+	it('passes the hub whose zones go by device', () => {
+		let fw = h.firewall({ '.type': 'defaults', input: 'REJECT', output: 'ACCEPT', forward: 'REJECT' },
+			h.zone('wan', null, 'REJECT', { device: 'eth0', masq: '1' }),
+			h.zone('mesh', null, 'REJECT', { device: [ 'wg_hub', 'wg_mesh' ] }),
+			{ '.type': 'rule', name: 'Allow-wg_mesh', src: 'wan', proto: 'udp', dest_port: '51820', target: 'ACCEPT' },
+			{ '.type': 'rule', name: 'wgpathd-discovery', src: 'mesh', proto: 'tcp', dest_port: '7780', target: 'ACCEPT' });
+		let res = run_check(h.uci({ wgpathd: { main: HUB_MAIN }, network: HUB_NETWORK, firewall: fw }).cursor, 'wg_hub',
+			h.status_reply('wg_mesh', kernel_of(SPOKE_A, SPOKE_B)));
+		assert.match([ 'ok', 'ok', 'ok' ], map(res.findings, (f) => f.level), res.report);
+		assert.match('ok    firewall: TCP port 7780 (peer list) from wg_hub (zone mesh): accepted', split(res.report, '\n')[2]);
+	});
+
 	it('warns on the hub about the discovery rule until it is added', () => {
 		assert.match([ [ 'serve_port', 'firewall: TCP port 7780 (peer list) from wg_hub (zone mgmt): no rule accepts it' ] ],
 			map(filter(hub_check(false).findings, (f) => f.level == 'warn'), (f) => [ f.option, f.message ]));

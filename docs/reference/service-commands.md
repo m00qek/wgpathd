@@ -207,7 +207,7 @@ The firewall lines come last, one for each traffic the role needs accepted, as [
 | :--- | :--- |
 | `a rule or zone option this check does not follow applies` | A rule that may decide the traffic, or the zone, has an option the check does not follow, such as `src_ip` or `extra_src`. |
 | `the firewall has custom nftables rules` | An `include` section, or an nftables file fw4 includes, may add rules the check cannot read. |
-| `a zone may take it by device or subnet` | A zone that matches by `device` or `subnet` may take the traffic before the interface's own. |
+| `a zone may take it by device or subnet` | A zone that matches by `subnet`, or by a `network` or `device` the check does not follow, such as an inverted one, may take the traffic before the interface's own. See [Firewall rules](firewall.md#what-the-check-confirms). |
 | `zone <zone> is not for IPv<n>` | The zone's `family` excludes the traffic's. |
 | `<mesh_iface> has no listen_port` | The relay port is not fixed, so it cannot be looked for. |
 | `no such zone` | There is no zone named `wan`. |

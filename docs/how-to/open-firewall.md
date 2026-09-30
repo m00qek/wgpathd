@@ -25,7 +25,7 @@ WireGuard itself needs its listen ports open from WAN; [How to prepare the WireG
 ## 1. Find the zones of the interfaces
 
 ```bash
-uci show firewall | grep -e '\.name=' -e '\.network='
+uci show firewall | grep -e '\.name=' -e '\.network=' -e '\.device='
 ```
 
 ```
@@ -37,7 +37,7 @@ firewall.@zone[2].name='vpn'
 firewall.@zone[2].network='wg_hub' 'wg_mesh'
 ```
 
-In LuCI the same is under **Network → Firewall**, in the **Zones** list. If an interface is in no zone, add it to one first, under **Network → Firewall → Zones**, **Edit**, **Covered networks**, or with `uci add_list firewall.@zone[2].network='wg_mesh'`.
+A zone may name devices instead, as in `firewall.@zone[2].device='wg_hub' 'wg_mesh'`: a WireGuard interface's device has the interface's name, so that zone holds both interfaces too. In LuCI the same is under **Network → Firewall**, in the **Zones** list. If an interface is in no zone, add it to one first, under **Network → Firewall → Zones**, **Edit**, **Covered networks**, or with `uci add_list firewall.@zone[2].network='wg_mesh'`.
 
 ## 2. Add the rules of a spoke
 

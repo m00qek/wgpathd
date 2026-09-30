@@ -69,7 +69,7 @@ On a live system, `service wgpathd check` and the [ubus config check](ubus-confi
 
 It reads the configuration the way fw4 does:
 
-- **The zone** of an interface is the first enabled zone whose `network` lists it. A zone with a name fw4 would refuse is skipped.
+- **The zone** of an interface is the first enabled zone that takes it: its `network` lists the interface, or its `device` names the interface's device. netifd names a WireGuard interface's device after the interface, so a zone with `list device 'wg_hub'` takes the interface `wg_hub`. A `device` may end in `+` to match every device that starts with the rest, `wg+` for instance, as fw4 reads it. A zone with a name fw4 would refuse is skipped.
 - **The rules** that apply are enabled `rule` sections without `dest`: first those with `src '*'`, then those of the zone, in the order of the file. The first rule whose `target` is `ACCEPT`, `REJECT` or `DROP` and that covers the traffic decides. Without one, the zone's `input` decides, or the `input` of `defaults` when the zone has none. An interface in no zone gets only the `src '*'` rules and the default `input`.
 - **A rule covers the traffic** when its `family`, or its zone's when it has none, includes the traffic's; its `proto` names the protocol (unset means TCP and UDP; `all`, `tcpudp`, protocol numbers, and `icmp` for ICMPv6 too unless the family says otherwise); its `dest_port` includes the port (a port, a range `a-b` or `a:b`, or a list; unset is every port); and its `icmp_type` includes an echo request (`echo-request`, `ping`, `8` or `8/0`, `128` for ICMPv6; unset is every type). Lists may be UCI lists or words in one option. A `limit` does not stop a rule from accepting.
 
@@ -77,7 +77,7 @@ It **could not confirm** a traffic, rather than call it missing, when:
 
 - a rule that may decide it has options the check does not follow: `src_ip`, `src_mac`, `src_port`, `dest_ip`, `device`, `ipset`, `helper`, `mark`, `dscp`, a time restriction or `extra`, or an inverted (`!`) or unreadable protocol or port, or it is an ICMP rule for both families that names only other types;
 - the zone has `extra_src` or `extra`, or its `family` excludes the traffic's;
-- a zone that matches by `device` or `subnet` comes before the interface's zone, or no zone lists the interface and one matches that way;
+- a zone that may take the traffic in a way the check does not follow comes before the interface's zone, or no zone takes the interface and one may: a zone with a `subnet` (unless its `device` list leaves the interface out), an inverted (`!`) `network` or `device`, a `device` of `+` alone or with a `*`; for the underlay probe, which comes from the `wan` zone rather than an interface, any zone with a `device` or `subnet` before `wan`;
 - the firewall has custom nftables rules: an enabled `include` section, or a file with anything but comments in `/etc/nftables.d/*.nft`, `/usr/share/nftables.d/ruleset-*/`, `/usr/share/nftables.d/table-*/` or `/usr/share/nftables.d/chain-*/input*/`;
 - `mesh_iface` has no `listen_port`, so the relay port is not known;
 - there is no zone named `wan`, for the underlay probe.

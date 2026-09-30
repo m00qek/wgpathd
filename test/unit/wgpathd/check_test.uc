@@ -204,9 +204,9 @@ describe('check: findings for the firewall', () => {
 			'a rule or zone option this check does not follow applies', messages(firewall([ narrowed ]))[1]);
 		assert.match('firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): could not confirm, ' +
 			'the firewall has custom nftables rules', messages(firewall([], { custom: true }))[1]);
-		let by_device = [ h.zone('dev', null, 'REJECT', { device: 'wg+' }), h.zone('vpn', [ 'wg_mesh', 'wg_hub' ], 'REJECT') ];
+		let by_subnet = [ h.zone('net', null, 'REJECT', { subnet: '10.20.0.0/24' }), h.zone('vpn', [ 'wg_mesh', 'wg_hub' ], 'REJECT') ];
 		assert.match('firewall: ICMP echo-request (tunnel probe) from wg_mesh (zone vpn): could not confirm, ' +
-			'a zone may take it by device or subnet', messages(firewall([], { zones: by_device }))[0]);
+			'a zone may take it by device or subnet', messages(firewall([], { zones: by_subnet }))[0]);
 		let v6_only = [ h.zone('vpn', [ 'wg_mesh', 'wg_hub' ], 'REJECT', { family: 'ipv6' }) ];
 		assert.match('firewall: ICMP echo-request (tunnel probe) from wg_mesh (zone vpn): could not confirm, ' +
 			'zone vpn is not for IPv4', messages(firewall([], { zones: v6_only }))[0]);

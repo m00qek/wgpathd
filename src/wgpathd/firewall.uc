@@ -190,22 +190,54 @@ function walk(rules, flow, zone, policy) {
 	return decided(choice(policy ?? 'drop', POLICIES) == 'accept', zone ? NO_RULE : NO_ZONE);
 }
 
-// The zone fw4 sends the flow to: the first that lists its interface, or has its name.
+// A device of a zone: a name, or a prefix with a trailing `+`. fw4 skips any other use of `+`.
+function device_matches(pattern, device) {
+	let m = match(pattern, /^([^+]*)(\+)?$/);
+	if (m == null)
+		return false;
+	return m[2] ? substr(device, 0, length(m[1])) == m[1] : pattern == device;
+}
+
+// An inverted entry, `+` alone, or a `*`, which nftables takes as a wildcard.
+function not_followed(entry) {
+	return substr(entry, 0, 1) == '!' || entry == '+' || index(entry, '*') >= 0;
+}
+
+// Whether fw4 sends the flow to zone z. fw4 matches the devices of the interfaces in
+// `network` and the devices in `device` as one set, and netifd names a WireGuard
+// interface's device after it: a flow's interface is always one. A source subnet, or a
+// match not followed here, makes it MAYBE, and so does any device for a flow from a
+// named zone, whose device is not known.
+function takes(z, flow) {
+	let devices = items(z.device);
+	if (flow.zone != null)
+		return (z.name == flow.zone) ? YES : ((length(devices) || is_set(z.subnet)) ? MAYBE : NO);
+	let networks = items(z.network);
+	if (length(filter([ ...networks, ...devices ], not_followed)))
+		return MAYBE;
+	let named = flow.iface in networks || length(filter(devices, (d) => device_matches(d, flow.iface))) > 0;
+	if (is_set(z.subnet))
+		return (named || !length(devices)) ? MAYBE : NO;
+	return named ? YES : NO;
+}
+
+// The zone fw4 sends the flow to: the first that takes it.
 function zone_for(zones, flow) {
-	let by_address = false;
+	let unsure = null;
 	for (let z in zones) {
-		let listed = (flow.zone != null) ? z.name == flow.zone : flow.iface in items(z.network);
-		if (listed) {
-			let family = family_of(z.family) ?? 0;
-			if (family && family != flow.family)
-				return { zone: z, unsure: ZONE_FAMILY };
-			if (is_set(z.extra_src) || is_set(z.extra))
-				return { zone: z, unsure: CONDITIONS };
-			return { zone: z, unsure: by_address ? MATCHED_BY : null };
-		}
-		by_address ||= is_set(z.device) || is_set(z.subnet);
+		let taken = takes(z, flow);
+		if (taken == MAYBE)
+			unsure ??= MATCHED_BY;
+		if (taken != YES)
+			continue;
+		let family = family_of(z.family) ?? 0;
+		if (family && family != flow.family)
+			return { zone: z, unsure: ZONE_FAMILY };
+		if (is_set(z.extra_src) || is_set(z.extra))
+			return { zone: z, unsure: CONDITIONS };
+		return { zone: z, unsure: unsure };
 	}
-	return { zone: null, unsure: (flow.zone != null) ? NOT_FOUND : (by_address ? MATCHED_BY : null) };
+	return { zone: null, unsure: (flow.zone != null) ? NOT_FOUND : unsure };
 }
 
 // fw: { defaults, zones, rules, custom }: the sections of /etc/config/firewall, and
