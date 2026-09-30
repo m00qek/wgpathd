@@ -27,9 +27,15 @@ const callSchema = rpc.declare({
 	method: 'schema'
 });
 
+// No class makes a label red in every theme: material has `label danger`, bootstrap no
+// red label at all. So Fail also takes the error colour the theme gives its alerts, by
+// the theme's own variable: bootstrap's, then openwrt2020's. Material's `label danger`
+// overrides it with !important.
+const FAIL_STYLE = 'background-color:var(--error-color-high,var(--danger-color,#c43c35));color:var(--on-error-color,#fff)';
+
 const LEVELS = {
 	ok:   { text: _('OK'),   label: 'label success' },
-	fail: { text: _('Fail'), label: 'label important danger' },
+	fail: { text: _('Fail'), label: 'label danger', style: FAIL_STYLE },
 	warn: { text: _('Warn'), label: 'label warning' },
 	skip: { text: _('Skip'), label: 'label' }
 };
@@ -695,7 +701,7 @@ return view.extend({
 
 			return E('tr', { 'class': 'tr' }, [
 				E('td', { 'class': 'td', 'width': '10%' }, [
-					E('span', { 'class': level ? level.label : 'label' }, [ level ? level.text : String(f.level) ])
+					E('span', { 'class': level ? level.label : 'label', 'style': level?.style ?? null }, [ level ? level.text : String(f.level) ])
 				]),
 				E('td', { 'class': 'td' }, findingText(String(f.message), (name) => this.titleOf(name)).concat(fixBlock(f.fix)))
 			]);

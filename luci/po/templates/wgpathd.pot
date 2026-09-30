@@ -35,11 +35,11 @@ msgstr ""
 msgid "%d s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:95
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:101
 msgid "%s (in no zone)"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:94
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:100
 msgid "%s (zone %s)"
 msgstr ""
 
@@ -48,32 +48,32 @@ msgstr ""
 msgid "%s ago"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:107
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:113
 msgid "%s has no listen port, so WireGuard picks one at random"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:265
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:271
 msgid ""
 "%s has no peers. Add them to the WireGuard interface under Network → "
 "Interfaces."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:163
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:169
 msgid ""
 "%s is in no firewall zone, so no rule accepts %s from it: add it to a zone"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:133
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:139
 msgid ""
 "%s is not an address of a WireGuard interface: spokes should reach the peer "
 "list through the hub tunnel only"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:139
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:145
 msgid "%s is required"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:145
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:151
 msgid "%s is up with %s"
 msgstr ""
 
@@ -85,37 +85,37 @@ msgstr ""
 msgid "%s, was %s: %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:153
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:159
 msgid "%s: not in %s yet, skipped until it appears"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:155
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:161
 msgid "%s: not steered. %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:147
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:153
 msgid "%s: relays through %s over %s, tests %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:151
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:157
 msgid ""
 "%s: the route to its relay endpoint could not be looked up, tried again "
 "every check: %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:149
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:155
 msgid ""
 "%s: the route to its relay endpoint goes through %s itself, so relaying "
 "would loop. Use its address on the hub tunnel."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:169
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:175
 msgid ""
 "A firewall rule rejects %s from %s before any rule accepts it: add the rule "
 "below ahead of it"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:492
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:498
 msgid ""
 "A peer is steered once it has both a relay endpoint and a tunnel address; "
 "clearing both stops steering it. They are kept in /etc/config/wgpathd, by "
@@ -128,11 +128,11 @@ msgid ""
 "session."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:423
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:429
 msgid "A peer setting is not valid:"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:187
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:193
 msgid "Add it under"
 msgstr ""
 
@@ -143,7 +143,7 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:43
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:49
 msgid "Answer timeout"
 msgstr ""
 
@@ -165,24 +165,24 @@ msgstr ""
 msgid "Change"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:770
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:776
 msgid "Check configuration"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:40
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:46
 msgid "Check interval"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:41
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:47
 msgid "Checks before a direct test"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:41
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:47
 msgid ""
 "Checks in a row with evidence of a direct path before steer mode tests it."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:42
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:48
 msgid ""
 "Checks in a row without an answer over the direct path before a peer goes "
 "back to the hub."
@@ -192,19 +192,19 @@ msgstr ""
 msgid "Checks without an answer"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:137
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:143
 msgid "Choose a role"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:266
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:272
 msgid "Choose the mesh interface on the General tab."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:705
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:711
 msgid "Configuration check"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:172
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:178
 msgid "Could not confirm that the firewall accepts %s from %s: %s"
 msgstr ""
 
@@ -243,11 +243,11 @@ msgstr ""
 msgid "Direct given up"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:44
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:50
 msgid "Direct test time"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:47
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:53
 msgid "Direct time that clears the wait"
 msgstr ""
 
@@ -259,7 +259,7 @@ msgstr ""
 msgid "Direct, the test passed"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:571
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:577
 msgid "Enable"
 msgstr ""
 
@@ -267,7 +267,7 @@ msgstr ""
 msgid "Enable it and check its settings under"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:334
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:340
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/status.js:151
 msgid "Endpoint"
 msgstr ""
@@ -276,41 +276,41 @@ msgstr ""
 msgid "Every change is also in the"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:602
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:608
 msgid "Expecting: a URL of the form http://address:port/path"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:210
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:216
 msgid "Expecting: a number from %h to %h"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:209
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:215
 msgid "Expecting: a whole number from %h to %h"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:32
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:38
 msgid "Fail"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:49
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:55
 msgid ""
 "Failed direct tests in a row on the same address after which it is given up: "
 "evidence of a direct path alone no longer tests it."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:49
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:55
 msgid "Failed tests before giving up"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:45
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:51
 msgid "First wait after a failure"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:708
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:714
 msgid "Fix the fields it marks, then try again."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:335
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:341
 msgid "Fixed endpoint"
 msgstr ""
 
@@ -318,7 +318,7 @@ msgstr ""
 msgid "For"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:491
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:497
 msgid "General"
 msgstr ""
 
@@ -326,7 +326,7 @@ msgstr ""
 msgid "Give peers a relay endpoint and a tunnel address under"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:50
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:56
 msgid "Given-up time"
 msgstr ""
 
@@ -343,15 +343,15 @@ msgstr ""
 msgid "How each mesh peer is reached right now."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:593
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:599
 msgid "Hub interface"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:121
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:127
 msgid "Hub: publishes the peers of %s on %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:578
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:584
 msgid "Hub: publishes the spokes' addresses"
 msgstr ""
 
@@ -379,7 +379,7 @@ msgstr ""
 msgid "It is the tunnel address of this peer"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:191
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:197
 msgid "It is this section of /etc/config/firewall:"
 msgstr ""
 
@@ -387,7 +387,7 @@ msgstr ""
 msgid "Its settings are given more than once"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:518
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:524
 msgid "Its settings can still be changed and checked here."
 msgstr ""
 
@@ -399,11 +399,11 @@ msgstr ""
 msgid "Last heard"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:493
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:499
 msgid "Leave a field empty to use the default it shows."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:46
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:52
 msgid "Longest wait after failures"
 msgstr ""
 
@@ -411,33 +411,33 @@ msgstr ""
 msgid "Mesh"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:588
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:604
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:594
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:610
 msgid "Mesh interface"
 msgstr ""
 
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/status/include/70_wgpathd.js:9
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:502
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:508
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/status.js:74
 #: applications/luci-app-wgpathd/root/usr/share/luci/menu.d/luci-app-wgpathd.json:3
 #: applications/luci-app-wgpathd/root/usr/share/luci/menu.d/luci-app-wgpathd.json:16
 msgid "Mesh paths"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:42
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:48
 msgid "Missed checks before the hub"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:581
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:587
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/status.js:144
 msgid "Mode"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:187
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:193
 msgid "Network → Firewall → Traffic Rules"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:526
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:532
 msgid "Network → Interfaces"
 msgstr ""
 
@@ -453,7 +453,7 @@ msgstr ""
 msgid "Next direct try"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:354
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:360
 msgid "No"
 msgstr ""
 
@@ -461,11 +461,11 @@ msgstr ""
 msgid "No changes since the service started."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:167
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:173
 msgid "No firewall rule accepts %s from %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:165
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:171
 msgid ""
 "No firewall rule accepts %s from the wan zone: restore OpenWrt's default "
 "rule Allow-ICMPv6-Input"
@@ -491,12 +491,12 @@ msgstr ""
 msgid "No tunnel address to check set"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:325
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:331
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/wgpathd.js:33
 msgid "No valid public key"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:353
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:359
 msgid "No, it keeps its fixed endpoint"
 msgstr ""
 
@@ -530,7 +530,7 @@ msgstr ""
 msgid "Not yet: %d of %d checks answered over the direct address"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:707
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:713
 msgid ""
 "Nothing was saved or applied: the check found problems, which wgpathd would "
 "refuse or leave unsteered."
@@ -540,7 +540,7 @@ msgstr ""
 msgid "Now"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:31
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:37
 msgid "OK"
 msgstr ""
 
@@ -550,7 +550,7 @@ msgid ""
 "keeps every peer on the hub path."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:583
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:589
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/wgpathd.js:229
 msgid "Observe: watches the paths but never switches them"
 msgstr ""
@@ -569,7 +569,7 @@ msgid "Path"
 msgstr ""
 
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/status/include/70_wgpathd.js:20
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:255
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:261
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/status.js:151
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/status.js:262
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/status.js:268
@@ -577,7 +577,7 @@ msgstr ""
 msgid "Peer"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:135
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:141
 msgid ""
 "Peer %s still has settings in the network configuration from an earlier "
 "version, which are ignored: run service wgpathd migrate on the router, or "
@@ -588,39 +588,39 @@ msgstr ""
 msgid "Peer list"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:597
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:603
 msgid "Peer list URL"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:48
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:54
 msgid "Peer list refresh"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:159
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:165
 msgid "Peer settings without a public key are ignored"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:492
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:498
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/status.js:103
 msgid "Peers"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:276
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:282
 msgid ""
 "Peers with a fixed endpoint in their WireGuard settings, such as the hub, "
 "keep that endpoint and are not steered."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:614
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:620
 msgid "Port"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:255
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:261
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/status.js:275
 msgid "Public key"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:608
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:614
 msgid "Publish on"
 msgstr ""
 
@@ -636,48 +636,48 @@ msgstr ""
 msgid "Recent changes"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:255
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:261
 msgid "Relay endpoint"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:576
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:582
 msgid "Role"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:44
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:50
 msgid ""
 "Seconds a direct test waits for an answer. Must be longer than the check "
 "interval and the answer timeout together."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:47
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:53
 msgid ""
 "Seconds a peer must stay on the direct path before the wait after failures "
 "starts over."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:50
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:56
 msgid ""
 "Seconds an address stays given up before one more direct test may try it."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:45
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:51
 msgid ""
 "Seconds before the next direct test after a failed one, or after a fall back "
 "to the hub. The wait doubles with each failure."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:48
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:54
 msgid "Seconds between fetches of the peer list from the hub."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:40
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:46
 msgid ""
 "Seconds between the end of one check and the start of the next. A hub uses "
 "this parameter only."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:43
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:49
 msgid "Seconds each check waits for its answers."
 msgstr ""
 
@@ -685,7 +685,7 @@ msgstr ""
 msgid "Service"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:525
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:531
 msgid "Set up the mesh and hub interfaces under"
 msgstr ""
 
@@ -698,15 +698,15 @@ msgstr ""
 msgid "Show details"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:34
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:40
 msgid "Skip"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:117
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:123
 msgid "Spoke in %s mode: %s, %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:577
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:583
 msgid "Spoke: steers its own peers"
 msgstr ""
 
@@ -716,13 +716,13 @@ msgid ""
 "minutes has no current WireGuard session."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:582
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:588
 msgid ""
 "Start in observe mode, and switch to steer once the Status page shows what "
 "wgpathd would do."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:505
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:511
 msgid "Status → Mesh paths"
 msgstr ""
 
@@ -732,22 +732,22 @@ msgid ""
 "another address or the peer reaches this router directly"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:277
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:283
 msgid ""
 "Steer one only if it is another spoke: wgpathd then sets its endpoint "
 "instead."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:344
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:350
 msgid "Steer this peer"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:584
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:590
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/wgpathd.js:227
 msgid "Steer: switches paths automatically"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:255
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:261
 msgid "Steered"
 msgstr ""
 
@@ -771,26 +771,26 @@ msgstr ""
 msgid "Testing direct, was via hub"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:594
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:600
 msgid ""
 "The WireGuard interface to the hub: relayed traffic and the peer list go "
 "through it."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:605
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:611
 msgid "The WireGuard interface whose peers the hub publishes."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:589
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:595
 msgid "The WireGuard interface whose peers wgpathd steers."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:522
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:528
 msgid "The WireGuard interfaces of this router could not be read."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:674
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:682
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:680
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:688
 msgid "The configuration could not be checked:"
 msgstr ""
 
@@ -798,21 +798,21 @@ msgstr ""
 msgid "The direct test got no answer within %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:161
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:167
 msgid "The firewall accepts %s from %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:129
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:135
 msgid "The hub at %s is reached through %s, not through the hub interface %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:609
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:615
 msgid ""
 "The hub's address on the spokes' tunnel, so that only the spokes can reach "
 "the list."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:125
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:131
 msgid ""
 "The peer list URL names the hub %s instead of giving its address: every "
 "fetch waits for a DNS lookup"
@@ -830,7 +830,7 @@ msgid ""
 "tries use the addresses saved by an earlier run, if any."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:274
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:280
 msgid "The peers of %s."
 msgstr ""
 
@@ -842,7 +842,7 @@ msgstr ""
 msgid "The relay endpoint is routed into %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:127
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:133
 msgid "The route to the hub at %s could not be looked up: %s"
 msgstr ""
 
@@ -852,7 +852,7 @@ msgid ""
 "check: %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:131
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:137
 msgid "The service is not enabled: it will not start"
 msgstr ""
 
@@ -860,11 +860,11 @@ msgstr ""
 msgid "The service was switched to observe mode"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:157
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:163
 msgid "The settings for the key %s match no peer of %s and are ignored"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:530
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:536
 msgid "The timing parameters could not be read."
 msgstr ""
 
@@ -872,11 +872,11 @@ msgstr ""
 msgid "The tunnel address is not valid"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:46
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:52
 msgid "The wait after failures grows up to this many seconds."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:518
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:524
 #: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/status.js:85
 msgid "The wgpathd service is not running."
 msgstr ""
@@ -885,11 +885,11 @@ msgstr ""
 msgid "The wgpathd service reports a role this page does not know: %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:175
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:181
 msgid "There is no firewall configuration: the firewall rules were not checked"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:143
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:149
 msgid "There is no interface %s"
 msgstr ""
 
@@ -897,7 +897,7 @@ msgstr ""
 msgid "This router"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:525
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:531
 msgid "This router has no WireGuard interface yet."
 msgstr ""
 
@@ -913,7 +913,7 @@ msgstr ""
 msgid "Time"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:493
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:499
 msgid "Timing"
 msgstr ""
 
@@ -923,7 +923,7 @@ msgid ""
 "peer reaches this router directly"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:255
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:261
 msgid "Tunnel address"
 msgstr ""
 
@@ -932,7 +932,7 @@ msgstr ""
 msgid "Unknown"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:123
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:129
 msgid "Unknown mode %s: wgpathd runs in observe mode"
 msgstr ""
 
@@ -962,21 +962,21 @@ msgid_plural "Via hub, was direct: %d checks in a row got no answer"
 msgstr[0] ""
 msgstr[1] ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:33
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:39
 msgid "Warn"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:504
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:510
 msgid "What each peer is doing right now is under"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:598
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:604
 msgid ""
 "Where the hub publishes the spokes' direct addresses: its address on the hub "
 "interface, its port, and /peers."
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:504
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:510
 msgid "Which peers wgpathd steers, and how."
 msgstr ""
 
@@ -993,11 +993,11 @@ msgstr ""
 msgid "Would test direct"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:354
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:360
 msgid "Yes"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:353
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:359
 msgid "Yes, in place of its fixed endpoint"
 msgstr ""
 
@@ -1005,19 +1005,19 @@ msgstr ""
 msgid "Yes, steer mode would test the direct path now"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:103
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:109
 msgid "a rule or zone option that the check does not follow applies to it"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:105
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:111
 msgid "a zone may take it by device or subnet"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:309
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:315
 msgid "address"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:308
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:314
 msgid "address:port"
 msgstr ""
 
@@ -1025,7 +1025,7 @@ msgstr ""
 msgid "direct given up, tries again in %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:526
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:532
 msgid "first."
 msgstr ""
 
@@ -1041,27 +1041,27 @@ msgstr ""
 msgid "next direct try in %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:62
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:68
 msgid "observe"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:188
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:194
 msgid "or on the router with:"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:88
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:94
 msgid "peer list requests (TCP port %s)"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:86
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:92
 msgid "relayed WireGuard packets (UDP port %s)"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:87
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:93
 msgid "relayed WireGuard packets (UDP)"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:62
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:68
 msgid "steer"
 msgstr ""
 
@@ -1073,27 +1073,27 @@ msgstr ""
 msgid "test ends in %s"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:96
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:102
 msgid "the %s zone"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:104
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:110
 msgid "the firewall has custom nftables rules, which the check does not read"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:83
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:89
 msgid "the tunnel probe (ICMP echo request)"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:84
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:90
 msgid "the tunnel probe (ICMPv6 echo request)"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:85
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:91
 msgid "the underlay probe (ICMPv6 echo request)"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:108
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:114
 msgid "there is no such zone"
 msgstr ""
 
@@ -1101,6 +1101,6 @@ msgstr ""
 msgid "would test direct"
 msgstr ""
 
-#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:106
+#: applications/luci-app-wgpathd/htdocs/luci-static/resources/view/wgpathd/settings.js:112
 msgid "zone %s is not for IPv%s"
 msgstr ""
