@@ -13,8 +13,8 @@ make package
 The first run builds a `wgpathd-sdk` image from `ghcr.io/openwrt/sdk` and updates the feed metadata (base, packages and luci), which takes a while. The packages land in `bin/`:
 
 ```
-bin/wgpathd-0.1.0-r7.apk
-bin/luci-app-wgpathd-0.1.0-r7.apk
+bin/wgpathd-0.1.0-r8.apk
+bin/luci-app-wgpathd-0.1.0-r8.apk
 ```
 
 For the full SDK build output, add `VERBOSE=1`.

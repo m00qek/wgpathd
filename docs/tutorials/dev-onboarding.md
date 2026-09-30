@@ -88,7 +88,7 @@ make package
 The first run builds an image from the OpenWrt SDK and fetches feed metadata; this takes longer than the test image did. At the end we should see a line like:
 
 ```
-'bin/packages/x86_64/base/wgpathd-0.1.0-r7.apk' -> '/artifacts/wgpathd-0.1.0-r7.apk'
+'bin/packages/x86_64/base/wgpathd-0.1.0-r8.apk' -> '/artifacts/wgpathd-0.1.0-r8.apk'
 ```
 
 Let's confirm the file is there:
@@ -98,7 +98,7 @@ ls bin/
 ```
 
 ```
-wgpathd-0.1.0-r7.apk
+wgpathd-0.1.0-r8.apk
 ```
 
 That is the package an operator installs on a hub or a spoke.
