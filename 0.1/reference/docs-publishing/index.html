@@ -1,0 +1,2588 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Direct-or-relay path selection for WireGuard hub-and-spoke on OpenWrt.">
+      
+      
+      
+        <link rel="canonical" href="https://m00qek.github.io/wgpathd/latest/reference/docs-publishing/">
+      
+      
+        <link rel="prev" href="../make-targets/">
+      
+      
+        <link rel="next" href="../../explanation/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.17">
+    
+    
+      
+        <title>Documentation Publishing - wgpathd</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.bcfcd587.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#documentation-publishing" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You are reading the documentation of an older release.
+  <a href="../../.."><strong>Go to the latest.</strong></a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),outdated=__md_get("__outdated",sessionStorage);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="wgpathd" class="md-header__button md-logo" aria-label="wgpathd" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            wgpathd
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Documentation Publishing
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/m00qek/wgpathd" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    m00qek/wgpathd
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Welcome
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/" class="md-tabs__link">
+          
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../how-to/" class="md-tabs__link">
+          
+  
+  How-to Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/" class="md-tabs__link">
+          
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="wgpathd" class="md-nav__button md-logo" aria-label="wgpathd" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    wgpathd
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/m00qek/wgpathd" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    m00qek/wgpathd
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Welcome
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tutorials
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/first-failover/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Your First Failover
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/dev-onboarding/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Developer Onboarding
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How-to Guides
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Operators
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Operators
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/prepare-substrate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Preparing the WireGuard Substrate
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/open-firewall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Opening the Firewall for wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installing wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/upgrade-peer-settings/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upgrading Peer Settings from Earlier Releases
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-hub/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring the Hub
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-spoke/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring a Spoke
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/enable-steering/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Moving a Spoke from Observe to Steer
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/apply-changes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Applying Configuration Changes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/tune-timing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tuning Timing Parameters
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-in-luci/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring Mesh Paths in LuCI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/check-paths-in-luci/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checking Mesh Paths in LuCI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/troubleshoot/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inspecting Status and Troubleshooting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/uninstall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Removing wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Developer
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            Developer
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Running Tests
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/packaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Building the Package
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/documentation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Writing Documentation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3_4" id="__nav_3_3_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Publishing the Documentation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            Publishing the Documentation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/setup-docs-publishing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Setting Up Publishing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/publish-minor-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Publishing a New Minor Release
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/publish-patch-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Publishing a Patch Release
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/fix-released-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fixing the Released Docs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/republish-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Republishing a Version
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../uci-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    UCI Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../substrate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WireGuard Substrate
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parameters/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Timing Parameters
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../service-commands/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Service Commands
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ubus-status/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ubus Status
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ubus-config-check/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ubus Config Check
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../discovery-api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Discovery HTTP API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../log-messages/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Log Messages
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../error-codes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Codes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../firewall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Firewall Rules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../files/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Files and Dependencies
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../make-targets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Make Targets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Documentation Publishing
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Documentation Publishing
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#triggers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Triggers
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Jobs
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Jobs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#build" class="md-nav__link">
+    <span class="md-ellipsis">
+      build
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#publish" class="md-nav__link">
+    <span class="md-ellipsis">
+      publish
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#permissions-and-concurrency" class="md-nav__link">
+    <span class="md-ellipsis">
+      Permissions and concurrency
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-latest-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      The latest rule
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#site-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      Site layout
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Site layout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#404-redirect" class="md-nav__link">
+    <span class="md-ellipsis">
+      404 redirect
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#docs-only-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      Docs-only guard
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links-to-the-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Links to the documentation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Links to the documentation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#link-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      Link check
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files-and-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Files and scripts
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Files and scripts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#docs-versionsh-ref" class="md-nav__link">
+    <span class="md-ellipsis">
+      docs-version.sh REF
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docs-guardsh-branch-tag" class="md-nav__link">
+    <span class="md-ellipsis">
+      docs-guard.sh BRANCH [TAG]
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docs-publishsh-ref" class="md-nav__link">
+    <span class="md-ellipsis">
+      docs-publish.sh REF
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docs-linkssh-root" class="md-nav__link">
+    <span class="md-ellipsis">
+      docs-links.sh [ROOT]
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pinned-versions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pinned versions
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Explanation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Explanation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/why/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Why wgpathd?
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/about/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/state-machine/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About the Path State Machine
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/discovery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About Discovery
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/trust-model/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Trust Model
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/versioned-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About Versioned Documentation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#triggers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Triggers
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Jobs
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Jobs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#build" class="md-nav__link">
+    <span class="md-ellipsis">
+      build
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#publish" class="md-nav__link">
+    <span class="md-ellipsis">
+      publish
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#permissions-and-concurrency" class="md-nav__link">
+    <span class="md-ellipsis">
+      Permissions and concurrency
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-latest-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      The latest rule
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#site-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      Site layout
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Site layout">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#404-redirect" class="md-nav__link">
+    <span class="md-ellipsis">
+      404 redirect
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#docs-only-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      Docs-only guard
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links-to-the-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Links to the documentation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Links to the documentation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#link-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      Link check
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files-and-scripts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Files and scripts
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Files and scripts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#docs-versionsh-ref" class="md-nav__link">
+    <span class="md-ellipsis">
+      docs-version.sh REF
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docs-guardsh-branch-tag" class="md-nav__link">
+    <span class="md-ellipsis">
+      docs-guard.sh BRANCH [TAG]
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docs-publishsh-ref" class="md-nav__link">
+    <span class="md-ellipsis">
+      docs-publish.sh REF
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#docs-linkssh-root" class="md-nav__link">
+    <span class="md-ellipsis">
+      docs-links.sh [ROOT]
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pinned-versions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pinned versions
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="documentation-publishing">Documentation Publishing<a class="headerlink" href="#documentation-publishing" title="Permanent link">&para;</a></h1>
+<p>The documentation is published with <a href="https://github.com/jimporter/mike">mike</a> to the <code>gh-pages</code> branch, one version per minor release, by the <code>docs</code> workflow in <code>.github/workflows/docs.yml</code>. The make targets that build and test it locally are in <a href="../make-targets/#docsmakefile">Make targets</a>. For the reasons behind this design, see <a href="../../explanation/versioned-docs/">About versioned documentation</a>.</p>
+<hr />
+<h2 id="triggers">Triggers<a class="headerlink" href="#triggers" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Event</th>
+<th style="text-align: left;">Ref</th>
+<th style="text-align: left;">Job</th>
+<th style="text-align: left;">Publishes</th>
+<th style="text-align: left;">Version title</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Push of a tag</td>
+<td style="text-align: left;"><code>v[0-9]+.[0-9]+.[0-9]+</code>, for example <code>v0.2.1</code></td>
+<td style="text-align: left;"><code>publish</code></td>
+<td style="text-align: left;">version <code>X.Y</code></td>
+<td style="text-align: left;"><code>X.Y.Z</code>, the tag without its <code>v</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Push to a branch</td>
+<td style="text-align: left;"><code>docs/[0-9]+.[0-9]+</code>, for example <code>docs/0.2</code></td>
+<td style="text-align: left;"><code>publish</code></td>
+<td style="text-align: left;">version <code>X.Y</code>, if the <a href="#docs-only-guard">docs-only guard</a> passes</td>
+<td style="text-align: left;">the newest <code>vX.Y.*</code> tag without its <code>v</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Push to a branch</td>
+<td style="text-align: left;"><code>main</code></td>
+<td style="text-align: left;"><code>build</code></td>
+<td style="text-align: left;">nothing</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">Pull request</td>
+<td style="text-align: left;">into <code>main</code></td>
+<td style="text-align: left;"><code>build</code></td>
+<td style="text-align: left;">nothing</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr>
+<td style="text-align: left;">Manual run (<code>workflow_dispatch</code>)</td>
+<td style="text-align: left;">the input <code>ref</code>: a release tag <code>vX.Y.Z</code> or a branch <code>docs/X.Y</code></td>
+<td style="text-align: left;"><code>publish</code></td>
+<td style="text-align: left;">as for a push of that ref</td>
+<td style="text-align: left;">as for a push of that ref</td>
+</tr>
+</tbody>
+</table>
+<p>Branch pushes and pull requests start the workflow only when they change at least one of these paths. Tag pushes and manual runs always start it.</p>
+<ul>
+<li><code>docs/**</code></li>
+<li><code>mkdocs.yml</code>, <code>mkdocs.mike.yml</code></li>
+<li><code>devenv/gh-pages/**</code></li>
+<li><code>devenv/scripts/docs-*.sh</code></li>
+<li><code>devenv/services/docs/**</code></li>
+<li><code>test/docs/**</code></li>
+<li><code>.github/workflows/docs.yml</code></li>
+</ul>
+<p>Nothing else publishes: <code>main</code>, pull requests and pre-release tags such as <code>v0.3.0-rc1</code> never reach <code>gh-pages</code>.</p>
+<h2 id="jobs">Jobs<a class="headerlink" href="#jobs" title="Permanent link">&para;</a></h2>
+<h3 id="build"><code>build</code><a class="headerlink" href="#build" title="Permanent link">&para;</a></h3>
+<p>Runs on pull requests and on pushes to <code>main</code>.</p>
+<ol>
+<li><code>make -C docs build</code>: strict build with <code>mkdocs.yml</code>.</li>
+<li><code>make -C docs build-mike</code>: strict build with <code>mkdocs.mike.yml</code>.</li>
+<li><code>make -C docs test</code>: the tests in <code>test/docs/</code>.</li>
+</ol>
+<h3 id="publish"><code>publish</code><a class="headerlink" href="#publish" title="Permanent link">&para;</a></h3>
+<p>Runs on release tags, <code>docs/*</code> branches and manual runs. <code>REF</code> is the manual run's <code>ref</code> input, or else the pushed ref.</p>
+<ol>
+<li>Checks out <code>REF</code> with its full history and tags.</li>
+<li>Installs Python 3.12 and <code>devenv/services/docs/requirements.txt</code> with <code>pip</code>.</li>
+<li>Sets the git committer to <code>github-actions[bot]</code>.</li>
+<li><code>mkdocs build --strict --config-file mkdocs.mike.yml</code>.</li>
+<li><code>devenv/scripts/docs-publish.sh "$REF"</code>.</li>
+</ol>
+<h3 id="permissions-and-concurrency">Permissions and concurrency<a class="headerlink" href="#permissions-and-concurrency" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Setting</th>
+<th style="text-align: left;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Workflow permissions</td>
+<td style="text-align: left;"><code>contents: read</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>publish</code> permissions</td>
+<td style="text-align: left;"><code>contents: write</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>publish</code> concurrency group</td>
+<td style="text-align: left;"><code>gh-pages</code>, with <code>cancel-in-progress: false</code></td>
+</tr>
+</tbody>
+</table>
+<p>One <code>publish</code> job runs at a time; a later one waits. GitHub keeps at most one waiting job per concurrency group: a newer one cancels the one already waiting.</p>
+<h2 id="the-latest-rule">The latest rule<a class="headerlink" href="#the-latest-rule" title="Permanent link">&para;</a></h2>
+<p>A publish of version <code>X.Y</code> also points <code>latest</code> to <code>X.Y</code>, and makes <code>latest</code> the default version, only if <code>X.Y</code> is the newest of the version folders already on <code>gh-pages</code> together with <code>X.Y</code> itself, compared with <code>sort -V</code>: <code>0.10</code> is newer than <code>0.9</code>. Otherwise <code>latest</code> stays where it is. The first publish always takes <code>latest</code>.</p>
+<p>The script prints which case applied:</p>
+<div class="highlight"><pre><span></span><code>publishing 0.10 (0.10.0) as latest
+publishing 0.9 (0.9.1); latest stays on 0.10
+</code></pre></div>
+<h2 id="site-layout">Site layout<a class="headerlink" href="#site-layout" title="Permanent link">&para;</a></h2>
+<p>The published site on <code>gh-pages</code>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Path</th>
+<th style="text-align: left;">Written by</th>
+<th style="text-align: left;">Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>/X.Y/</code></td>
+<td style="text-align: left;">mike</td>
+<td style="text-align: left;">One folder per minor, without a <code>v</code>: <code>0.9</code>, <code>0.10</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/latest/</code></td>
+<td style="text-align: left;">mike</td>
+<td style="text-align: left;">A full copy of the newest minor's folder (<code>alias_type: copy</code>), not a symlink or a redirect.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/versions.json</code></td>
+<td style="text-align: left;">mike</td>
+<td style="text-align: left;">The versions, their titles and aliases, for the version selector.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/index.html</code></td>
+<td style="text-align: left;">mike</td>
+<td style="text-align: left;">Redirects to <code>/latest/</code> (<code>mike set-default latest</code>).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/404.html</code></td>
+<td style="text-align: left;"><code>docs-publish.sh</code></td>
+<td style="text-align: left;">Copy of <code>devenv/gh-pages/404.html</code>. See <a href="#404-redirect">below</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>/.nojekyll</code></td>
+<td style="text-align: left;"><code>docs-publish.sh</code></td>
+<td style="text-align: left;">Empty. Tells GitHub Pages to serve the files as they are.</td>
+</tr>
+</tbody>
+</table>
+<p>Every page carries a version selector. With <code>site_url</code> set, its canonical URL is the same page under <code>/latest/</code> (<code>canonical_version: latest</code>). Pages of a version that is not <code>latest</code> show a banner, <code>docs/overrides/main.html</code>:</p>
+<blockquote>
+<p>You are reading the documentation of an older release. <strong>Go to the latest.</strong></p>
+</blockquote>
+<p>The link goes to the site's root, which redirects to <code>/latest/</code>.</p>
+<h3 id="404-redirect">404 redirect<a class="headerlink" href="#404-redirect" title="Permanent link">&para;</a></h3>
+<p>GitHub Pages serves <code>/404.html</code> for every missing path. Its script redirects <code>/&lt;site&gt;/&lt;path&gt;</code> to <code>/&lt;site&gt;/latest/&lt;path&gt;</code>, keeping the query string and the <code>#anchor</code>. <code>/&lt;site&gt;</code> and <code>/&lt;site&gt;/</code> go to <code>/&lt;site&gt;/latest/</code>.</p>
+<p>It does not redirect, and shows "Page not found", when the first segment after <code>/&lt;site&gt;/</code> is <code>latest</code>, <code>dev</code> or a version <code>X.Y</code>, or when the path is <code>/</code>. The first path segment is always taken as the site, so the redirect works only on a project site, <code>https://&lt;user&gt;.github.io/&lt;site&gt;/</code>.</p>
+<h2 id="docs-only-guard">Docs-only guard<a class="headerlink" href="#docs-only-guard" title="Permanent link">&para;</a></h2>
+<p><code>devenv/scripts/docs-guard.sh</code> runs before every publish of a <code>docs/X.Y</code> branch, whether pushed or run manually. It does not run for release tags. It checks the checked-out commit, <code>HEAD</code>, against the release tag of its minor:</p>
+<ol>
+<li>The tag is the newest tag of the form <code>vX.Y.Z</code> with the branch's <code>X.Y</code>, by <code>sort -V</code>: <code>v0.9.10</code> is newer than <code>v0.9.9</code>. Other tags, such as <code>v0.9.11-rc1</code>, are ignored.</li>
+<li>The tag must be an ancestor of <code>HEAD</code>.</li>
+<li><code>HEAD</code> may differ from the tag only in these files: anything under the top-level <code>docs/</code>, <code>mkdocs.yml</code>, <code>mkdocs.mike.yml</code>. A <code>docs/</code> folder anywhere else, such as <code>src/docs/</code>, does not count.</li>
+</ol>
+<p>On success the guard prints the tag, which becomes the version's title. On failure it prints one of these messages on stderr, exits 1, and nothing is published:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Message</th>
+<th style="text-align: left;">Cause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>not a docs/X.Y branch: &lt;ref&gt;</code></td>
+<td style="text-align: left;">The first argument is not a <code>docs/</code> branch.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>not a release tag vX.Y.Z or a docs/X.Y branch: &lt;ref&gt;</code></td>
+<td style="text-align: left;">The branch is <code>docs/</code> but not <code>docs/X.Y</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>docs/X.Y has no vX.Y.* release tag</code></td>
+<td style="text-align: left;">No release tag of that minor exists.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>&lt;tag&gt; is not a X.Y release</code></td>
+<td style="text-align: left;">The tag given as the second argument is of another minor.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>not a release tag: &lt;tag&gt;</code></td>
+<td style="text-align: left;">The second argument does not start with <code>v</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>&lt;tag&gt; is not an ancestor of docs/X.Y</code></td>
+<td style="text-align: left;">The branch does not contain its newest release tag, for example after a patch release it has not moved to.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>docs/X.Y changes files outside docs/: &lt;files&gt;; code fixes need a release</code></td>
+<td style="text-align: left;">The branch changes other files than the docs. The files are listed, space-separated.</td>
+</tr>
+</tbody>
+</table>
+<p>For example:</p>
+<div class="highlight"><pre><span></span><code>docs/0.2 changes files outside docs/: src/wgpathd/daemon.uc; code fixes need a release
+</code></pre></div>
+<p>To run it locally, check out the branch, make sure the release tags are fetched, and pass the branch name:</p>
+<div class="highlight"><pre><span></span><code>devenv/scripts/docs-guard.sh<span class="w"> </span>docs/0.2
+</code></pre></div>
+<h2 id="links-to-the-documentation">Links to the documentation<a class="headerlink" href="#links-to-the-documentation" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Where the link is</th>
+<th style="text-align: left;">It points to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Always-current places: the README, the repository's homepage, forum posts</td>
+<td style="text-align: left;"><code>&lt;site_url&gt;latest/...</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>CHANGELOG.md</code></td>
+<td style="text-align: left;"><code>&lt;site_url&gt;X.Y/...</code>, the minor of the section the link is in</td>
+</tr>
+<tr>
+<td style="text-align: left;">Release notes</td>
+<td style="text-align: left;"><code>&lt;site_url&gt;X.Y/...</code>, the minor of the release</td>
+</tr>
+<tr>
+<td style="text-align: left;">Shipped files: everything under <code>files/</code> and <code>src/</code>, and <code>openwrt/wgpathd/Makefile</code> (including <code>URL:=</code>)</td>
+<td style="text-align: left;"><code>&lt;site_url&gt;X.Y/...</code>, the package's current minor</td>
+</tr>
+<tr>
+<td style="text-align: left;">Pages of the documentation</td>
+<td style="text-align: left;">Relative paths, never the site's URL</td>
+</tr>
+</tbody>
+</table>
+<p><code>site_url</code> is the site's base URL without a version, set in <code>mkdocs.yml</code>, for example <code>https://&lt;user&gt;.github.io/wgpathd/</code>.</p>
+<h3 id="link-check">Link check<a class="headerlink" href="#link-check" title="Permanent link">&para;</a></h3>
+<p><code>make lint</code> runs <code>devenv/scripts/docs-links.sh</code>, which checks every pinned link, <code>&lt;site_url&gt;&lt;X.Y&gt;/</code>, in the shipped files and in <code>CHANGELOG.md</code>:</p>
+<ul>
+<li><code>site_url</code> is read from <code>mkdocs.yml</code>, with or without quotes; a missing trailing <code>/</code> is added. While <code>site_url</code> is unset, nothing is checked and the check passes.</li>
+<li>In shipped files the minor must be the one of <code>PKG_VERSION</code> in <code>openwrt/wgpathd/Makefile</code>: <code>PKG_VERSION:=0.1.0</code> requires <code>0.1</code>.</li>
+<li>In <code>CHANGELOG.md</code> the minor must be the one of the enclosing <code>## [X.Y.Z]</code> heading. Any other <code>##</code> heading, such as <code>## [Unreleased]</code>, and the text before the first <code>##</code> heading allow no pinned link at all. <code>###</code> headings do not change the section.</li>
+<li>Links to <code>latest/</code> and links under other URLs are not checked.</li>
+</ul>
+<p><code>CHANGELOG.md</code> follows <a href="https://keepachangelog.com/">Keep a Changelog</a>: <code>## [Unreleased]</code> on top, then one <code>## [X.Y.Z] - YYYY-MM-DD</code> section per release, newest first. Only the <code>## [X.Y.Z]</code> part of the heading is read.</p>
+<p>A failure prints every wrong link and exits 1:</p>
+<div class="highlight"><pre><span></span><code>pinned docs links to the wrong version:
+files/etc/config/wgpathd:1: https://example.org/wgpathd/0.9/ (expected 0.10)
+CHANGELOG.md:5: https://example.org/wgpathd/0.10/ (outside a release section)
+</code></pre></div>
+<h2 id="files-and-scripts">Files and scripts<a class="headerlink" href="#files-and-scripts" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">File</th>
+<th style="text-align: left;">Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>.github/workflows/docs.yml</code></td>
+<td style="text-align: left;">The <code>docs</code> workflow: <a href="#triggers">triggers</a>, <a href="#jobs">jobs</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>mkdocs.yml</code></td>
+<td style="text-align: left;">The site. Has no mike settings; <code>make -C docs build</code> and <code>serve</code> use it.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>mkdocs.mike.yml</code></td>
+<td style="text-align: left;">The versioned site: inherits <code>mkdocs.yml</code> and adds the <code>search</code> and <code>mike</code> plugins (<code>canonical_version: latest</code>, <code>alias_type: copy</code>), the version selector (<code>extra.version.provider: mike</code>) and the theme overrides in <code>docs/overrides/</code>. Used by <code>build-mike</code> and by the <code>publish</code> job.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>docs/overrides/main.html</code></td>
+<td style="text-align: left;">The outdated-version banner.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>devenv/gh-pages/404.html</code></td>
+<td style="text-align: left;">The <a href="#404-redirect">404 redirect</a>, copied to the root of <code>gh-pages</code> on every publish.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>devenv/services/docs/Dockerfile</code></td>
+<td style="text-align: left;">The docs tools image, <code>wgpathd-docs</code>: the mkdocs-material image plus <code>requirements.txt</code>, git, coreutils and Node.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>devenv/services/docs/requirements.txt</code></td>
+<td style="text-align: left;">Pinned mkdocs-material and mike, for the tools image and the <code>publish</code> job.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>devenv/scripts/docs-version.sh</code></td>
+<td style="text-align: left;">Maps a ref to its docs version.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>devenv/scripts/docs-guard.sh</code></td>
+<td style="text-align: left;">The <a href="#docs-only-guard">docs-only guard</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>devenv/scripts/docs-publish.sh</code></td>
+<td style="text-align: left;">Publishes one version.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>devenv/scripts/docs-links.sh</code></td>
+<td style="text-align: left;">The <a href="#link-check">link check</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>test/docs/</code></td>
+<td style="text-align: left;">Tests of the four scripts and of the 404 redirect, run by <code>make -C docs test</code>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="docs-versionsh-ref"><code>docs-version.sh REF</code><a class="headerlink" href="#docs-versionsh-ref" title="Permanent link">&para;</a></h3>
+<p>Prints the version <code>X.Y</code> of a release tag <code>vX.Y.Z</code> or of a branch <code>docs/X.Y</code>. <code>REF</code> may carry a <code>refs/tags/</code> or <code>refs/heads/</code> prefix. Anything else prints <code>not a release tag vX.Y.Z or a docs/X.Y branch: REF</code> on stderr and exits 1.</p>
+<div class="highlight"><pre><span></span><code>$ devenv/scripts/docs-version.sh refs/tags/v0.10.2
+0.10
+</code></pre></div>
+<h3 id="docs-guardsh-branch-tag"><code>docs-guard.sh BRANCH [TAG]</code><a class="headerlink" href="#docs-guardsh-branch-tag" title="Permanent link">&para;</a></h3>
+<p>Checks <code>HEAD</code> as the tip of <code>BRANCH</code>, <code>docs/X.Y</code> with an optional <code>refs/heads/</code> prefix, against <code>TAG</code>, by default the newest <code>vX.Y.Z</code> tag of that minor. See <a href="#docs-only-guard">Docs-only guard</a>. Prints the tag and exits 0, or prints a message on stderr and exits 1.</p>
+<h3 id="docs-publishsh-ref"><code>docs-publish.sh REF</code><a class="headerlink" href="#docs-publishsh-ref" title="Permanent link">&para;</a></h3>
+<p>Publishes the current checkout as version <code>X.Y</code> of <code>REF</code>, a release tag or a <code>docs/X.Y</code> branch, with an optional <code>refs/</code> prefix, to <code>origin</code>'s <code>gh-pages</code>. Run from the repository root, with <code>mike</code> installed and a git committer configured.</p>
+<ol>
+<li>Maps <code>REF</code> to its version with <code>docs-version.sh</code>. For a <code>docs/</code> branch, runs <code>docs-guard.sh</code> and takes the title from the tag it prints; for a tag, the title is the tag. The leading <code>v</code> is dropped.</li>
+<li>Fetches <code>gh-pages</code> from <code>origin</code> into the local <code>gh-pages</code> branch, if it exists there.</li>
+<li>Applies <a href="#the-latest-rule">the latest rule</a>: <code>mike deploy -F mkdocs.mike.yml --title &lt;title&gt; --update-aliases X.Y latest</code> and <code>mike set-default -F mkdocs.mike.yml latest</code>, or only <code>mike deploy -F mkdocs.mike.yml --title &lt;title&gt; X.Y</code>.</li>
+<li>Writes <code>404.html</code> and <code>.nojekyll</code> to the root of <code>gh-pages</code>, in a separate commit, <code>Root files: 404 redirect to latest, .nojekyll</code>, only if they changed.</li>
+<li>Pushes <code>gh-pages</code> to <code>origin</code>.</li>
+</ol>
+<p>It exits non-zero, before anything is pushed, if <code>REF</code> is not a release tag or a docs branch, or if the guard refuses.</p>
+<h3 id="docs-linkssh-root"><code>docs-links.sh [ROOT]</code><a class="headerlink" href="#docs-linkssh-root" title="Permanent link">&para;</a></h3>
+<p>Runs the <a href="#link-check">link check</a> on the repository at <code>ROOT</code>, by default the one the script is in. Exits 0 when every pinned link is right or <code>site_url</code> is unset, 1 otherwise.</p>
+<h2 id="pinned-versions">Pinned versions<a class="headerlink" href="#pinned-versions" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Tool</th>
+<th style="text-align: left;">Version</th>
+<th style="text-align: left;">Pinned in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">mkdocs-material image</td>
+<td style="text-align: left;"><code>squidfunk/mkdocs-material:9.5.17</code></td>
+<td style="text-align: left;"><code>MKDOCS_IMAGE</code> in <code>docs/Makefile</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">mkdocs-material</td>
+<td style="text-align: left;"><code>9.5.17</code></td>
+<td style="text-align: left;"><code>devenv/services/docs/requirements.txt</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">mike</td>
+<td style="text-align: left;"><code>2.1.3</code></td>
+<td style="text-align: left;"><code>devenv/services/docs/requirements.txt</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Docs tools image</td>
+<td style="text-align: left;"><code>wgpathd-docs:9.5.17</code>, tag taken from <code>MKDOCS_IMAGE</code></td>
+<td style="text-align: left;"><code>docs/Makefile</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Python (<code>publish</code> job)</td>
+<td style="text-align: left;"><code>3.12</code></td>
+<td style="text-align: left;"><code>.github/workflows/docs.yml</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>actions/checkout</code>, <code>actions/setup-python</code></td>
+<td style="text-align: left;"><code>v4</code>, <code>v5</code></td>
+<td style="text-align: left;"><code>.github/workflows/docs.yml</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>publish</code> job installs the requirements with <code>pip</code> on the runner and does not use the docs tools image. The dependencies of mkdocs-material and mike are not pinned there.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12Z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.1e8ae164.min.js"></script>
+      
+    
+  </body>
+</html>

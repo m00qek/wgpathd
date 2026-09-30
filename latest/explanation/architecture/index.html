@@ -1,0 +1,2239 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Direct-or-relay path selection for WireGuard hub-and-spoke on OpenWrt.">
+      
+      
+      
+        <link rel="canonical" href="https://m00qek.github.io/wgpathd/latest/explanation/architecture/">
+      
+      
+        <link rel="prev" href="../trust-model/">
+      
+      
+        <link rel="next" href="../versioned-docs/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.17">
+    
+    
+      
+        <title>Architecture - wgpathd</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.bcfcd587.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#architecture" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You are reading the documentation of an older release.
+  <a href="../../.."><strong>Go to the latest.</strong></a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),outdated=__md_get("__outdated",sessionStorage);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="wgpathd" class="md-header__button md-logo" aria-label="wgpathd" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            wgpathd
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Architecture
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/m00qek/wgpathd" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    m00qek/wgpathd
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Welcome
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/" class="md-tabs__link">
+          
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../how-to/" class="md-tabs__link">
+          
+  
+  How-to Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/" class="md-tabs__link">
+          
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="wgpathd" class="md-nav__button md-logo" aria-label="wgpathd" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    wgpathd
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/m00qek/wgpathd" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    m00qek/wgpathd
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Welcome
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tutorials
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/first-failover/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Your First Failover
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/dev-onboarding/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Developer Onboarding
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How-to Guides
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Operators
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Operators
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/prepare-substrate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Preparing the WireGuard Substrate
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/open-firewall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Opening the Firewall for wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installing wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/upgrade-peer-settings/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upgrading Peer Settings from Earlier Releases
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-hub/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring the Hub
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-spoke/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring a Spoke
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/enable-steering/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Moving a Spoke from Observe to Steer
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/apply-changes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Applying Configuration Changes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/tune-timing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tuning Timing Parameters
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-in-luci/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring Mesh Paths in LuCI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/check-paths-in-luci/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checking Mesh Paths in LuCI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/troubleshoot/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inspecting Status and Troubleshooting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/uninstall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Removing wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Developer
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            Developer
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Running Tests
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/packaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Building the Package
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/documentation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Writing Documentation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3_4" id="__nav_3_3_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Publishing the Documentation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            Publishing the Documentation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/setup-docs-publishing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Setting Up Publishing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/publish-minor-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Publishing a New Minor Release
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/publish-patch-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Publishing a Patch Release
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/fix-released-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fixing the Released Docs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/republish-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Republishing a Version
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/uci-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    UCI Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/substrate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WireGuard Substrate
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/parameters/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Timing Parameters
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/service-commands/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Service Commands
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/ubus-status/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ubus Status
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/ubus-config-check/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ubus Config Check
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/discovery-api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Discovery HTTP API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/log-messages/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Log Messages
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/error-codes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Codes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/firewall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Firewall Rules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/files/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Files and Dependencies
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/make-targets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Make Targets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/docs-publishing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Documentation Publishing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Explanation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Explanation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../why/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Why wgpathd?
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state-machine/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About the Path State Machine
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../discovery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About Discovery
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trust-model/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Trust Model
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-pure-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      The pure core
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      The shell
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-spoke-cycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      One spoke cycle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#startup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Startup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reload" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reload
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      Module map
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-the-core-is-tested" class="md-nav__link">
+    <span class="md-ellipsis">
+      How the core is tested
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Further reading
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../versioned-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About Versioned Documentation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-pure-core" class="md-nav__link">
+    <span class="md-ellipsis">
+      The pure core
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      The shell
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-spoke-cycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      One spoke cycle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#startup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Startup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reload" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reload
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      Module map
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-the-core-is-tested" class="md-nav__link">
+    <span class="md-ellipsis">
+      How the core is tested
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Further reading
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
+<p>wgpathd is built as a <strong>functional core with an imperative shell</strong>. One pure function makes every path decision. Everything that touches the system — ubus, commands, HTTP, sockets, routes, files, the clock — lives in a thin shell around it. This page explains that split and how one cycle runs.</p>
+<hr />
+<h2 id="the-pure-core">The pure core<a class="headerlink" href="#the-pure-core" title="Permanent link">&para;</a></h2>
+<p>The core is <code>decide(ctl, obs, params, now)</code> in <code>decide.uc</code>. For one peer, it takes:</p>
+<ul>
+<li><code>ctl</code>, the peer's control state: its RELAY/TRIALING/DIRECT state, streak counters, backoff, trial deadline, target, the endpoint wgpathd last set, and the failed trials in a row on one address and when it was <a href="../state-machine/#giving-up-an-address">given up</a>;</li>
+<li><code>obs</code>, what the shell observed this cycle: the kernel's current endpoint, the underlay probe result, last cycle's tunnel probe result and the endpoint the kernel held right after its answer, the discovery candidate, the relay endpoint and the tunnel address;</li>
+<li><code>params</code>, the timing parameters and the mode;</li>
+<li><code>now</code>, the time, passed in rather than read.</li>
+</ul>
+<p>It returns the next <code>ctl</code> and a list of <strong>effects</strong>. It does no I/O and reads no clock, so a test can replay any scenario, including the passage of minutes, instantly and exactly.</p>
+<p>The effects form a closed vocabulary: <code>set_endpoint</code>, <code>tunnel_probe</code>, <code>refresh_discovery</code>, <code>log</code>, <code>given_up</code>, <code>resumed</code> and <code>metric</code>. <code>effects.uc</code> defines and validates it. There is no effect that could create an interface or change AllowedIPs, which is how the <a href="../trust-model/#endpoints-only">scope limit</a> is enforced by structure.</p>
+<h2 id="the-shell">The shell<a class="headerlink" href="#the-shell" title="Permanent link">&para;</a></h2>
+<p>The shell (<code>daemon.uc</code>) gathers observations, calls <code>decide</code> for each peer, and carries out the effects. It holds no decisions of its own. All its I/O comes through a single <code>deps</code> object built in <code>deps.uc</code>, which is what lets the integration tests replace every system interface with a fake.</p>
+<p>The I/O each part uses:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Need</th>
+<th style="text-align: left;">Mechanism</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Read WireGuard peer state</td>
+<td style="text-align: left;"><code>ubus call wireguard status</code> (from <code>rpcd-mod-wireguard</code>), asynchronous</td>
+</tr>
+<tr>
+<td style="text-align: left;">Set the endpoints</td>
+<td style="text-align: left;">one <code>wg set &lt;iface&gt; peer &lt;key&gt; endpoint &lt;addr&gt; ...</code> per cycle, exit code only</td>
+</tr>
+<tr>
+<td style="text-align: left;">Underlay and tunnel probes</td>
+<td style="text-align: left;">ICMP echo on raw sockets via <code>ucode-mod-socket</code>, on the uloop</td>
+</tr>
+<tr>
+<td style="text-align: left;">Relay and candidate route checks, mesh MTU</td>
+<td style="text-align: left;">rtnl <code>RTM_GETROUTE</code> and <code>RTM_GETLINK</code> via <code>ucode-mod-rtnl</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Discovery fetch (spoke)</td>
+<td style="text-align: left;">asynchronous HTTP GET via <code>ucode-mod-uclient</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Discovery server (hub)</td>
+<td style="text-align: left;">TCP listener via <code>ucode-mod-socket</code> on the uloop</td>
+</tr>
+<tr>
+<td style="text-align: left;">Status</td>
+<td style="text-align: left;">a <code>wgpathd</code> ubus object with a <code>status</code> method</td>
+</tr>
+<tr>
+<td style="text-align: left;">Liveness</td>
+<td style="text-align: left;">procd watchdog ping, <code>ubus call service watchdog</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">Configuration</td>
+<td style="text-align: left;">UCI, read at startup and on <code>SIGHUP</code></td>
+</tr>
+</tbody>
+</table>
+<p>The one command, <code>wg set</code>, runs through <code>uloop.process</code> with its output discarded, under a timer backstop, because a child process cannot be killed from ucode, only forgotten. A spoke therefore starts one process per cycle, however many peers it steers.</p>
+<p>The probes are sent by the daemon itself. It keeps a raw socket per address family and device, registered on the loop, and a reply answers a probe only if it arrives on the socket the probe left by, from the address probed, with that socket's echo id, the probe's sequence number and the payload the probe carried. Each socket draws its echo id and first sequence number at random when it opens, and every probe carries 8 random bytes, read from <code>/dev/urandom</code>, at the start of its payload. So a late reply to an earlier probe, or a reply to someone else's ping, never counts; and a reply forged from what the underlay probes show in the clear answers nothing, because a tunnel probe travels inside the tunnel and its reply must come back out of <code>mesh_iface</code>. Anything else the socket receives is dropped.</p>
+<p>Everything runs on one single-threaded uloop. Nothing blocks: the ubus read, the probes, <code>wg set</code> and the HTTP fetch are all callbacks.</p>
+<h2 id="one-spoke-cycle">One spoke cycle<a class="headerlink" href="#one-spoke-cycle" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart TD
+    T([cycle timer fires]) --&gt; R[recheck relay routes of peers still waiting]
+    R --&gt; V["set aside each candidate that is the router's own,&lt;br/&gt;the peer's relay or tunnel, or routes into a tunnel"]
+    V --&gt; G["an underlay ping to each peer in RELAY with a candidate, all at once"]
+    G --&gt; K[wireguard status]
+    K --&gt; D[decide, per peer]
+    D --&gt; S["one wg set for every peer's endpoint"]
+    S --&gt; P["tunnel pings, all at once, for the peers that asked;&lt;br/&gt;a wireguard status read right after answers"]
+    P --&gt; F{discovery fetch due?}
+    F -- yes --&gt; BG[start fetch in background] --&gt; W
+    F -- no --&gt; W[ping procd watchdog]
+    W --&gt; N([arm next timer, cycle seconds later])</code></pre>
+<p>Some details that matter operationally:</p>
+<ul>
+<li><strong>A candidate is vetted once per cycle, before the probes.</strong> An address from discovery that belongs to the router, is the peer's relay or tunnel address, or routes out of <code>mesh_iface</code> or <code>hub_iface</code> is set aside for the cycle: the peer has no candidate, so it is neither probed nor trialed there. The underlay ping and <code>decide</code> see the same candidate. See <a href="../discovery/#strict-about-what-it-accepts">discovery</a>.</li>
+<li><strong>The kernel is read last, just before deciding.</strong> Every cycle re-asserts every endpoint, and a peer's direct packet may roam the kernel while the underlay pings wait. Reading <code>wireguard status</code> after them, rather than alongside, lets <code>decide</code> see such a roam before the re-assert overwrites it.</li>
+<li><strong>A tunnel probe answer belongs to the next cycle.</strong> The pings are sent right after <code>wg set</code> returns, and their results are stored for the next cycle's <code>obs</code>. If <code>wg set</code> fails, no probe is sent at all, since the command may have set some endpoints and not others, so a probe over the old path can never commit a trial.</li>
+<li><strong>An answer is read together with the path it came back on.</strong> The answer, like every authenticated packet, moves the kernel endpoint to where it came from, so the shell reads <code>wireguard status</code> right after it and stores that endpoint with the result. <code>decide</code> commits a trial only on an answer that came back from its target (see <a href="../state-machine/#relay-traffic-and-the-proof">the state machine</a>). Answers that arrive while such a read is in flight share the next read, which starts as soon as it returns; a read made before an answer arrived could show the endpoint from before that answer moved it, so it never serves one.</li>
+<li><strong>A cycle only waits for gathering and applying.</strong> The timer for the next cycle is armed <code>cycle</code> seconds after the current one finishes. With probes and <code>wg set</code> taking up to their timeouts, the real period is a little longer than <code>cycle</code>.</li>
+<li><strong>The watchdog ping is the last step.</strong> procd restarts the daemon if it has not been pinged for 30 seconds. A stuck cycle stops pinging, so a hang becomes a restart, and a restart puts every peer back on the relay.</li>
+<li><strong>An unreadable <code>wireguard status</code> skips deciding for that cycle.</strong> Peers keep their state and no endpoint is set. Any pending tunnel probe result is discarded, so a DIRECT peer counts a failed probe on the next cycle.</li>
+</ul>
+<p>The hub's cycle is shorter: read the <code>wireguard status</code> of <code>read_iface</code>, replace the snapshot if the read worked, ping the watchdog, arm the timer. The HTTP server answers from the latest snapshot and never runs a command per request.</p>
+<h2 id="startup">Startup<a class="headerlink" href="#startup" title="Permanent link">&para;</a></h2>
+<p>The init script runs <code>check.uc --config</code> before it asks procd for an instance. The check uses the daemon's own configuration loader, so it cannot disagree with the daemon. procd respawns a daemon that exits, which is what turns a hang or a crash into a clean start on the relay; but a configuration the daemon can never load would only exit again every 5 seconds. Checking first keeps that case out of the respawn loop: the service is left without an instance and the reason is on the console and in the log.</p>
+<p>The daemon's own startup is fail-closed:</p>
+<ol>
+<li>Load and validate <code>/etc/config/wgpathd</code> and, on a spoke, the <code>wg_mesh</code> peers from <code>/etc/config/network</code>, each matched by public key to its <code>peer</code> section in <code>/etc/config/wgpathd</code>.</li>
+<li>Check the WireGuard interface (<code>mesh_iface</code> or <code>read_iface</code>) is present in the <code>wireguard status</code> reply, so it exists in the kernel, not only in UCI.</li>
+<li>On a spoke, run the relay loop guard for each peer, log every unmanaged peer, and load the discovery cache.</li>
+<li>Publish the <code>wgpathd</code> ubus object; on the hub, also bind the discovery listener.</li>
+<li>Log <code>started role=&lt;role&gt; ...</code> and run the first cycle.</li>
+</ol>
+<p>Any failure in steps 1, 2 or 4 exits with status 1 and a logged reason. procd then respawns the service after 5 seconds. These are the failures the config check cannot see, such as an interface that is not up yet, so retrying them is useful. See <a href="../../reference/log-messages/">log messages</a>.</p>
+<h2 id="reload">Reload<a class="headerlink" href="#reload" title="Permanent link">&para;</a></h2>
+<p>A restart is always safe, because every peer falls back to the relay, but it throws away evidence: a peer that was DIRECT has to earn direct again. So a configuration change is applied with <code>SIGHUP</code> instead. procd sends <code>reload</code> when the <code>wgpathd</code> or <code>network</code> configuration changes, and the init script turns it into a signal, again only after the config check passes.</p>
+<p>On the signal the daemon loads the configuration again, with a fresh UCI cursor, and sorts the changes into two kinds:</p>
+<ul>
+<li><strong>Structural.</strong> <code>role</code>, the interfaces and the listener address and port decide what the process is: which ubus reads it makes, which socket it holds, whether it steers or publishes. Rewiring those in place would be a second startup path, so the daemon exits instead and lets procd start it afresh 5 seconds later.</li>
+<li><strong>Everything else</strong> is data the cycle reads each time: the timing parameters, the mode and the discovery URL simply take effect on the next cycle.</li>
+</ul>
+<p>Peers are matched by public key, relay endpoint and tunnel address. A peer whose three values are unchanged keeps its control state, because its evidence and backoff were earned on exactly that path. A new peer, or one whose relay or tunnel changed, starts in RELAY like at startup, after the relay loop guard. A removed peer is dropped from steering and status.</p>
+<p>If the configuration is invalid by the time the daemon reads it, the daemon logs it and keeps the configuration it has. A signal that arrives before startup completes is applied right after it.</p>
+<h2 id="module-map">Module map<a class="headerlink" href="#module-map" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Module</th>
+<th style="text-align: left;">Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>decide.uc</code>, <code>state.uc</code>, <code>effects.uc</code></td>
+<td style="text-align: left;">The pure core: decision, state helpers, effect vocabulary</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>daemon.uc</code></td>
+<td style="text-align: left;">The shell: startup, reload, cycles, status, hub snapshot</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>relay.uc</code>, <code>direct.uc</code></td>
+<td style="text-align: left;">The relay loop guard, shared by the daemon and the check, and the guard on direct candidates</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>address.uc</code></td>
+<td style="text-align: left;">The special-purpose address ranges: where the hub may listen, and which addresses can be a direct path</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>check.uc</code>, <code>status_view.uc</code></td>
+<td style="text-align: left;"><code>service wgpathd check</code> and the text of <code>service wgpathd status</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>firewall.uc</code></td>
+<td style="text-align: left;">What each role needs the firewall to accept, and whether <code>/etc/config/firewall</code> does, for the check</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>rpc.uc</code>, <code>candidate.uc</code></td>
+<td style="text-align: left;">The <code>wgpathd.config</code> ubus object that rpcd serves (the check, the mesh peers without their keys, the parameter bounds), and unsaved values laid over the saved configuration</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>migrate.uc</code></td>
+<td style="text-align: left;">The move of peer settings out of <code>/etc/config/network</code>, from releases up to 4</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>publisher.uc</code></td>
+<td style="text-align: left;">Hub snapshot and the HTTP request/response mapping and listener</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>discovery.uc</code></td>
+<td style="text-align: left;">Spoke payload validation and the cache</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>config.uc</code>, <code>params.uc</code></td>
+<td style="text-align: left;">Configuration loading and timing defaults</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>wg.uc</code>, <code>endpoint.uc</code></td>
+<td style="text-align: left;">The <code>wireguard status</code> parser, the <code>wg set</code> command, the endpoint canonical form</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>probe.uc</code>, <code>icmp.uc</code></td>
+<td style="text-align: left;">What each probe is (host, size, device), and ICMP echo on the wire</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>deps.uc</code>, <code>components/</code></td>
+<td style="text-align: left;">Real I/O: ubus, syslog, rtnl, uclient HTTP, command runner, ICMP prober, clock</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>result.uc</code>, <code>errors.uc</code></td>
+<td style="text-align: left;">The ok/err result type and the <a href="../../reference/error-codes/">error codes</a></td>
+</tr>
+</tbody>
+</table>
+<p>Endpoints are compared as plain strings, so every endpoint that enters the core — from the kernel, discovery, the cache or the <code>peer</code> sections — is first put in one canonical form (<code>[v6]:port</code> or <code>v4:port</code>, lowercase and compressed, as <code>wg</code> prints it). Without that, the same address written two ways would look like a roam every cycle.</p>
+<h2 id="how-the-core-is-tested">How the core is tested<a class="headerlink" href="#how-the-core-is-tested" title="Permanent link">&para;</a></h2>
+<p>The split decides where the tests go. Every decision is in <code>decide</code>, so every decision is tested there, as a unit test with no I/O: build a <code>ctl</code> and an <code>obs</code>, call <code>decide</code>, check the next state and the effects. Time is an argument, so a test replays minutes of backoff in a few milliseconds, and the same scenario gives the same result at any starting time. The shell makes no decisions, so its integration tests only check the plumbing, with every part of <code>deps</code> replaced by a fake. The end-to-end suite then runs the package on real OpenWrt nodes and breaks the network under it.</p>
+<p>Two kinds of unit test cover <code>decide</code>:</p>
+<ul>
+<li><strong>Scenarios.</strong> One test per situation wgpathd must handle, most of them the cases in <a href="../state-machine/#when-things-fail">When things fail</a>: the anchor that only sees roams, the hub that lies, the path that loses one direction, and so on.</li>
+<li><strong>Invariants.</strong> Property tests feed <code>decide</code> long random sequences of observations and check, after every cycle, rules that must hold whatever happens. They are numbered in the test names:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"></th>
+<th style="text-align: left;">Invariant</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">I1</td>
+<td style="text-align: left;">Every effect is in the vocabulary, with exactly one metric and at most one tunnel probe per cycle.</td>
+</tr>
+<tr>
+<td style="text-align: left;">I2</td>
+<td style="text-align: left;">The endpoint set is the relay, a candidate seen from discovery or a roam seen in the kernel, never any other address.</td>
+</tr>
+<tr>
+<td style="text-align: left;">I3</td>
+<td style="text-align: left;">Every cycle sets exactly one endpoint: the relay in RELAY, the target in TRIALING and DIRECT.</td>
+</tr>
+<tr>
+<td style="text-align: left;">I4</td>
+<td style="text-align: left;">Without any sign of a direct path, every state is back in RELAY within the trial window plus <code>m_down</code> cycles.</td>
+</tr>
+<tr>
+<td style="text-align: left;">I5</td>
+<td style="text-align: left;">In observe mode, only the relay is ever set and no tunnel probe is sent.</td>
+</tr>
+<tr>
+<td style="text-align: left;">I6</td>
+<td style="text-align: left;">An answer that came back over the relay never commits a trial.</td>
+</tr>
+<tr>
+<td style="text-align: left;">I7</td>
+<td style="text-align: left;">A trial starts only once the backoff has run out.</td>
+</tr>
+<tr>
+<td style="text-align: left;">I8</td>
+<td style="text-align: left;">A trial commits only on an answer from its target, and DIRECT holds only on an answer.</td>
+</tr>
+<tr>
+<td style="text-align: left;">I9</td>
+<td style="text-align: left;">Between two changes (a roam, a new candidate, the end of the pause, a committed trial), at most <code>give_up_after</code> trials start on the same target.</td>
+</tr>
+</tbody>
+</table>
+<p>A few more properties are named by what they check rather than numbered, such as <code>decide</code> never changing its inputs. Each run prints the seed of its random inputs.</p>
+<h2 id="further-reading">Further reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../state-machine/">About the path state machine</a> for the rules <code>decide</code> implements.</li>
+<li><a href="../trust-model/">Trust model</a> for why the effect vocabulary has no way to change anything but an endpoint.</li>
+<li><a href="../../how-to/developer/testing/">How to run the tests</a> for running, narrowing and watching the suites.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12Z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.1e8ae164.min.js"></script>
+      
+    
+  </body>
+</html>

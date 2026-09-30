@@ -1,0 +1,2253 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Direct-or-relay path selection for WireGuard hub-and-spoke on OpenWrt.">
+      
+      
+      
+        <link rel="canonical" href="https://m00qek.github.io/wgpathd/latest/explanation/state-machine/">
+      
+      
+        <link rel="prev" href="../about/">
+      
+      
+        <link rel="next" href="../discovery/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.17">
+    
+    
+      
+        <title>About the Path State Machine - wgpathd</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.bcfcd587.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#about-the-path-state-machine" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You are reading the documentation of an older release.
+  <a href="../../.."><strong>Go to the latest.</strong></a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),outdated=__md_get("__outdated",sessionStorage);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="wgpathd" class="md-header__button md-logo" aria-label="wgpathd" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            wgpathd
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              About the Path State Machine
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/m00qek/wgpathd" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    m00qek/wgpathd
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Welcome
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/" class="md-tabs__link">
+          
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../how-to/" class="md-tabs__link">
+          
+  
+  How-to Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/" class="md-tabs__link">
+          
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="wgpathd" class="md-nav__button md-logo" aria-label="wgpathd" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    wgpathd
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/m00qek/wgpathd" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    m00qek/wgpathd
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Welcome
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tutorials
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/first-failover/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Your First Failover
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/dev-onboarding/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Developer Onboarding
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How-to Guides
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Operators
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Operators
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/prepare-substrate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Preparing the WireGuard Substrate
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/open-firewall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Opening the Firewall for wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installing wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/upgrade-peer-settings/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upgrading Peer Settings from Earlier Releases
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-hub/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring the Hub
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-spoke/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring a Spoke
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/enable-steering/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Moving a Spoke from Observe to Steer
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/apply-changes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Applying Configuration Changes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/tune-timing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tuning Timing Parameters
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-in-luci/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring Mesh Paths in LuCI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/check-paths-in-luci/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checking Mesh Paths in LuCI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/troubleshoot/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inspecting Status and Troubleshooting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/uninstall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Removing wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Developer
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            Developer
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Running Tests
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/packaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Building the Package
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/documentation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Writing Documentation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3_4" id="__nav_3_3_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Publishing the Documentation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            Publishing the Documentation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/setup-docs-publishing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Setting Up Publishing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/publish-minor-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Publishing a New Minor Release
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/publish-patch-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Publishing a Patch Release
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/fix-released-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fixing the Released Docs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/republish-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Republishing a Version
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/uci-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    UCI Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/substrate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WireGuard Substrate
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/parameters/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Timing Parameters
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/service-commands/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Service Commands
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/ubus-status/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ubus Status
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/ubus-config-check/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ubus Config Check
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/discovery-api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Discovery HTTP API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/log-messages/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Log Messages
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/error-codes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Codes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/firewall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Firewall Rules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/files/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Files and Dependencies
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/make-targets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Make Targets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/docs-publishing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Documentation Publishing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Explanation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Explanation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../why/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Why wgpathd?
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../about/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    About the Path State Machine
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    About the Path State Machine
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      The shape
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidence-first-then-proof" class="md-nav__link">
+    <span class="md-ellipsis">
+      Evidence first, then proof
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#relay-traffic-and-the-proof" class="md-nav__link">
+    <span class="md-ellipsis">
+      Relay traffic and the proof
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-a-trial-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      What a trial costs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#giving-up-an-address" class="md-nav__link">
+    <span class="md-ellipsis">
+      Giving up an address
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-the-anchor-needs-roams" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why the anchor needs roams
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fast-down-slow-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fast down, slow up
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#corner-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Corner cases
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observe-and-steer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Observe and steer
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-things-fail" class="md-nav__link">
+    <span class="md-ellipsis">
+      When things fail
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Further reading
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../discovery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About Discovery
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trust-model/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Trust Model
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../versioned-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About Versioned Documentation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      The shape
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evidence-first-then-proof" class="md-nav__link">
+    <span class="md-ellipsis">
+      Evidence first, then proof
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#relay-traffic-and-the-proof" class="md-nav__link">
+    <span class="md-ellipsis">
+      Relay traffic and the proof
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-a-trial-costs" class="md-nav__link">
+    <span class="md-ellipsis">
+      What a trial costs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#giving-up-an-address" class="md-nav__link">
+    <span class="md-ellipsis">
+      Giving up an address
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-the-anchor-needs-roams" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why the anchor needs roams
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fast-down-slow-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fast down, slow up
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#corner-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Corner cases
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observe-and-steer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Observe and steer
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-things-fail" class="md-nav__link">
+    <span class="md-ellipsis">
+      When things fail
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      Further reading
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="about-the-path-state-machine">About the Path State Machine<a class="headerlink" href="#about-the-path-state-machine" title="Permanent link">&para;</a></h1>
+<p>On a spoke, every managed mesh peer has its own small state machine. It has three states: <strong>RELAY</strong>, <strong>TRIALING</strong> and <strong>DIRECT</strong>. This page explains why it has those states, what moves a peer between them, and why the rules are lopsided on purpose.</p>
+<hr />
+<h2 id="the-shape">The shape<a class="headerlink" href="#the-shape" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; RELAY: start
+    RELAY --&gt; RELAY: re-assert relay endpoint,&lt;br/&gt;count evidence
+    RELAY --&gt; TRIALING: n_up cycles of evidence&lt;br/&gt;toward an address not given up,&lt;br/&gt;or a roam; backoff expired&lt;br/&gt;(trial_start)
+    TRIALING --&gt; TRIALING: set target, probe again
+    TRIALING --&gt; DIRECT: tunnel probe answered&lt;br/&gt;over the direct path&lt;br/&gt;(trial_ok)
+    TRIALING --&gt; RELAY: trial_window passed&lt;br/&gt;(trial_timeout, backoff grows,&lt;br/&gt;the failure counts)
+    DIRECT --&gt; DIRECT: re-assert target, probe,&lt;br/&gt;adopt roams
+    DIRECT --&gt; RELAY: m_down failed probes&lt;br/&gt;(demoted, backoff grows)
+    TRIALING --&gt; RELAY: mode set to observe&lt;br/&gt;(observe_mode)
+    DIRECT --&gt; RELAY: mode set to observe&lt;br/&gt;(observe_mode)</code></pre>
+<p>Every peer starts in RELAY, including after a restart. State is kept in memory only, so a restarted daemon earns direct again from scratch. That takes a few seconds and keeps the design simple. A configuration reload is gentler: it keeps the state of every peer whose settings did not change (see <a href="../architecture/#reload">Architecture</a>).</p>
+<p>Once per cycle (every 3 seconds by default), wgpathd sets the endpoint the current state calls for: the relay endpoint in RELAY, the direct target in TRIALING and DIRECT. It does this every cycle even if nothing changed. <code>wg set ... endpoint</code> does not rekey or interrupt the session, so re-asserting is harmless.</p>
+<h2 id="evidence-first-then-proof">Evidence first, then proof<a class="headerlink" href="#evidence-first-then-proof" title="Permanent link">&para;</a></h2>
+<p>A direct path needs two different kinds of support before wgpathd commits to it.</p>
+<p><strong>Evidence</strong> is cheap and gathered every cycle. There are two kinds:</p>
+<ul>
+<li><strong>Underlay echo.</strong> wgpathd pings the peer's public IPv6 address (the candidate learned from <a href="../discovery/">discovery</a>) outside the tunnel. A reply means the peer's host is reachable on IPv6. Only a peer in RELAY is pinged: that is the only state in which the echo decides anything.</li>
+<li><strong>Authenticated roam.</strong> WireGuard moves a peer's endpoint to the source address of the last valid packet from that peer. If the kernel shows an endpoint that is neither what wgpathd set nor the relay, the peer has just reached us directly, and it did so with a packet that passed its static key. Nobody can fake that without the key.</li>
+</ul>
+<p>A peer needs <code>n_up</code> consecutive cycles of evidence (5 by default, about 15 seconds) before a trial may start. A roam is the exception: one is enough, for reasons explained <a href="#why-the-anchor-needs-roams">below</a>.</p>
+<p>Evidence is not proof. A host can answer ICMP while its firewall drops UDP to the WireGuard port. So the next step is a <strong>trial</strong>: wgpathd sets the endpoint to the direct target and immediately sends a ping to the peer's tunnel address, through <code>wg_mesh</code>. Only an answer to that ping, coming back over the direct path, commits the peer to DIRECT. It proves the whole path works, in both directions, for real WireGuard traffic.</p>
+<p>Why a round trip, and not "wait for a new handshake"? Because changing an endpoint does not start a handshake. The session keys stay the same, and the kernel only rekeys every two minutes or after sends go unanswered. A trial that waited for a handshake would fail on good paths and bad paths alike. So wgpathd never uses handshake age to decide anything; it is shown in the hub's discovery data for diagnosis only.</p>
+<p>In DIRECT, the same tunnel ping runs every cycle. It is the health check, and it also keeps the session and any stateful firewall on the path warm.</p>
+<p>The tunnel ping is as large as <code>wg_mesh</code> allows: the whole packet fills the interface's MTU, and it is never fragmented on the way out. A direct path that carries small packets but loses large ones, such as a link with a smaller MTU that drops them instead of reporting it, would pass a small ping while real traffic stalls. With a full-size ping such a path fails its trial or its health check, and the peer stays on, or returns to, the relay. The ping is also bound to <code>wg_mesh</code>, so whatever the routes say, it can only leave through the tunnel.</p>
+<h2 id="relay-traffic-and-the-proof">Relay traffic and the proof<a class="headerlink" href="#relay-traffic-and-the-proof" title="Permanent link">&para;</a></h2>
+<p>WireGuard roams on every authenticated packet, and that includes packets that come through the relay. Suppose spoke-b trials while spoke-a is still in RELAY and its site is sending traffic. wgpathd on spoke-b sets the direct endpoint, and a moment later a packet from spoke-a arrives through the hub and moves spoke-b's endpoint straight back to the relay. The trial ping then leaves through the relay, spoke-a answers it through the relay, and the answer says nothing about the direct path. Counting it would commit DIRECT on a path that may be dead, and on a dead path the daemon would then re-assert the dead endpoint every cycle and never back off.</p>
+<p>So a trial's answer only counts if it came back from the trial's target. The answer is itself an authenticated packet: it moves the kernel endpoint to wherever it came from. wgpathd reads the endpoint right after the answer arrives. If that is not the target, the relay included, the trial carries on, setting the target and probing again each cycle, and times out with a backoff if no answer comes back from the target before the deadline. Requiring the target and not merely some direct address matters because the trial is about to commit to it: an answer from elsewhere proves a path, not the one DIRECT would then assert. If the peer moves to a new direct address in the middle of a trial, the trial therefore times out, and the next one, after the backoff, can start on the new address.</p>
+<p>DIRECT does not apply this rule: any answer keeps the peer DIRECT, whichever path the read shows. While the other side is still in RELAY and sending, as it is during a trial of its own, in observe mode or in backoff, its relayed packets move our endpoint back onto the relay within a millisecond of nearly every direct answer, and more so the slower the relay is than the direct path. Measured in the lab with steady traffic from a side held in RELAY, applying the rule in DIRECT demoted a healthy direct path again and again, whatever the relay delay, and with 20 ms of added relay delay the two sides mostly never converged. The price of the looser rule: a path that dies while DIRECT, with the other side sending through the relay, can keep answering over the relay and stay DIRECT. Traffic still flows, since every relayed packet moves the endpoint back onto the relay, but the state is wrong; <code>relayed_answers</code> in the <a href="../../reference/ubus-status/">status</a> keeps growing while that lasts. A roam to another direct address is followed in the next cycle.</p>
+<p>The endpoint is read right after the answer, not at the start of the next cycle, on purpose. A peer in RELAY re-asserts its relay endpoint every cycle. If it has traffic to send, its next packet comes through the relay and moves our endpoint back there, well before our next cycle begins. A check made then would reject every answer while the other side is in RELAY, even on a healthy path, and two sides whose backoffs run out at different times could each wait for the other forever.</p>
+<p>A trial is still at the mercy of timing under heavy traffic from the other side: if a relayed packet lands between <code>wg set</code> and the ping, the ping itself goes through the relay. The trial then simply tries again on its next cycle.</p>
+<h2 id="what-a-trial-costs">What a trial costs<a class="headerlink" href="#what-a-trial-costs" title="Permanent link">&para;</a></h2>
+<p>A trial is not free. A WireGuard peer has one endpoint, so while a trial runs, all traffic to that peer takes the candidate path. On a good path the probe answers on the next cycle and nothing is lost. On a bad one, that peer's traffic is lost until the trial window ends, up to <code>trial_window</code> (8 seconds by default), and then it returns to the relay.</p>
+<p>There is no cheaper test. WireGuard ignores unauthenticated packets, so nothing outside the tunnel can prove a path works, and one peer cannot use two endpoints at once.</p>
+<p>The cost repeats when the evidence is misleading: a peer that answers ICMPv6 echo while a firewall blocks UDP to its WireGuard port, or an address that is stale or wrong but still answers ping. The echo keeps producing evidence, so each backoff expiry would start another trial and lose another window: with the backoff at its cap of 15 minutes, about 1% of that peer's traffic, for as long as the address stays. <a href="#giving-up-an-address">Giving up an address</a> bounds that. A failed trial keeps the peer on its target until the first cycle at or after <code>trial_window</code>: 9 seconds with the defaults. The worst cases, with the defaults, over a day:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Case</th>
+<th style="text-align: left;">What it costs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">A fixed address that answers ping but never carries WireGuard</td>
+<td style="text-align: left;"><code>give_up_after</code> trials within the first few minutes, then one each time <code>give_up_pause</code> runs out: 6 trials, 54 seconds, in the first day (0.06%). Without giving up it was about 99 trials, 15 minutes (1%).</td>
+</tr>
+<tr>
+<td style="text-align: left;">A hub that publishes another bad address on every fetch</td>
+<td style="text-align: left;">Every address is new, so none is given up, and the backoff alone bounds it: one trial per backoff, <code>backoff_max</code> once it has grown, about 1% as before. A hub can already hold its spokes on the relay by publishing nothing, so a lying hub gains nothing new.</td>
+</tr>
+<tr>
+<td style="text-align: left;">A good address after a long outage that let ping through but not WireGuard</td>
+<td style="text-align: left;">The address was given up during the outage. Once the path is back, the peer stays on the relay until its pause runs out, at most <code>give_up_pause</code> (6 hours), unless the other side's packets arrive directly first, the hub publishes another address, or the daemon restarts. The cost is time on the relay; no traffic is lost.</td>
+</tr>
+</tbody>
+</table>
+<p>An outage that stops ping as well costs nothing of the kind: without evidence no trial runs and nothing is counted, so the first trial after the path is back commits.</p>
+<h2 id="giving-up-an-address">Giving up an address<a class="headerlink" href="#giving-up-an-address" title="Permanent link">&para;</a></h2>
+<p>After <code>give_up_after</code> trials in a row on the same address time out (3 by default), wgpathd gives that address up. It logs <code>direct address given up</code>, and the peer's <a href="../../reference/ubus-status/">status</a> shows it under <code>given_up</code>. From then on:</p>
+<ul>
+<li>The underlay echo alone starts no trial toward that address. The peer stays on the relay.</li>
+<li>A trial starts again, backoff permitting, only when something changes. wgpathd logs <code>direct address trials resumed</code> with the reason:<ul>
+<li><code>roam</code>: the peer's own packets arrive directly, an authenticated roam. As always, the trial starts at once and takes the roam's source as its target.</li>
+<li><code>new_candidate</code>: discovery offers another address for the peer, and it answers the echo. A different port makes a different address.</li>
+<li><code>pause_over</code>: <code>give_up_pause</code> (6 hours by default) has passed since the address was given up. The echo may start one more trial toward it.</li>
+</ul>
+</li>
+<li>If the trial toward the same address fails again, after the pause or after a roam from that address, the address is given up again at once, without <code>give_up_after</code> more failures, and the pause starts over.</li>
+</ul>
+<p>Only a trial that times out counts, against its target: the endpoint with its port. A timeout on another target starts the count again at one: wgpathd keeps a count for one address per peer at a time, so once another address has been tried, the one given up before gets <code>give_up_after</code> trials again. A trial that commits clears the count.</p>
+<p>A demotion from DIRECT is not counted. A path that passed its trial carried the peer's packets both ways, so the address is right; what failed is the path, for a while, and a failing path is what the backoff is for. Even a path that passes every trial and dies right after costs no more than before: <code>m_down</code> failed probes per backoff, the backoff growing to its cap. Counting those demotions would give a correct address up and keep the peer on the relay for the whole pause.</p>
+<p>The underlay probe keeps running while an address is given up. It is one small ping per cycle, it shows in the status whether the address still answers, and the evidence it keeps counting lets the trial after the pause start at once.</p>
+<p>Giving up applies whether discovery is fresh or not. Candidates never expire, and the cache keeps them through a hub outage on purpose: a remembered address that is still right lets two spokes find each other while the hub is down. Giving up bounds what a remembered address that has gone wrong can cost.</p>
+<p>Observe mode never trials, so it never counts a failure. A peer whose address is given up is not <code>ready</code>, since steer mode would not trial it. The count and the give-up are kept in memory with the rest of the peer's state: a reload keeps them for every peer whose settings did not change, and a restart of the daemon forgets them, which is the way to retry at once.</p>
+<p>Two spokes can give each other's address up, as when a firewall filters the path in both directions. When one of them retries at the end of its pause and the path works again, its trial's packets reach the other directly, a roam, so the other trials at once and both return to DIRECT together.</p>
+<h2 id="why-the-anchor-needs-roams">Why the anchor needs roams<a class="headerlink" href="#why-the-anchor-needs-roams" title="Permanent link">&para;</a></h2>
+<p>Picture the common case. spoke-a is the <strong>anchor</strong>: it accepts inbound IPv6. spoke-b is a <strong>roamer</strong> behind a stateful firewall that drops unsolicited traffic.</p>
+<ul>
+<li>spoke-b pings spoke-a's public address. spoke-a answers. spoke-b has evidence, trials, and goes DIRECT.</li>
+<li>spoke-a pings spoke-b's public address. spoke-b's firewall drops it. spoke-a never gets echo evidence.</li>
+</ul>
+<p>If echo were the only evidence, spoke-a would stay on the relay forever. It does not, because spoke-b's trial and health pings arrive at spoke-a directly. Each one roams spoke-a's kernel endpoint to spoke-b's direct address. spoke-a reads that roam as evidence and trials toward the roamed address at once, without waiting for <code>n_up</code> cycles, and goes DIRECT too.</p>
+<p>One roam is enough because it is authenticated proof that spoke-b is sending to spoke-a directly right now, and because waiting would defeat spoke-b. Until spoke-a trials, it re-asserts the relay every cycle, and its site's traffic then reaches spoke-b through the relay and pulls spoke-b's endpoint back onto it. Under steady traffic, spoke-b's pings reach spoke-a directly only now and then. A streak of <code>n_up</code> roams could take far longer than spoke-b's trial window. The trial still has to pass, and the backoff still applies.</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant A as spoke-a (anchor)
+    participant B as spoke-b (roamer)
+    A-xB: underlay ping (dropped by spoke-b's firewall)
+    B-&gt;&gt;A: underlay ping to spoke-a's public address
+    A--&gt;&gt;B: echo reply
+    Note over B: n_up cycles of echo evidence,&lt;br/&gt;then a trial toward spoke-a
+    B-&gt;&gt;A: tunnel ping over the direct path
+    Note over A: kernel roams spoke-b's endpoint&lt;br/&gt;to its direct address
+    A--&gt;&gt;B: reply, sent to the roamed address
+    Note over A: roam seen: a trial toward&lt;br/&gt;the roamed address
+    Note over B: DIRECT (trial_ok)
+    A-&gt;&gt;B: tunnel ping over the direct path
+    B--&gt;&gt;A: reply
+    Note over A: DIRECT (trial_ok)</code></pre>
+<p>This is also why wgpathd reads roams before it re-asserts. A daemon that blindly overwrote the endpoint every cycle would fight WireGuard's per-packet roaming instead of learning from it.</p>
+<p>In DIRECT, a roam to a new direct address is adopted as the new target, logged as a <code>roam</code> event. This is how a spoke follows a peer that changes address while direct is healthy, with no dip to the relay. A roam to the relay address is not adopted: it only means the other side is relaying for now. If the probe's answer came back through the relay as well, it counts as a failed probe (see <a href="#relay-traffic-and-the-proof">Relay traffic and the proof</a>).</p>
+<h2 id="fast-down-slow-up">Fast down, slow up<a class="headerlink" href="#fast-down-slow-up" title="Permanent link">&para;</a></h2>
+<p>The rules are asymmetric on purpose.</p>
+<ul>
+<li><strong>Falling back is fast.</strong> In DIRECT, <code>m_down</code> failed tunnel probes in a row (2 by default) demote the peer to RELAY. Each probe's answer is read on the next cycle, and on a dead path every cycle also waits for its probes to time out, so with the defaults a dead path is left in roughly 8 to 15 seconds. A probe that did not complete in time counts as failed, and so does one answered through the relay. The relay is the safe place to be when in doubt.</li>
+<li><strong>Coming back is slow.</strong> A return to direct needs <code>n_up</code> cycles of evidence (or a roam from a peer that is already trialing or DIRECT) <strong>and</strong> a successful trial, <strong>and</strong> the backoff must have expired. The echo alone starts no trial toward an address that has been <a href="#giving-up-an-address">given up</a>.</li>
+</ul>
+<p>The backoff is what stops a flapping path from bouncing. Each failed trial and each demotion bumps it: the first time to <code>backoff_min</code> (30 seconds), then doubling each time up to <code>backoff_max</code> (15 minutes). It resets only after DIRECT has held for <code>backoff_reset</code> (10 minutes). A path that works for a minute and then breaks walks its backoff up to the cap and ends up parked on the relay, which is the outcome you want from a bad path. Evidence keeps counting during the backoff, so a peer that is ready trials as soon as the backoff ends.</p>
+<p>A quiet link is never demoted for being quiet. DIRECT is judged only by the tunnel probe, which wgpathd sends itself, never by traffic or handshake age.</p>
+<h2 id="corner-cases">Corner cases<a class="headerlink" href="#corner-cases" title="Permanent link">&para;</a></h2>
+<p>A few rules settle what the diagram leaves open:</p>
+<ul>
+<li><strong>The first cycle judges no roam.</strong> wgpathd has set nothing yet, so whatever endpoint the kernel holds is not a roam. The first cycle sets the relay.</li>
+<li><strong>The deadline comes first.</strong> An answer that arrives in the cycle at or after <code>trial_window</code> is a timeout, not a commit.</li>
+<li><strong>A demotion beats a roam.</strong> If a DIRECT peer reaches <code>m_down</code> failed probes in the same cycle a roam shows up, it is demoted; the roam can start a trial once the backoff allows.</li>
+<li><strong>Every transition starts the streaks over.</strong> Evidence counts only in RELAY, and a new trial needs a fresh <code>n_up</code> streak, which may build up while the backoff runs.</li>
+</ul>
+<h2 id="observe-and-steer">Observe and steer<a class="headerlink" href="#observe-and-steer" title="Permanent link">&para;</a></h2>
+<p>A spoke runs in one of two modes.</p>
+<p>In <strong>steer</strong> mode the state machine runs as described.</p>
+<p>In <strong>observe</strong> mode a peer never leaves RELAY and no tunnel probes are sent. Evidence is still gathered and counted, and the status reports <code>ready: true</code>, and the log <code>ready, steer would trial</code>, when a peer has enough evidence that steer mode would start a trial. This lets you watch what wgpathd would do on a live network before you let it move traffic. Observe is the default, and any unknown mode value is treated as observe.</p>
+<p>Observe mode is not hands-off. A managed peer is still set to its relay endpoint every cycle. The whole point of observe is that every managed peer sits on the known-good floor while you watch. Switching a DIRECT peer back to observe demotes it to RELAY, without a backoff, with the reason <code>observe_mode</code>.</p>
+<h2 id="when-things-fail">When things fail<a class="headerlink" href="#when-things-fail" title="Permanent link">&para;</a></h2>
+<p>The rules above were worked out against the ways a mesh breaks. What a spoke does in each, with the default parameters:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">What fails</th>
+<th style="text-align: left;">What wgpathd does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">The hub's discovery server stops, the hub is otherwise up</td>
+<td style="text-align: left;">Spokes keep the addresses they last fetched. DIRECT peers stay DIRECT, and the relay still works.</td>
+</tr>
+<tr>
+<td style="text-align: left;">The whole hub goes down</td>
+<td style="text-align: left;">Direct sessions are peer to peer and keep working. A peer that changes address is still followed through its <a href="#why-the-anchor-needs-roams">authenticated roam</a>. Pairs that were on the relay lose connectivity until the hub is back.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>wg_hub</code> goes down, the direct path is healthy</td>
+<td style="text-align: left;">Direct paths are unaffected; spokes run on their cached addresses.</td>
+</tr>
+<tr>
+<td style="text-align: left;">The hub publishes a wrong address</td>
+<td style="text-align: left;">The trial gets no answer, the peer returns to the relay with a backoff, and the address is <a href="#giving-up-an-address">given up</a> after <code>give_up_after</code> failures. See the <a href="../trust-model/">trust model</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;">The hub sends a malformed peer list</td>
+<td style="text-align: left;">The whole payload is rejected and the last good addresses are kept. See <a href="../discovery/#strict-about-what-it-accepts">discovery</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Only one side of a pair accepts inbound IPv6</td>
+<td style="text-align: left;">Both sides go DIRECT: one on its echo, the other on the roams it sees. See <a href="#why-the-anchor-needs-roams">why the anchor needs roams</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Neither side accepts inbound IPv6</td>
+<td style="text-align: left;">Neither has evidence, so both stay on the relay for good. That is the correct result, not a fault.</td>
+</tr>
+<tr>
+<td style="text-align: left;">The direct path works in one direction only</td>
+<td style="text-align: left;">The trial's round trip fails, so the peer never commits, and the address is given up.</td>
+</tr>
+<tr>
+<td style="text-align: left;">The direct path drops large packets only</td>
+<td style="text-align: left;">The full-size tunnel probe fails, so the peer stays on, or returns to, the relay.</td>
+</tr>
+<tr>
+<td style="text-align: left;">The direct path flaps</td>
+<td style="text-align: left;">Each demotion grows the <a href="#fast-down-slow-up">backoff</a>, and the peer ends up parked on the relay.</td>
+</tr>
+<tr>
+<td style="text-align: left;">The other side sends through the relay during a trial</td>
+<td style="text-align: left;">Its packets can pull the probe onto the relay; only an answer that came back from the target commits. See <a href="#relay-traffic-and-the-proof">relay traffic and the proof</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;">A spoke boots with the hub down and no cache</td>
+<td style="text-align: left;">Every peer is set to its relay endpoint, which comes from local configuration and never from the hub.</td>
+</tr>
+<tr>
+<td style="text-align: left;">The daemon crashes</td>
+<td style="text-align: left;">procd starts it again, and every peer starts in RELAY.</td>
+</tr>
+<tr>
+<td style="text-align: left;">The daemon hangs</td>
+<td style="text-align: left;">It stops pinging the procd watchdog, procd restarts it after 30 seconds, and every peer starts in RELAY. See <a href="../architecture/#one-spoke-cycle">architecture</a>.</td>
+</tr>
+</tbody>
+</table>
+<p>The decision core's tests are named after these cases, and the end-to-end suite reproduces most of them on real OpenWrt nodes. See <a href="../architecture/#how-the-core-is-tested">how the core is tested</a>.</p>
+<h2 id="further-reading">Further reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../../reference/parameters/">Timing parameters</a> lists every knob and its default.</li>
+<li><a href="../../reference/ubus-status/">ubus status</a> shows where each of these values appears at runtime.</li>
+<li><a href="../architecture/">Architecture</a> explains the pure function that holds these rules and the invariants its tests check.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12Z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.1e8ae164.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,2545 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Direct-or-relay path selection for WireGuard hub-and-spoke on OpenWrt.">
+      
+      
+      
+        <link rel="canonical" href="https://m00qek.github.io/wgpathd/latest/reference/service-commands/">
+      
+      
+        <link rel="prev" href="../parameters/">
+      
+      
+        <link rel="next" href="../ubus-status/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.17">
+    
+    
+      
+        <title>Service Commands - wgpathd</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.bcfcd587.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#service-commands" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You are reading the documentation of an older release.
+  <a href="../../.."><strong>Go to the latest.</strong></a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),outdated=__md_get("__outdated",sessionStorage);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="wgpathd" class="md-header__button md-logo" aria-label="wgpathd" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            wgpathd
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Service Commands
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/m00qek/wgpathd" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    m00qek/wgpathd
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Welcome
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/" class="md-tabs__link">
+          
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../how-to/" class="md-tabs__link">
+          
+  
+  How-to Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../explanation/" class="md-tabs__link">
+          
+  
+  Explanation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="wgpathd" class="md-nav__button md-logo" aria-label="wgpathd" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    wgpathd
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/m00qek/wgpathd" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    m00qek/wgpathd
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Welcome
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tutorials
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorials
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/first-failover/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Your First Failover
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/dev-onboarding/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Developer Onboarding
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How-to Guides
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            How-to Guides
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Operators
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Operators
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/prepare-substrate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Preparing the WireGuard Substrate
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/open-firewall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Opening the Firewall for wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/install/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installing wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/upgrade-peer-settings/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upgrading Peer Settings from Earlier Releases
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-hub/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring the Hub
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-spoke/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring a Spoke
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/enable-steering/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Moving a Spoke from Observe to Steer
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/apply-changes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Applying Configuration Changes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/tune-timing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tuning Timing Parameters
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/configure-in-luci/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring Mesh Paths in LuCI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/check-paths-in-luci/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checking Mesh Paths in LuCI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/troubleshoot/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inspecting Status and Troubleshooting
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/uninstall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Removing wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Developer
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            Developer
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Running Tests
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/packaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Building the Package
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/documentation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Writing Documentation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3_4" id="__nav_3_3_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Publishing the Documentation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            Publishing the Documentation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/setup-docs-publishing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Setting Up Publishing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/publish-minor-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Publishing a New Minor Release
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/publish-patch-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Publishing a Patch Release
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/fix-released-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fixing the Released Docs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../how-to/developer/republish-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Republishing a Version
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../uci-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    UCI Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../substrate/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WireGuard Substrate
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parameters/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Timing Parameters
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Service Commands
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Service Commands
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#start" class="md-nav__link">
+    <span class="md-ellipsis">
+      start
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reload" class="md-nav__link">
+    <span class="md-ellipsis">
+      reload
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#status" class="md-nav__link">
+    <span class="md-ellipsis">
+      status
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#check" class="md-nav__link">
+    <span class="md-ellipsis">
+      check
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="check">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Findings
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      --config
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migrate" class="md-nav__link">
+    <span class="md-ellipsis">
+      migrate
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ubus-status/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ubus Status
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ubus-config-check/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    ubus Config Check
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../discovery-api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Discovery HTTP API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../log-messages/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Log Messages
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../error-codes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Codes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../firewall/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Firewall Rules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../files/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Files and Dependencies
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../make-targets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Make Targets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../docs-publishing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Documentation Publishing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Explanation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Explanation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/why/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Why wgpathd?
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/about/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About wgpathd
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/state-machine/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About the Path State Machine
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/discovery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About Discovery
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/trust-model/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Trust Model
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../explanation/versioned-docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    About Versioned Documentation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#start" class="md-nav__link">
+    <span class="md-ellipsis">
+      start
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reload" class="md-nav__link">
+    <span class="md-ellipsis">
+      reload
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#status" class="md-nav__link">
+    <span class="md-ellipsis">
+      status
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#check" class="md-nav__link">
+    <span class="md-ellipsis">
+      check
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="check">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#findings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Findings
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      --config
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migrate" class="md-nav__link">
+    <span class="md-ellipsis">
+      migrate
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="service-commands">Service Commands<a class="headerlink" href="#service-commands" title="Permanent link">&para;</a></h1>
+<p>wgpathd is run and inspected through its init script, <code>/etc/init.d/wgpathd</code>, usually as <code>service wgpathd &lt;command&gt;</code>. Nothing is installed on the <code>PATH</code>.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Command</th>
+<th style="text-align: left;">Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>start</code></td>
+<td style="text-align: left;">Starts the daemon, if <code>enabled</code> is on and the configuration passes the config check. See <a href="#start">start</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>stop</code></td>
+<td style="text-align: left;">Stops the daemon.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>restart</code></td>
+<td style="text-align: left;"><code>stop</code>, then <code>start</code>. Every peer starts again in RELAY.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>reload</code></td>
+<td style="text-align: left;">Applies a changed configuration to the running daemon. See <a href="#reload">reload</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>status</code></td>
+<td style="text-align: left;">Prints procd's state and, while running, a readable summary. See <a href="#status">status</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>check</code></td>
+<td style="text-align: left;">Validates the configuration and the substrate. See <a href="#check">check</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>migrate</code></td>
+<td style="text-align: left;">Moves peer settings left in <code>/etc/config/network</code> by releases up to 4 into <code>/etc/config/wgpathd</code>. See <a href="#migrate">migrate</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>enable</code> / <code>disable</code></td>
+<td style="text-align: left;">Adds or removes the boot-time start link, <code>/etc/rc.d/S95wgpathd</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="start"><code>start</code><a class="headerlink" href="#start" title="Permanent link">&para;</a></h2>
+<ol>
+<li>If <code>option enabled</code> in <code>main</code> is off, <code>start</code> registers the service with no instance and returns <code>0</code>. The daemon does not run.</li>
+<li>Otherwise it runs the config check, <code>/usr/libexec/wgpathd/check.uc --config</code>. If that fails, the report and <code>invalid configuration, not starting</code> go to standard error and to syslog at <code>daemon.err</code>, no instance is created, and <code>start</code> returns <code>1</code>. Nothing respawns.</li>
+<li>Otherwise procd starts <code>/usr/libexec/wgpathd/daemon.uc</code> as the instance <code>wgpathd</code>.</li>
+</ol>
+<p>The config check only reads UCI. A failure that needs the running system, such as a WireGuard interface that is not up, still happens in the daemon, which then exits and is respawned every 5 seconds. See <a href="../log-messages/#startup-and-exit">Log messages</a>.</p>
+<h2 id="reload"><code>reload</code><a class="headerlink" href="#reload" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Situation</th>
+<th style="text-align: left;">Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>enabled</code> is off</td>
+<td style="text-align: left;">Same as <code>start</code>: the service is left with no instance, so a running daemon stops.</td>
+</tr>
+<tr>
+<td style="text-align: left;">The daemon is not running</td>
+<td style="text-align: left;">Same as <code>start</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;">The daemon is running</td>
+<td style="text-align: left;">Runs the config check. If it passes, sends <code>SIGHUP</code> to the daemon. If it fails, the report and <code>invalid configuration, keeping the running one</code> go to standard error and to syslog, and the running daemon keeps its configuration. Returns <code>1</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>procd runs <code>reload</code> by itself when it receives a <code>config.change</code> event for the <code>wgpathd</code> or <code>network</code> package. LuCI's Save &amp; Apply and <code>reload_config</code> send that event; <code>uci commit</code> alone does not.</p>
+<p>On <code>SIGHUP</code> the daemon reads <code>/etc/config/wgpathd</code> and <code>/etc/config/network</code> again:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">What changed</th>
+<th style="text-align: left;">Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>role</code>, <code>mesh_iface</code>, <code>hub_iface</code>, <code>read_iface</code>, <code>serve_addr</code> or <code>serve_port</code></td>
+<td style="text-align: left;">The daemon logs <code>reload: exiting for procd to start afresh changed=&lt;option&gt;</code> and exits. procd starts it again after 5 seconds, and every peer starts in RELAY.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Timing parameters</td>
+<td style="text-align: left;">Apply from the next cycle.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>mode</code></td>
+<td style="text-align: left;">Applies from the next cycle. Switching to <code>observe</code> demotes TRIALING and DIRECT peers to RELAY.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>discovery</code></td>
+<td style="text-align: left;">The new URL is fetched on the next cycle. The discovery map already held is kept until then.</td>
+</tr>
+<tr>
+<td style="text-align: left;">A peer's <code>public_key</code>, <code>relay</code> and <code>tunnel</code> all unchanged</td>
+<td style="text-align: left;">The peer keeps its state, counters and switch count. A peer rejected with <code>relay routes into &lt;mesh_iface&gt;</code> is guarded again, and becomes managed, starting in RELAY, if its route was fixed.</td>
+</tr>
+<tr>
+<td style="text-align: left;">A peer added, or one of those three options changed</td>
+<td style="text-align: left;">The peer is checked like at startup and, if managed, starts in RELAY.</td>
+</tr>
+<tr>
+<td style="text-align: left;">A peer removed</td>
+<td style="text-align: left;">It leaves steering and the status. Its endpoint is left as it is.</td>
+</tr>
+</tbody>
+</table>
+<p>A spoke logs <code>configuration reloaded peers_kept=&lt;n&gt; added=&lt;n&gt; removed=&lt;n&gt;</code>, with <code>mode=&lt;mode&gt;</code> appended when the mode changed; a hub logs <code>configuration reloaded</code>. If the configuration is invalid when the daemon reads it, it logs <code>reload: invalid configuration, keeping the running one: &lt;CODE&gt; (&lt;detail&gt;)</code> and keeps running unchanged.</p>
+<h2 id="status"><code>status</code><a class="headerlink" href="#status" title="Permanent link">&para;</a></h2>
+<p>The first line is procd's state of the service, and the exit status is procd's:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">First line</th>
+<th style="text-align: left;">Exit status</th>
+<th style="text-align: left;">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>running</code></td>
+<td style="text-align: left;"><code>0</code></td>
+<td style="text-align: left;">The daemon runs.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>active with no instances</code></td>
+<td style="text-align: left;"><code>0</code></td>
+<td style="text-align: left;">The service is registered without a daemon, for example because <code>enabled</code> is off.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>inactive</code></td>
+<td style="text-align: left;"><code>3</code></td>
+<td style="text-align: left;">The service is not registered with procd: stopped, or never started.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>not running</code></td>
+<td style="text-align: left;"><code>5</code></td>
+<td style="text-align: left;">The instance exists but its process is not running, for example between respawns.</td>
+</tr>
+</tbody>
+</table>
+<p>If <code>enabled</code> is off, the next line is <code>disabled (option enabled in /etc/config/wgpathd)</code>. If the daemon runs, a summary of <a href="../ubus-status/"><code>ubus call wgpathd status</code></a> follows. If that call fails, <code>wgpathd: cannot read status: &lt;CODE&gt;</code> goes to standard error; the exit status is still procd's.</p>
+<p>On a spoke:</p>
+<div class="highlight"><pre><span></span><code>running
+role: spoke (mode steer)
+discovery: fresh (last success 42s ago)
+peers:
+  spoke_b  SpokeBme  DIRECT  [2001:db8:b::20]:51820  5m ago (trial_ok)  2 switches
+  spoke_c  SpokeCme  RELAY   10.10.0.13:51820        no change yet      0 switches
+unmanaged:
+  hub  HubMeshP  fixed endpoint
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Line</th>
+<th style="text-align: left;">Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>role:</code></td>
+<td style="text-align: left;">The role and the mode.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>discovery:</code></td>
+<td style="text-align: left;"><code>fresh</code> or <code>stale</code>, and the age of the last successful fetch, or <code>never succeeded</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>peers:</code></td>
+<td style="text-align: left;">One line per managed peer, sorted by section: section, first 8 characters of the public key, state, asserted endpoint, age and reason of the last transition, and the switch count. <code>peers: none</code> when there are none.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>unmanaged:</code></td>
+<td style="text-align: left;">One line per unmanaged peer: section, key prefix, reason. Left out when there are none.</td>
+</tr>
+</tbody>
+</table>
+<p>On a hub:</p>
+<div class="highlight"><pre><span></span><code>running
+role: hub
+published peers:
+  SpokeAme  [2001:db8:a::1]:51820   handshake 12s ago
+  SpokeBme  [2001:db8:b::20]:51820  handshake 7s ago
+</code></pre></div>
+<p>Each line is a key prefix, the published direct endpoint and the handshake age. <code>published peers: none</code> when the snapshot is empty.</p>
+<p>Ages are shown in whole seconds, minutes, hours or days: <code>42s</code>, <code>5m</code>, <code>3h</code>, <code>2d</code>.</p>
+<h2 id="check"><code>check</code><a class="headerlink" href="#check" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>service<span class="w"> </span>wgpathd<span class="w"> </span>check
+</code></pre></div>
+<p>It runs <code>/usr/libexec/wgpathd/check.uc</code>, which loads the configuration with the daemon's own loader and then checks the substrate the daemon needs. It changes nothing and works whether or not the daemon runs. Each finding is one line with a level:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Level</th>
+<th style="text-align: left;">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>ok</code></td>
+<td style="text-align: left;">The item is as it should be.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>skip</code></td>
+<td style="text-align: left;">The item was not checked, or is deliberately not steered.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;">The daemon runs, but something is off or not ready yet.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;">The daemon cannot start, or the item is a configuration mistake.</td>
+</tr>
+</tbody>
+</table>
+<p>The exit status is <code>1</code> if any line is <code>FAIL</code>, <code>0</code> otherwise.</p>
+<div class="highlight"><pre><span></span><code>ok    config: spoke, mode observe, 1 steered peer, 2 not steered
+ok    wg_mesh: up, 3 peers
+ok    wg_hub: up, 1 peer
+ok    peer spoke_b: relay 10.10.0.12:51820 via wg_hub, probes 10.20.0.12
+skip  peer hub: not steered (fixed endpoint)
+FAIL  peer spoke_c: not steered (invalid relay)
+ok    firewall: ICMP echo-request (tunnel probe) from wg_mesh (zone vpn): accepted
+warn  firewall: UDP port 51820 (relayed WireGuard) from wg_hub (zone vpn): no rule accepts it
+      add it with:
+        uci add firewall rule
+        uci set firewall.@rule[-1].name='Allow-wgpathd-relay'
+        uci set firewall.@rule[-1].src='vpn'
+        uci set firewall.@rule[-1].proto='udp'
+        uci set firewall.@rule[-1].dest_port='51820'
+        uci set firewall.@rule[-1].target='ACCEPT'
+        uci commit firewall
+        service firewall reload
+      or in /etc/config/firewall:
+        config rule
+            option name 'Allow-wgpathd-relay'
+            option src 'vpn'
+            option proto 'udp'
+            option dest_port '51820'
+            option target 'ACCEPT'
+ok    firewall: ICMPv6 echo-request (underlay probe) from zone wan: accepted
+</code></pre></div>
+<p>A firewall warning that can name the rule to add is followed by it, indented, both as uci commands and as a section of <code>/etc/config/firewall</code>.</p>
+<h3 id="findings">Findings<a class="headerlink" href="#findings" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Level</th>
+<th style="text-align: left;">Line</th>
+<th style="text-align: left;">When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>ok</code></td>
+<td style="text-align: left;"><code>config: spoke, mode &lt;mode&gt;, &lt;n&gt; steered peer(s), &lt;n&gt; not steered</code></td>
+<td style="text-align: left;">A valid spoke configuration. "Steered" counts peers with valid settings, before the route check.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ok</code></td>
+<td style="text-align: left;"><code>config: hub, reads &lt;read_iface&gt;, serves &lt;addr&gt;:&lt;port&gt;</code></td>
+<td style="text-align: left;">A valid hub configuration.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>config: option role must be 'spoke' or 'hub' (is &lt;value&gt;)</code></td>
+<td style="text-align: left;"><code>role</code> is missing or wrong. <code>&lt;value&gt;</code> is <code>unset</code> when missing.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>config: missing option &lt;name&gt;</code></td>
+<td style="text-align: left;">A required option is missing or empty.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>config: no interface &lt;name&gt; in /etc/config/network</code></td>
+<td style="text-align: left;">An interface option names no <code>interface</code> section.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>config: option &lt;name&gt; must be an interface name of letters, digits and _</code></td>
+<td style="text-align: left;"><code>mesh_iface</code>, <code>hub_iface</code> or <code>read_iface</code> is not a plain section name.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>config: option discovery must be a URL of the form http://&lt;host&gt;[:&lt;port&gt;]/&lt;path&gt;</code></td>
+<td style="text-align: left;"><code>discovery</code> is not an <code>http://</code> URL with a host, see <a href="../uci-config/#spoke-options">UCI configuration</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>config: option serve_addr must be an IP address of the router, not unspecified or multicast</code></td>
+<td style="text-align: left;"><code>serve_addr</code> is not one literal address a listener can bind, see <a href="../uci-config/#hub-options">UCI configuration</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>config: option serve_port must be a port number from 1 to 65535</code></td>
+<td style="text-align: left;"><code>serve_port</code> is not a decimal port number.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>config: option &lt;name&gt; must be a number from &lt;min&gt; to &lt;max&gt;</code>, <code>config: option &lt;name&gt; must be a whole number from &lt;min&gt; to &lt;max&gt;</code></td>
+<td style="text-align: left;">A timing parameter is not a decimal number within its <a href="../parameters/#bounds">bounds</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>config: option backoff_max must be at least backoff_min (&lt;value&gt;)</code>, <code>config: option trial_window must be longer than cycle + tunnel_timeout (&lt;sum&gt;)</code></td>
+<td style="text-align: left;">On a spoke, two timing parameters disagree.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>config: unknown mode '&lt;mode&gt;' runs as observe</code></td>
+<td style="text-align: left;"><code>mode</code> is neither <code>steer</code> nor <code>observe</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>service disabled (option enabled '&lt;value&gt;'): it will not start</code></td>
+<td style="text-align: left;"><code>enabled</code> is off.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>config: discovery host &lt;name&gt; is a name, not an address: every fetch waits for DNS</code></td>
+<td style="text-align: left;">The <code>discovery</code> URL names its host. The fetch looks it up without letting the daemon run meanwhile.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>config: discovery host &lt;addr&gt; routes via &lt;oif&gt;, not &lt;hub_iface&gt;</code></td>
+<td style="text-align: left;">The route to the discovery host does not leave via <code>hub_iface</code>, so discovery would stop with the path it goes over. Not checked with <code>--config</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>config: discovery host &lt;addr&gt;: route lookup failed: &lt;CODE&gt; (&lt;detail&gt;)</code></td>
+<td style="text-align: left;">No route to the discovery host. Not checked with <code>--config</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>config: serve_addr &lt;addr&gt; is no address of a WireGuard interface in /etc/config/network</code></td>
+<td style="text-align: left;">On a hub, no <code>interface</code> section with <code>proto 'wireguard'</code> lists <code>serve_addr</code> in its <code>addresses</code>. The discovery server then answers wherever the firewall lets that address be reached, and the check looks for no firewall rule for it; see <a href="../firewall/#peer-list">Firewall rules</a>. Not checked with <code>--config</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>config: network section &lt;section&gt;: &lt;options&gt; left over from an earlier version, ignored; run service wgpathd migrate or remove it</code></td>
+<td style="text-align: left;">The section still has <code>wgpathd_relay</code>, <code>wgpathd_tunnel</code> or both, which releases up to 4 read and this one does not. <code>&lt;options&gt;</code> names them, joined by <code>and</code>; with two, the line ends <code>remove them</code>. See <a href="../../how-to/upgrade-peer-settings/">How to upgrade from a release that kept peer settings in the network configuration</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>peer settings for &lt;key&gt;: no such peer in &lt;mesh_iface&gt;, ignored</code></td>
+<td style="text-align: left;">On a spoke, a <code>peer</code> section's <code>public_key</code> is the key of no <code>wireguard_&lt;mesh_iface&gt;</code> section.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>peer settings without a public_key: ignored</code></td>
+<td style="text-align: left;">On a spoke, a <code>peer</code> section has no <code>public_key</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>skip</code></td>
+<td style="text-align: left;"><code>ubus unavailable: interfaces not checked</code></td>
+<td style="text-align: left;">ubus cannot be reached. The interface lines are left out; the peer lines still appear.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ok</code></td>
+<td style="text-align: left;"><code>&lt;iface&gt;: up, &lt;n&gt; peer(s)</code></td>
+<td style="text-align: left;">The interface is in the <code>wireguard status</code> reply.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>&lt;iface&gt;: &lt;reason&gt;</code></td>
+<td style="text-align: left;"><code>mesh_iface</code> or <code>read_iface</code> is not in the <code>wireguard status</code> reply, or the reply cannot be read.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>&lt;hub_iface&gt;: &lt;reason&gt;</code></td>
+<td style="text-align: left;">The same, for <code>hub_iface</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ok</code></td>
+<td style="text-align: left;"><code>peer &lt;section&gt;: relay &lt;relay&gt; via &lt;oif&gt;, probes &lt;tunnel&gt;</code></td>
+<td style="text-align: left;">The peer is managed; the route to its relay host leaves via <code>&lt;oif&gt;</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>peer &lt;section&gt;: relay routes into &lt;mesh_iface&gt;</code></td>
+<td style="text-align: left;">The relay host routes into the mesh.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>peer &lt;section&gt;: relay route lookup failed: &lt;CODE&gt; (&lt;detail&gt;) (retried every cycle)</code></td>
+<td style="text-align: left;">No route to the relay host yet.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>peer &lt;section&gt;: not in &lt;mesh_iface&gt; yet, skipped until it appears</code></td>
+<td style="text-align: left;">The peer is managed but not in the kernel's peer table.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>skip</code></td>
+<td style="text-align: left;"><code>peer &lt;section&gt;: not steered (fixed endpoint)</code></td>
+<td style="text-align: left;">No <code>peer</code> section has the peer's key, and it has an <code>endpoint_host</code> in <code>/etc/config/network</code>, as the hub peer does.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>skip</code></td>
+<td style="text-align: left;"><code>peer &lt;section&gt;: not steered (not configured)</code></td>
+<td style="text-align: left;">No <code>peer</code> section has the peer's key, and it has no <code>endpoint_host</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>peer &lt;section&gt;: not steered (configured more than once)</code></td>
+<td style="text-align: left;">Two or more <code>peer</code> sections have the peer's key.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>peer &lt;section&gt;: not steered (missing &lt;option&gt;)</code></td>
+<td style="text-align: left;">The peer's <code>peer</code> section has no <code>relay</code> or no <code>tunnel</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>FAIL</code></td>
+<td style="text-align: left;"><code>peer &lt;section&gt;: not steered (invalid &lt;option&gt;)</code></td>
+<td style="text-align: left;">The peer's <code>public_key</code> in <code>/etc/config/network</code>, or the <code>relay</code> or <code>tunnel</code> of its <code>peer</code> section, is malformed.</td>
+</tr>
+</tbody>
+</table>
+<p>The peer reasons are the ones in <a href="../uci-config/#managed-and-unmanaged-peers">Managed and unmanaged peers</a>.</p>
+<p>The firewall lines come last, one for each traffic the role needs accepted, as <a href="../firewall/#what-the-check-confirms">Firewall rules</a> describes. They are not checked with <code>--config</code>.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Level</th>
+<th style="text-align: left;">Line</th>
+<th style="text-align: left;">When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>ok</code></td>
+<td style="text-align: left;"><code>firewall: &lt;traffic&gt; from &lt;source&gt;: accepted</code></td>
+<td style="text-align: left;">A rule, or the zone's input policy, accepts the traffic.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>firewall: &lt;traffic&gt; from &lt;source&gt;: no rule accepts it</code></td>
+<td style="text-align: left;">No rule accepts it, and the zone's policy rejects or drops it. The rule to add follows.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>firewall: &lt;traffic&gt; from &lt;source&gt;: a rule rejects it before any accepts it</code></td>
+<td style="text-align: left;">A rule with <code>target 'REJECT'</code> or <code>'DROP'</code> decides it first. The rule to add follows; place it above the one that rejects.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>firewall: &lt;traffic&gt; from &lt;iface&gt; (no zone): no rule accepts it; put &lt;iface&gt; in a firewall zone</code></td>
+<td style="text-align: left;">The interface is in no zone, and the default input policy rejects the traffic.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>firewall: ICMPv6 echo-request (underlay probe) from zone wan: no rule accepts it: restore OpenWrt's default rule Allow-ICMPv6-Input</code></td>
+<td style="text-align: left;">On a spoke, nothing accepts ICMPv6 echo requests from <code>wan</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>warn</code></td>
+<td style="text-align: left;"><code>firewall: &lt;traffic&gt; from &lt;source&gt;: could not confirm, &lt;reason&gt;</code></td>
+<td style="text-align: left;">The check cannot tell. The rule to add follows when there is a zone and a port to name it by.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>skip</code></td>
+<td style="text-align: left;"><code>firewall: no /etc/config/firewall, not checked</code></td>
+<td style="text-align: left;">There is no firewall configuration.</td>
+</tr>
+</tbody>
+</table>
+<p><code>&lt;traffic&gt;</code> is one of:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><code>&lt;traffic&gt;</code></th>
+<th style="text-align: left;">Role</th>
+<th style="text-align: left;"><code>option</code> of the finding over ubus</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>ICMP echo-request (tunnel probe)</code>, <code>ICMPv6 echo-request (tunnel probe)</code></td>
+<td style="text-align: left;">Spoke, one line for each address family of <code>mesh_iface</code></td>
+<td style="text-align: left;"><code>mesh_iface</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>UDP port &lt;listen_port&gt; (relayed WireGuard)</code>, or <code>UDP (relayed WireGuard)</code> without a <code>listen_port</code></td>
+<td style="text-align: left;">Spoke</td>
+<td style="text-align: left;"><code>hub_iface</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ICMPv6 echo-request (underlay probe)</code></td>
+<td style="text-align: left;">Spoke</td>
+<td style="text-align: left;">none</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>TCP port &lt;serve_port&gt; (peer list)</code></td>
+<td style="text-align: left;">Hub, when a WireGuard interface holds <code>serve_addr</code></td>
+<td style="text-align: left;"><code>serve_port</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>&lt;source&gt;</code> is <code>&lt;iface&gt; (zone &lt;zone&gt;)</code>, <code>&lt;iface&gt; (no zone)</code> or, for the underlay probe, <code>zone wan</code>. <code>&lt;reason&gt;</code> is one of:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><code>&lt;reason&gt;</code></th>
+<th style="text-align: left;">Cause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>a rule or zone option this check does not follow applies</code></td>
+<td style="text-align: left;">A rule that may decide the traffic, or the zone, has an option the check does not follow, such as <code>src_ip</code> or <code>extra_src</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>the firewall has custom nftables rules</code></td>
+<td style="text-align: left;">An <code>include</code> section, or an nftables file fw4 includes, may add rules the check cannot read.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>a zone may take it by device or subnet</code></td>
+<td style="text-align: left;">A zone that matches by <code>subnet</code>, or by a <code>network</code> or <code>device</code> the check does not follow, such as an inverted one, may take the traffic before the interface's own. See <a href="../firewall/#what-the-check-confirms">Firewall rules</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>zone &lt;zone&gt; is not for IPv&lt;n&gt;</code></td>
+<td style="text-align: left;">The zone's <code>family</code> excludes the traffic's.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>&lt;mesh_iface&gt; has no listen_port</code></td>
+<td style="text-align: left;">The relay port is not fixed, so it cannot be looked for.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>no such zone</code></td>
+<td style="text-align: left;">There is no zone named <code>wan</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>The same findings, apart from the interface lines, are available over ubus, also for values not saved yet: see <a href="../ubus-config-check/">ubus config check</a>.</p>
+<h3 id="-config"><code>--config</code><a class="headerlink" href="#-config" title="Permanent link">&para;</a></h3>
+<p><code>/usr/libexec/wgpathd/check.uc --config</code> runs only the configuration findings: the <code>config:</code> lines, including the options left over in <code>/etc/config/network</code>, and the <code>peer settings</code> warnings, without the <code>enabled</code> warning, ubus, routes, the firewall or the other peer lines. It is what <code>start</code> and <code>reload</code> run. Any other argument prints <code>usage: check.uc [--config]</code> on standard error and exits with <code>2</code>.</p>
+<h2 id="migrate"><code>migrate</code><a class="headerlink" href="#migrate" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>service<span class="w"> </span>wgpathd<span class="w"> </span>migrate
+</code></pre></div>
+<p>It runs <code>/usr/libexec/wgpathd/migrate.uc</code>, the program the package's uci-defaults script runs after an install or upgrade: it moves the options <code>wgpathd_relay</code> and <code>wgpathd_tunnel</code> of every WireGuard peer section in <code>/etc/config/network</code> into the <code>peer</code> section with that peer's key in <code>/etc/config/wgpathd</code>, keeping any value already there, and commits both files. What it does, step by step, is in <a href="../files/#etcuci-defaults50-wgpathd-peers">Files and dependencies</a>.</p>
+<p>Its messages go to syslog, and to standard error when run from a terminal; see <a href="../log-messages/#migration">Log messages</a>. The exit status is <code>0</code> when everything was moved or there was nothing to move, and <code>1</code> when a step failed, in which case <code>/etc/config/network</code> is left as it was. It does not reload the daemon: run <code>service wgpathd reload</code> afterwards.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12Z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.1e8ae164.min.js"></script>
+      
+    
+  </body>
+</html>
