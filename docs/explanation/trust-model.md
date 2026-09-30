@@ -63,4 +63,6 @@ Where that server can be reached is partly up to you. wgpathd binds it to the on
 
 ## Further reading
 
-The [design record](../design.md) covers the scope boundary (Decision 4), the relay endpoint resolution (R1) and the failure-mode catalog rows for a lying hub.
+- [About discovery](discovery.md) for what the hub publishes and how a spoke checks it.
+- [Architecture](architecture.md) for the closed effect vocabulary that enforces the endpoints-only scope.
+- [When things fail](state-machine.md#when-things-fail) for what a spoke does when the hub goes down or lies.

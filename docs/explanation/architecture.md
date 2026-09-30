@@ -119,6 +119,31 @@ If the configuration is invalid by the time the daemon reads it, the daemon logs
 
 Endpoints are compared as plain strings, so every endpoint that enters the core — from the kernel, discovery, the cache or the `peer` sections — is first put in one canonical form (`[v6]:port` or `v4:port`, lowercase and compressed, as `wg` prints it). Without that, the same address written two ways would look like a roam every cycle.
 
+## How the core is tested
+
+The split decides where the tests go. Every decision is in `decide`, so every decision is tested there, as a unit test with no I/O: build a `ctl` and an `obs`, call `decide`, check the next state and the effects. Time is an argument, so a test replays minutes of backoff in a few milliseconds, and the same scenario gives the same result at any starting time. The shell makes no decisions, so its integration tests only check the plumbing, with every part of `deps` replaced by a fake. The end-to-end suite then runs the package on real OpenWrt nodes and breaks the network under it.
+
+Two kinds of unit test cover `decide`:
+
+- **Scenarios.** One test per situation wgpathd must handle, most of them the cases in [When things fail](state-machine.md#when-things-fail): the anchor that only sees roams, the hub that lies, the path that loses one direction, and so on.
+- **Invariants.** Property tests feed `decide` long random sequences of observations and check, after every cycle, rules that must hold whatever happens. They are numbered in the test names:
+
+| | Invariant |
+| :--- | :--- |
+| I1 | Every effect is in the vocabulary, with exactly one metric and at most one tunnel probe per cycle. |
+| I2 | The endpoint set is the relay, a candidate seen from discovery or a roam seen in the kernel, never any other address. |
+| I3 | Every cycle sets exactly one endpoint: the relay in RELAY, the target in TRIALING and DIRECT. |
+| I4 | Without any sign of a direct path, every state is back in RELAY within the trial window plus `m_down` cycles. |
+| I5 | In observe mode, only the relay is ever set and no tunnel probe is sent. |
+| I6 | An answer that came back over the relay never commits a trial. |
+| I7 | A trial starts only once the backoff has run out. |
+| I8 | A trial commits only on an answer from its target, and DIRECT holds only on an answer. |
+| I9 | Between two changes (a roam, a new candidate, the end of the pause, a committed trial), at most `give_up_after` trials start on the same target. |
+
+A few more properties are named by what they check rather than numbered, such as `decide` never changing its inputs. Each run prints the seed of its random inputs.
+
 ## Further reading
 
-The [design record](../design.md) sections "The decision-core seam" and "Shell details" hold the full contract, including the property invariants the test suite checks.
+- [About the path state machine](state-machine.md) for the rules `decide` implements.
+- [Trust model](trust-model.md) for why the effect vocabulary has no way to change anything but an endpoint.
+- [How to run the tests](../how-to/developer/testing.md) for running, narrowing and watching the suites.

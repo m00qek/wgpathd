@@ -138,6 +138,15 @@ The backoff is what stops a flapping path from bouncing. Each failed trial and e
 
 A quiet link is never demoted for being quiet. DIRECT is judged only by the tunnel probe, which wgpathd sends itself, never by traffic or handshake age.
 
+## Corner cases
+
+A few rules settle what the diagram leaves open:
+
+- **The first cycle judges no roam.** wgpathd has set nothing yet, so whatever endpoint the kernel holds is not a roam. The first cycle sets the relay.
+- **The deadline comes first.** An answer that arrives in the cycle at or after `trial_window` is a timeout, not a commit.
+- **A demotion beats a roam.** If a DIRECT peer reaches `m_down` failed probes in the same cycle a roam shows up, it is demoted; the roam can start a trial once the backoff allows.
+- **Every transition starts the streaks over.** Evidence counts only in RELAY, and a new trial needs a fresh `n_up` streak, which may build up while the backoff runs.
+
 ## Observe and steer
 
 A spoke runs in one of two modes.
@@ -148,8 +157,31 @@ In **observe** mode a peer never leaves RELAY and no tunnel probes are sent. Evi
 
 Observe mode is not hands-off. A managed peer is still set to its relay endpoint every cycle. The whole point of observe is that every managed peer sits on the known-good floor while you watch. Switching a DIRECT peer back to observe demotes it to RELAY, without a backoff, with the reason `observe_mode`.
 
+## When things fail
+
+The rules above were worked out against the ways a mesh breaks. What a spoke does in each, with the default parameters:
+
+| What fails | What wgpathd does |
+| :--- | :--- |
+| The hub's discovery server stops, the hub is otherwise up | Spokes keep the addresses they last fetched. DIRECT peers stay DIRECT, and the relay still works. |
+| The whole hub goes down | Direct sessions are peer to peer and keep working. A peer that changes address is still followed through its [authenticated roam](#why-the-anchor-needs-roams). Pairs that were on the relay lose connectivity until the hub is back. |
+| `wg_hub` goes down, the direct path is healthy | Direct paths are unaffected; spokes run on their cached addresses. |
+| The hub publishes a wrong address | The trial gets no answer, the peer returns to the relay with a backoff, and the address is [given up](#giving-up-an-address) after `give_up_after` failures. See the [trust model](trust-model.md). |
+| The hub sends a malformed peer list | The whole payload is rejected and the last good addresses are kept. See [discovery](discovery.md#strict-about-what-it-accepts). |
+| Only one side of a pair accepts inbound IPv6 | Both sides go DIRECT: one on its echo, the other on the roams it sees. See [why the anchor needs roams](#why-the-anchor-needs-roams). |
+| Neither side accepts inbound IPv6 | Neither has evidence, so both stay on the relay for good. That is the correct result, not a fault. |
+| The direct path works in one direction only | The trial's round trip fails, so the peer never commits, and the address is given up. |
+| The direct path drops large packets only | The full-size tunnel probe fails, so the peer stays on, or returns to, the relay. |
+| The direct path flaps | Each demotion grows the [backoff](#fast-down-slow-up), and the peer ends up parked on the relay. |
+| The other side sends through the relay during a trial | Its packets can pull the probe onto the relay; only an answer that came back from the target commits. See [relay traffic and the proof](#relay-traffic-and-the-proof). |
+| A spoke boots with the hub down and no cache | Every peer is set to its relay endpoint, which comes from local configuration and never from the hub. |
+| The daemon crashes | procd starts it again, and every peer starts in RELAY. |
+| The daemon hangs | It stops pinging the procd watchdog, procd restarts it after 30 seconds, and every peer starts in RELAY. See [architecture](architecture.md#one-spoke-cycle). |
+
+The decision core's tests are named after these cases, and the end-to-end suite reproduces most of them on real OpenWrt nodes. See [how the core is tested](architecture.md#how-the-core-is-tested).
+
 ## Further reading
 
 - [Timing parameters](../reference/parameters.md) lists every knob and its default.
 - [ubus status](../reference/ubus-status.md) shows where each of these values appears at runtime.
-- The [design record](../design.md) has the full transition table, the decide rules for edge cases and the failure-mode catalog that motivated each rule.
+- [Architecture](architecture.md) explains the pure function that holds these rules and the invariants its tests check.

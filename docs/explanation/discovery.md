@@ -54,4 +54,4 @@ A spoke with a stable public address could, in principle, be configured statical
 ## Further reading
 
 - [Discovery HTTP API](../reference/discovery-api.md) for the exact request, response and limits.
-- The [design record](../design.md), sections "Discovery" and "Discovery contract", for the history of this contract.
+- [Trust model](trust-model.md) for why the relay endpoint and the tunnel address never come from the hub.

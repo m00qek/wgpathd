@@ -57,8 +57,19 @@ wgpathd is small because it refuses most of the job that tools like Tailscale or
 - **It does not do NAT traversal.** There is no STUN, no hole punching, no relay protocol of its own. wgpathd assumes at least one side of a pair accepts inbound IPv6. If neither does, the pair stays on the relay, which is the correct result.
 - **It does not push metrics.** Per-peer state and switch counts are in the [`ubus call wgpathd status`](../reference/ubus-status.md) reply for whatever collector you already run.
 
-If you have many sites and several pairs where neither side is reachable, a full NAT-traversal product is the better tool. For a handful of sites with at least one reachable IPv6 anchor, wgpathd is one ucode process that is readable in an afternoon.
+## Where it sits among other tools
+
+Choosing between a direct and a relayed path by health, with a coordinator that publishes where each peer is, is not new. It is the core of Tailscale (WireGuard with DERP relays and a control plane) and of self-hosted overlays such as Netmaker and Nebula; Headscale is a self-hosted Tailscale control server, and `wgsd` covers only the endpoint discovery half. On OpenWrt the usual answer is a hand-written script that pings and then runs `wg set`. wgpathd is a deliberately small, self-hosted slice of the same pattern:
+
+- **It steers the kernel WireGuard you already run.** There is no second overlay, no userspace WireGuard and no daemon from another ecosystem, just one ucode process.
+- **It needs no outside control plane.** The coordinator is the hub reading its own WireGuard peer table and serving it over a tunnel you already trust. There are no accounts and no cloud service.
+- **It stays small enough to read.** A daemon whose only action is `wg set ... endpoint` is readable in an afternoon and tested end to end.
+
+What keeps it small is one assumption: a pair goes direct only when at least one side, the anchor, accepts inbound IPv6. The heavy machinery of the larger tools, STUN, hole punching and relay protocols, exists for pairs where neither side is reachable. With an anchor, the question shrinks to whether a round trip crosses the direct path.
+
+If you have many sites, or several pairs where neither side is reachable, a full NAT-traversal product is the better tool. For a handful of sites with at least one reachable IPv6 anchor, wgpathd is the lighter choice.
 
 ## Further reading
 
-The [design record](../design.md) has the original requirements, the prior-art comparison and the failure-mode catalog.
+- [About the path state machine](state-machine.md) for how a spoke decides, and [what it does when things fail](state-machine.md#when-things-fail).
+- [Trust model](trust-model.md) for why the scope is limited to endpoints.
