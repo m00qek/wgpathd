@@ -74,6 +74,7 @@ nav:
       - Developer:
           - Running Tests: how-to/developer/testing.md
           - Building the Package: how-to/developer/packaging.md
+          - Publishing to the Package Feed: how-to/developer/publish-to-feed.md
           - Writing Documentation: how-to/developer/documentation.md
           - Publishing the Documentation:
               - Setting Up Publishing: how-to/developer/setup-docs-publishing.md

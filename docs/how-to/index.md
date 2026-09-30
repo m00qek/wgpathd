@@ -26,6 +26,7 @@ Roughly in the order you will need them:
 
 - [Running Tests](developer/testing.md) - How to run all tests, one suite, one file or a filtered subset.
 - [Building the Package](developer/packaging.md) - How to build and check the `.apk`.
+- [Publishing to the Package Feed](developer/publish-to-feed.md) - How a tagged release reaches the packages.ucode.dev feed.
 - [Writing Documentation](developer/documentation.md) - How to preview, build and place documentation pages.
 
 ### Publishing the Documentation

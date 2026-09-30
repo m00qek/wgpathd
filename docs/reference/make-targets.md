@@ -12,7 +12,7 @@ All targets run in Docker. Nothing is installed on the host.
 | `unit` | Run the unit suite only. |
 | `integration` | Run the integration suite only. |
 | `watch` | Run all tests, then re-run whenever a file under `src/`, `test/` or `files/` changes. |
-| `lint` | Compile-check every ucode file, `sh -n` every shell script, parse every JSON file under `luci/` with ucode and every LuCI script under `luci/` with quickjs (as the function body LuCI compiles it into), fail on `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` or `%s` in a `.format()` template in those scripts (`devenv/scripts/luci-dom-lint.sh`, which lint first proves still catches each), and check the pinned documentation links with `devenv/scripts/docs-links.sh` (see [Link check](docs-publishing.md#link-check)). Then check that `luci/po/templates/wgpathd.pot` is what `pot` would write, and that the scanner gave no warning. |
+| `lint` | Compile-check every ucode file, `sh -n` every shell script, parse every JSON file under `luci/` with ucode and every LuCI script under `luci/` with quickjs (as the function body LuCI compiles it into), fail on `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` or `%s` in a `.format()` template in those scripts (`devenv/scripts/luci-dom-lint.sh`, which lint first proves still catches each), check the pinned documentation links with `devenv/scripts/docs-links.sh` (see [Link check](docs-publishing.md#link-check)), and run `test/feed/feed_makefile_test.sh` against the feed Makefile generator. Then check that `luci/po/templates/wgpathd.pot` is what `pot` would write, and that the scanner gave no warning. |
 | `shell` | Open a throwaway shell in the development image. |
 | `image` | Rebuild the development image, pulling the base image again. |
 | `package` | Build `bin/wgpathd-<version>-r<release>.apk` and `bin/luci-app-wgpathd-<version>-r<release>.apk` in the OpenWrt SDK. |
@@ -24,6 +24,7 @@ All targets run in Docker. Nothing is installed on the host.
 | `lab-down` | Stop the lab's watchdog, tear the lab down and print the host report (sysctls, Wi-Fi interface, kernel log). Safe to run when the lab is not up. |
 | `lab-shell` | Open a login shell on the lab node named by `NODE`. |
 | `lab-fault` | Inject or clear a fault in the running lab, named by `NAME`: `kill-direct` drops the `wg_mesh` datagrams between the spokes (the e2e `kill-direct` fault: the hub leg, the relay and ICMPv6 stay up); `relay-delay` delays everything the hub sends by `MS` milliseconds (netem on the hub's `eth0`), which slows only the relay path, since the direct path never crosses the hub; `restore` clears every fault. |
+| `feed-makefile` | Write the wgpathd Makefile for the packages.ucode.dev feed with `devenv/scripts/gen-feed-makefile.sh`: `openwrt/wgpathd/Makefile` from the `v<VERSION>` release tarball, plus `PKG_SOURCE`, `PKG_SOURCE_URL`, `PKG_HASH` (the tarball's sha256), `PKG_BUILD_DIR` and `PKG_LICENSE_FILES`, with every `./src/`, `./files/` and `./luci/` path pointing into the unpacked tarball. Downloads the tarball from GitHub unless `TARBALL` or `HASH` is given. Fails, and writes nothing, when the source Makefile has a shape the generator does not cover or copies a path the tarball lacks. |
 | `docs` | Build the documentation site (same as `make -C docs build`). |
 | `docs-mike` | Strict build with the versioned config (same as `make -C docs build-mike`). |
 | `docs-test` | Test the docs publishing tooling (same as `make -C docs test`). |
@@ -46,6 +47,10 @@ All targets run in Docker. Nothing is installed on the host.
 | `NAME` | — | `lab-fault` | `kill-direct`, `relay-delay` or `restore`. |
 | `MS` | — | `lab-fault` | Milliseconds of delay for `NAME=relay-delay`. |
 | `E2E_STRICT` | — | `e2e`, `lab-up` | Set to `1` to refuse to start while containers of other projects run. By default they are listed as a warning and the run goes ahead. The lab and the suite always refuse to run at the same time. |
+| `VERSION` | — | `feed-makefile` | Release to generate for, without the `v`: `0.1.0`. Must be the `PKG_VERSION` of the Makefile it transforms. |
+| `OUT` | standard output | `feed-makefile` | File to write. |
+| `TARBALL` | — | `feed-makefile` | Use this tarball of the release instead of downloading it. |
+| `HASH` | — | `feed-makefile` | Offline: use this sha256 as `PKG_HASH` and transform the in-tree Makefile. Nothing checks that it matches the tag. |
 | `E2E_WATCH_IFACE` | `wlan0` | `e2e`, `lab-up` | Host interface the e2e runner and the lab guard; the stack is torn down if it goes down. |
 
 Examples:
