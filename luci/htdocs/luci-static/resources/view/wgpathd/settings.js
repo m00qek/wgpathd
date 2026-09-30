@@ -182,6 +182,12 @@ function findingText(message, titleOf) {
 	], message);
 }
 
+// Why the check leaves a peer unsteered, without the peer's name when it can.
+function unsteeredText(message, titleOf) {
+	const m = /^peer \S+: (?:not steered \((.*)\)|(relay routes into \S+))$/.exec(message);
+	return m ? wgpathd.unmanagedText(m[1] ?? m[2]) : findingText(message, titleOf);
+}
+
 // The rule a firewall finding asks for, as the check gives it: uci commands and a section
 // of /etc/config/firewall, each shown as text.
 function fixBlock(fix) {
@@ -216,11 +222,18 @@ function withinBounds(value, p) {
 		: _('Expecting: a number from %h to %h').format(p.min, p.max);
 }
 
+// The ipaddrport datatype takes port 0, which wgpathd refuses.
+function relayPort(value) {
+	return (value === '' || +value.substring(value.lastIndexOf(':') + 1) > 0)
+		? true : _('Expecting: a port from 1 to 65535');
+}
+
 // The peers of the mesh interface, one row each, with the relay endpoint and tunnel
 // address of the `peer` section of their public key. A row cleared of both has no
 // section; every section of a key a row changes is changed alike. A peer with a fixed
 // endpoint and no section, such as the hub, shows no fields until it is chosen to be
 // steered: another spoke may have one too, as a roamer gives an anchor its stable address.
+// Steered says what saving a row would do, and why not when it would not steer the peer.
 const PeerTable = form.Value.extend({
 	__name__: 'CBI.WgpathdPeers',
 
@@ -253,8 +266,10 @@ const PeerTable = form.Value.extend({
 		this.iface = iface;
 		this.peers = peers;
 
-		if (this.container)
+		if (this.container) {
 			dom.content(this.container, [ this.renderTable() ]);
+			this.triggerValidation();
+		}
 	},
 
 	renderTable() {
@@ -294,24 +309,32 @@ const PeerTable = form.Value.extend({
 		const saved = lookup(this.saved, key) ?? { relay: '', tunnel: '' };
 		const steered = E('span', {}, []);
 		// The datatype check leaves a part of the value where the validator's argument
-		// should be, so the mark is held against the field's value.
-		const field = (name, placeholder, datatype, title) => {
+		// should be, so the mark is held against the field's value. Validated as it is
+		// typed, not only on keyup, so that Steered follows at once.
+		const field = (name, placeholder, datatype, title, own) => {
 			const widget = new ui.Textfield(saved[name], {
 				optional: true,
 				placeholder: placeholder,
 				datatype: datatype,
 				disabled: !usable || this.map.readonly,
-				validate: () => this.checkMark(key, name, widget.getValue())
+				validate: () => {
+					const value = widget.getValue();
+					const marked = this.checkMark(key, name, value);
+					return (marked === true && own) ? own(value) : marked;
+				}
 			});
 			const input = widget.render().querySelector('input');
 
 			input.setAttribute('aria-label', title);
-			input.addEventListener('input', () => this.showSteered(row));
+			input.addEventListener('input', () => {
+				widget.triggerValidation();
+				this.showSteered(row);
+			});
 			return widget;
 		};
 		const row = { key: usable ? key : null, peer: peer, steered: steered, fixed: peer.fixed_endpoint === true };
 
-		row.relay = field('relay', _('address:port'), 'ipaddrport(1)', headers[2]);
+		row.relay = field('relay', _('address:port'), 'ipaddrport(1)', headers[2], relayPort);
 		row.tunnel = field('tunnel', _('address'), 'ipaddr(1)', headers[3]);
 		this.showSteered(row);
 
@@ -354,27 +377,53 @@ const PeerTable = form.Value.extend({
 	},
 
 	showSteered(row) {
-		const set = row.relay.getValue() !== '' && row.tunnel.getValue() !== '';
+		const cleared = row.relay.getValue() === '' && row.tunnel.getValue() === '';
+		const reason = cleared ? null : this.unsteered(row);
+		const steered = !cleared && reason == null;
 		const words = row.fixed
-			? (set ? _('Yes, in place of its fixed endpoint') : _('No, it keeps its fixed endpoint'))
-			: (set ? _('Yes') : _('No'));
+			? (steered ? _('Yes, in place of its fixed endpoint') : _('No, it keeps its fixed endpoint'))
+			: (steered ? _('Yes') : _('No'));
 
-		dom.content(row.steered, [ words ]);
+		dom.content(row.steered, reason ? [ words, E('br'), E('small', {}, reason) ] : [ words ]);
 	},
 
-	// A finding marks a field until its value changes.
+	// Why wgpathd would not steer the peer of a row with settings, in words; null if it
+	// would. A failed check says it first; then the fields, in the order wgpathd reads them.
+	unsteered(row) {
+		const mark = lookup(this.marks, row.key);
+		if (mark && (mark.name == null || row[mark.name].getValue() === mark.value))
+			return mark.reason;
+
+		if (row.relay.getValue() === '')
+			return wgpathd.unmanagedText('missing relay');
+		if (!row.relay.isValid())
+			return wgpathd.unmanagedText('invalid relay');
+		if (row.tunnel.getValue() === '')
+			return wgpathd.unmanagedText('missing tunnel');
+		if (!row.tunnel.isValid())
+			return wgpathd.unmanagedText('invalid tunnel');
+
+		return null;
+	},
+
 	checkMark(key, name, value) {
-		const mark = lookup(this.marks, `${key} ${name}`);
-		return (mark && mark.value === value) ? mark.message : true;
+		const mark = lookup(this.marks, key);
+		return (mark && mark.name === name && mark.value === value) ? mark.message : true;
 	},
 
-	mark(key, name, message) {
+	// A failed finding marks the field it names until the field's value changes, and the
+	// row's Steered as long; one naming no field, until the next check. The check fails a
+	// peer for one reason at most.
+	mark(key, name, message, reason) {
 		const row = lookup(this.fields, key);
-		if (!row || !row[name])
+		if (!row)
 			return false;
 
-		this.marks[`${key} ${name}`] = { value: row[name].getValue(), message: message };
-		row[name].triggerValidation();
+		const field = (name === 'relay' || name === 'tunnel') ? name : null;
+		this.marks[key] = { name: field, value: field ? row[field].getValue() : null, message: message, reason: reason };
+		if (field)
+			row[field].triggerValidation();
+		this.showSteered(row);
 		return true;
 	},
 
@@ -413,9 +462,11 @@ const PeerTable = form.Value.extend({
 	triggerValidation(section_id) {
 		let changed = false;
 
-		for (const row of this.rows())
+		for (const row of this.rows()) {
 			for (const name of [ 'relay', 'tunnel' ])
 				changed = row[name].triggerValidation() || changed;
+			this.showSteered(row);
+		}
 
 		return changed;
 	},
@@ -735,8 +786,10 @@ return view.extend({
 
 	// Marks the field a failed finding is about, if it has one; returns the tab to show.
 	mark(f, message) {
-		if (f.subject === 'peer')
-			return (this.peerTable.mark(f.public_key, f.option, message) || this.peerTable.isActive('main')) ? 'peers' : null;
+		if (f.subject === 'peer') {
+			const reason = unsteeredText(String(f.message), (name) => this.titleOf(name));
+			return (this.peerTable.mark(f.public_key, f.option, message, reason) || this.peerTable.isActive('main')) ? 'peers' : null;
+		}
 
 		const name = f.option ?? this.interfaceOptionOf(f);
 		const o = name ? lookup(this.options, name) : null;

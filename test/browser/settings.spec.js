@@ -124,6 +124,8 @@ test.describe('Network → Mesh paths, a spoke', () => {
     await expect(peerField(page, 'home', 'Tunnel address')).toHaveValue('10.20.0.12');
     await expect(peerRow(page, 'home').locator('td').last()).toHaveText('Yes, in place of its fixed endpoint');
     await peerField(page, 'home', 'Tunnel address').fill('');
+    await expect(peerRow(page, 'home').locator('td').last()).toHaveText('No, it keeps its fixed endpointNo tunnel address to check set');
+    await peerField(page, 'home', 'Relay endpoint').fill('');
     await expect(peerRow(page, 'home').locator('td').last()).toHaveText('No, it keeps its fixed endpoint');
   });
 
@@ -133,6 +135,9 @@ test.describe('Network → Mesh paths, a spoke', () => {
     await expect(peerField(page, 'hub', 'Relay endpoint')).toBeFocused();
     await expect(peerRow(page, 'hub').getByRole('button')).toHaveCount(0);
     await shot(page, 'settings-peers-steer-fixed');
+    await peerField(page, 'hub', 'Relay endpoint').fill('10.10.0.1:0');
+    await peerField(page, 'hub', 'Tunnel address').fill('10.20.0.1');
+    await expect(peerRow(page, 'hub').locator('td').last()).toHaveText('No, it keeps its fixed endpointThe relay endpoint is not valid');
     await peerField(page, 'hub', 'Relay endpoint').fill('10.10.0.1:51820');
     await peerField(page, 'hub', 'Tunnel address').fill('10.20.0.1');
     await expect(peerRow(page, 'hub').locator('td').last()).toHaveText('Yes, in place of its fixed endpoint');
@@ -233,6 +238,58 @@ test.describe('Network → Mesh paths, a spoke', () => {
     ]);
     expect(await h.text(checkPanel(page))).not.toMatch(/\b(config|peer) \S+:|wgpathd_|not configured/);
     await shot(page, 'settings-check');
+  });
+
+  test('says a peer with an invalid relay endpoint is not steered, before and after the check, and steered once it is fixed', async ({ page }) => {
+    await openTab(page, 'peers');
+    const steered = peerRow(page, 'lab').locator('td').last();
+    await peerField(page, 'lab', 'Relay endpoint').fill('10.10.0.14:0');
+    await peerField(page, 'lab', 'Tunnel address').fill('10.20.0.14');
+    await expect(steered).toHaveText('NoThe relay endpoint is not valid');
+    await expect(peerField(page, 'lab', 'Relay endpoint')).toHaveAttribute('data-tooltip', 'Expecting: a port from 1 to 65535');
+    await shot(page, 'settings-peers-unchecked');
+
+    await page.getByRole('button', { name: 'Check configuration' }).click();
+    await expect(checkPanel(page).locator('tr').filter({ hasText: /^Fail/ })).toHaveText([ /lab: not steered/ ]);
+    await expect(steered).toHaveText('NoThe relay endpoint is not valid');
+    await shot(page, 'settings-peers-checked');
+
+    await peerField(page, 'lab', 'Relay endpoint').fill('10.10.0.14:51820');
+    await expect(steered).toHaveText('Yes');
+    await page.getByRole('button', { name: 'Check configuration' }).click();
+    await expect(checkPanel(page).locator('tr').first()).toHaveText(/^OK\s*Spoke in observe mode: 3 peers steered, 1 peer not steered$/);
+    await expect(checkPanel(page).locator('tr').filter({ hasText: /^Fail/ })).toHaveCount(0);
+    await expect(steered).toHaveText('Yes');
+  });
+
+  test('says a saved peer with an invalid relay endpoint is not steered as soon as the page opens', async ({ page, request }) => {
+    await h.ubus(request, 'uci', 'add', {
+      config: 'wgpathd', type: 'peer', values: { public_key: KEYS.lab, relay: '10.10.0.14:0', tunnel: '10.20.0.14' },
+    });
+    await h.ubus(request, 'uci', 'commit', { config: 'wgpathd' });
+    await page.reload();
+    await openTab(page, 'peers');
+    await expect(peerRow(page, 'lab').locator('td').last()).toHaveText('NoThe relay endpoint is not valid');
+    await expect(peerField(page, 'lab', 'Relay endpoint')).toHaveClass(/cbi-input-invalid/);
+  });
+
+  test('says a peer the check fails for a reason its fields do not show is not steered, until the next check', async ({ page, request }) => {
+    await h.ubus(request, 'uci', 'add', {
+      config: 'wgpathd', type: 'peer', values: { public_key: KEYS.beach, relay: '10.10.0.13:51820', tunnel: '10.20.0.13' },
+    });
+    await h.ubus(request, 'uci', 'commit', { config: 'wgpathd' });
+    await page.reload();
+    await openTab(page, 'peers');
+    const steered = peerRow(page, 'beach').locator('td').last();
+    await expect(steered).toHaveText('Yes');
+
+    await page.getByRole('button', { name: 'Check configuration' }).click();
+    await expect(steered).toHaveText('NoIts settings are given more than once');
+    await peerField(page, 'beach', 'Tunnel address').fill('10.20.0.31');
+    await expect(steered).toHaveText('NoIts settings are given more than once');
+    await peerField(page, 'beach', 'Relay endpoint').fill('');
+    await peerField(page, 'beach', 'Tunnel address').fill('');
+    await expect(steered).toHaveText('No');
   });
 
   test('shows a missing firewall rule, and the rule to add as text', async ({ page, request }) => {

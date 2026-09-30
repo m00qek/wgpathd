@@ -41,7 +41,7 @@ For each peer to steer, fill in:
 - **Relay endpoint**: the peer's address on the hub tunnel and its mesh listen port, for example `10.10.0.12:51820`.
 - **Tunnel address**: the peer's address inside the mesh, which must be in its allowed IPs, for example `10.20.0.12`.
 
-**Steered** shows **Yes** once both are set. To stop steering a peer, clear both fields.
+**Steered** says what saving the row would do. It shows **Yes** once both fields hold values wgpathd takes. Otherwise it shows **No** and, under it, why: a field is empty, a value is not valid, such as a relay endpoint with port 0, or the last check failed the peer. To stop steering a peer, clear both fields.
 
 A peer with a fixed endpoint in its WireGuard settings (`endpoint_host`) and no settings here, such as the hub, shows **Fixed endpoint** instead of the fields, and **No, it keeps its fixed endpoint** under **Steered**. Leave the hub so. Another spoke may have a fixed endpoint too, as when a roaming site keeps the stable address of an anchor site: click **Steer this peer** to show its fields and fill them in. **Steered** then says **Yes, in place of its fixed endpoint**: wgpathd sets the peer's endpoint from then on. A peer with a fixed endpoint and settings shows its fields from the start. Clearing both stops steering it; the peer gets its fixed endpoint back when its interface next comes up.
 
@@ -60,7 +60,7 @@ Click **Check configuration**. The **Configuration check** list says, line by li
 | **Skip** | Left alone on purpose, such as a peer without settings. |
 | **Fail** | wgpathd would refuse the configuration, or leave the peer unsteered. |
 
-Each **Fail** marks its field in red, and the page opens the tab that holds the first one. Fix the fields and check again.
+Each **Fail** marks its field in red, and the page opens the tab that holds the first one. A peer's **Fail** also shows under **Steered**, until you change the field it is about or check again. Fix the fields and check again.
 
 The last lines are about the firewall: whether it accepts the tunnel probe and relayed packets on a spoke, and the peer list requests on the hub. A **Warn** there shows the rule to add under it, as commands to run on the router and as the section of `/etc/config/firewall`; add it under **Network → Firewall → Traffic Rules**, as in [How to open the firewall for wgpathd](open-firewall.md). These warnings never stop Save & Apply.
 
