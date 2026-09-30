@@ -44,10 +44,12 @@ lab-fault: ; @devenv/scripts/lab.sh fault $(NAME) $(MS)
 SDK_IMAGE := wgpathd-sdk:$(OPENWRT_ARCH)-$(OPENWRT_VERSION)
 PKG_DIR   := /sdk/package/wgpathd
 
+# fakeroot's faked closes every descriptor up to the open-file limit when it starts;
+# where the daemon's limit is unbounded (about a billion) each start takes minutes.
 package:
 	docker build -q -t $(SDK_IMAGE) --build-arg OPENWRT_ARCH --build-arg OPENWRT_VERSION devenv/services/sdk >/dev/null
 	@mkdir -p bin && chmod a+rwx bin
-	docker run --rm $(if $(CI),,-t) -e VERBOSE \
+	docker run --rm $(if $(CI),,-t) --ulimit nofile=1024:524288 -e VERBOSE \
 		-v $(CURDIR)/openwrt/wgpathd/Makefile:$(PKG_DIR)/Makefile:ro \
 		-v $(CURDIR)/src:$(PKG_DIR)/src:ro \
 		-v $(CURDIR)/files:$(PKG_DIR)/files:ro \
