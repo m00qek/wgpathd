@@ -40,4 +40,4 @@ make pot                       # regenerate the LuCI translation template with o
 ```
 `OPENWRT_VERSION` / `OPENWRT_ARCH` select the rootfs (default `25.12.5` / `x86_64`).
 
-Status: **implemented and packaged**, with unit, integration and browser tests and a docker failover harness of fifteen scenarios. Release 6 has not been through the failover harness yet; earlier releases run on a small production mesh.
+Status: **implemented and packaged**, with unit, integration and browser tests and a docker failover harness of fifteen scenarios. Release 6 passes all fifteen scenarios; earlier releases run on a small production mesh.
