@@ -24,7 +24,7 @@ Before wgpathd can do anything useful you need:
 - **A hub that forwards the transit range.** The hub forwards traffic between its `wg_hub` peers, so a spoke can reach another spoke's `wg_hub` address through it.
 - **At least one inbound-reachable IPv6 site.** A pair of spokes goes direct if at least one of them accepts inbound WireGuard over IPv6. If neither does, that pair stays on the relay.
 
-[How to prepare the WireGuard substrate](how-to/prepare-substrate.md) walks through all of this.
+[How to prepare the WireGuard substrate](how-to/prepare-substrate.md) walks through all of this. Whether wgpathd is the right tool for you at all, and what else to consider, is in [Why wgpathd?](explanation/why.md).
 
 ## Documentation map
 
