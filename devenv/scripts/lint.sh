@@ -21,7 +21,7 @@ for f in test/utest.config.uc files/usr/libexec/wgpathd/*.uc files/usr/share/rpc
 	check "$f" "$f"
 done
 
-for f in files/etc/init.d/wgpathd files/etc/uci-defaults/* devenv/scripts/*.sh devenv/services/*/*.sh test/e2e/*.sh test/docs/*.sh; do
+for f in files/etc/init.d/wgpathd files/etc/uci-defaults/* devenv/scripts/*.sh devenv/services/*/*.sh test/e2e/*.sh test/docs/*.sh test/feed/*.sh; do
 	sh -n "$f" || { echo "  in $f" >&2; status=1; }
 done
 
@@ -46,5 +46,6 @@ done
 rm -f "$bad"
 
 devenv/scripts/docs-links.sh || status=1
+sh test/feed/feed_makefile_test.sh >/dev/null || { sh test/feed/feed_makefile_test.sh | grep -v '^ok '; status=1; }
 
 exit $status

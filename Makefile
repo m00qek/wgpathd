@@ -16,7 +16,7 @@ RUN          = $(COMPOSE) --progress quiet run --rm $(if $(CI),-T) openwrt
 IMAGE_STAMP := devenv/.built-$(IMAGE_TAG)
 TEST_ARGS    = $(if $(FILTER),-f '$(FILTER)') $(if $(VERBOSE),-v) $(MODULES)
 
-.PHONY: test unit integration watch lint shell image e2e lab-up lab-down lab-shell lab-fault package package-check browser pot docs docs-mike docs-test docs-serve
+.PHONY: test unit integration watch lint shell image e2e lab-up lab-down lab-shell lab-fault package package-check browser pot docs docs-mike docs-test docs-serve feed-makefile
 
 test:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh all $(TEST_ARGS)
 unit:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh unit $(TEST_ARGS)
@@ -86,6 +86,16 @@ browser: package
 # The translation template, from the LuCI sources; make lint checks it is up to date.
 I18N_IMAGE := wgpathd-i18n:$(shell sha256sum devenv/services/i18n/Dockerfile | cut -c1-12)
 pot: ; @I18N_IMAGE=$(I18N_IMAGE) devenv/scripts/pot.sh
+
+# The wgpathd Makefile for the packages.ucode.dev feed, built from the v$(VERSION)
+# release tarball: it downloads the tarball unless TARBALL=<path> or HASH=<sha256>
+# is given. Writes to OUT, or to standard output.
+feed-makefile:
+	@sh devenv/scripts/gen-feed-makefile.sh \
+		$(if $(TARBALL),--tarball '$(TARBALL)') \
+		$(if $(HASH),--hash '$(HASH)') \
+		$(if $(OUT),-o '$(OUT)') \
+		'$(VERSION)'
 
 docs:       ; @$(MAKE) -C docs build
 docs-mike:  ; @$(MAKE) -C docs build-mike
