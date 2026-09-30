@@ -19,12 +19,12 @@ In the repository:
 make package
 ```
 
-This builds `bin/wgpathd-0.1.0-r6.apk` in the OpenWrt SDK, inside Docker. See [How to build the package](developer/packaging.md) for other versions and checks.
+This builds `bin/wgpathd-0.1.0-r7.apk` in the OpenWrt SDK, inside Docker. See [How to build the package](developer/packaging.md) for other versions and checks.
 
 ## 2. Copy it to the router
 
 ```bash
-scp bin/wgpathd-0.1.0-r6.apk root@192.0.2.1:/tmp/
+scp bin/wgpathd-0.1.0-r7.apk root@192.0.2.1:/tmp/
 ```
 
 If the router has no SFTP server, add `-O` to use the legacy SCP protocol.
@@ -35,7 +35,7 @@ On the router:
 
 ```bash
 apk update
-apk add --allow-untrusted /tmp/wgpathd-0.1.0-r6.apk
+apk add --allow-untrusted /tmp/wgpathd-0.1.0-r7.apk
 ```
 
 `--allow-untrusted` is needed because a locally built package is not signed with a key the router trusts. The dependencies come from the regular feeds; the full list is in [Files and dependencies](../reference/files.md#dependencies).
