@@ -8,20 +8,20 @@ import * as migrate from 'wgpathd.migrate';
 import * as params from 'wgpathd.params';
 import * as Result from 'wgpathd.result';
 
-// The configuration of the first real deployment, one hub and two spokes, with
-// documentation addresses in place of the public IPv6 ones: every check added since
-// must take it as it is, with the default timing. Each spoke is tried both as written
+// The configuration of a real deployment, one hub and two spokes, with generic names
+// and documentation addresses in place of its own: every check added since must take
+// it as it is, with the default timing. Each spoke is tried both as written
 // afresh, the peer settings in /etc/config/wgpathd, and as releases up to 4 left it,
 // the settings in /etc/config/network, once the migration has moved them.
 
-const SPOKE_A      = 'ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc=';
+const SPOKE_A = 'ckRTxoRCqAhiHEgHPnhfpN6nU5/F2QmMe0nJ2kt7PFc=';
 const SPOKE_B = 'O0LYRo/RVGHReCajupP1UioYUPELAkI8jPy1rWoazG4=';
-const HUB       = 'W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=';
+const HUB     = 'W+1CXUTTLNuEuF+fANM4a1F4kUcjzH1oH9VYWI9eA00=';
 
-const DIRECT = { [SPOKE_A]: '[2001:db8:ca::1]:51820', [SPOKE_B]: '[2001:db8:5e::1]:51820' };
+const DIRECT = { [SPOKE_A]: '[2001:db8:a::1]:51820', [SPOKE_B]: '[2001:db8:b::1]:51820' };
 
 const SPOKES = {
-	spoke_a:      { key: SPOKE_A, hub_iface: 'legacy_a', relay: '10.10.0.11', tunnel: '10.20.0.11' },
+	spoke_a: { key: SPOKE_A, hub_iface: 'legacy_a', relay: '10.10.0.11', tunnel: '10.20.0.11' },
 	spoke_b: { key: SPOKE_B, hub_iface: 'legacy_b', relay: '10.10.0.12', tunnel: '10.20.0.12' },
 };
 
@@ -95,7 +95,7 @@ const LAYOUTS = { fresh: fresh_spoke, migrated: migrated_spoke };
 const HUB_NETWORK = {
 	wg_mesh: { '.type': 'interface', proto: 'wireguard', addresses: [ '10.20.0.1/24' ] },
 	wg_hub:  { '.type': 'interface', proto: 'wireguard', addresses: [ '10.10.0.1/24' ] },
-	wgmesh_spoke_a:      { '.type': 'wireguard_wg_mesh', public_key: SPOKE_A },
+	wgmesh_spoke_a: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_A },
 	wgmesh_spoke_b: { '.type': 'wireguard_wg_mesh', public_key: SPOKE_B },
 };
 
