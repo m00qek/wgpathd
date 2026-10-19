@@ -650,8 +650,13 @@ function serve(deps, cfg, daemon) {
 	return publisher.listen(deps, cfg.serve_addr, +cfg.serve_port, () => daemon.status().peers);
 }
 
+// One timer, re-armed after every cycle: uloop keeps a timer that has fired until it
+// is cancelled, so a new timer per cycle would never be freed.
 function loop(deps, daemon, cycle) {
-	daemon.cycle(() => deps.uloop.timer(int(cycle() * 1000), () => loop(deps, daemon, cycle)));
+	let tick = null;
+	let next = () => daemon.cycle(() => tick.set(int(cycle() * 1000)));
+	tick = deps.uloop.timer(-1, next);
+	next();
 }
 
 export function structural_change(old, cfg) {

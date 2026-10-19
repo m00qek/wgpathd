@@ -269,10 +269,18 @@ export function uci_dir(data) {
 };
 
 export function uloop() {
-	let fake = { timers: [], signals: {}, ran: false, ended: false };
+	let fake = { timers: [], created: 0, signals: {}, ran: false, ended: false };
+	// fake.timers lists every arming, in order: at creation with a delay, and on set();
+	// fake.created counts the timers.
 	fake.timer = function(ms, cb) {
-		push(fake.timers, { ms: ms, cb: cb });
-		return { cancel: () => true };
+		fake.created++;
+		let t = {
+			cancel: () => true,
+			set: function(delay) { push(fake.timers, { ms: delay, cb: cb }); return true; },
+		};
+		if (ms >= 0)
+			t.set(ms);
+		return t;
 	};
 	// Fires the zero-delay timers, as the first turn of a real loop would.
 	fake.run = function() {

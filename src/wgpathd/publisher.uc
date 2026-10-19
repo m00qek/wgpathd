@@ -61,6 +61,9 @@ function serve(deps, conn, source, peers_fn, on_close) {
 	let record = { source: source };
 	let closed = false;
 
+	// The callbacks of the handle and the timer capture all three, and the record
+	// holds close, which captures the record: each is dropped here, or none is ever
+	// freed. And uloop keeps a timer that has fired until it is cancelled.
 	let close = function() {
 		if (closed)
 			return;
@@ -68,11 +71,15 @@ function serve(deps, conn, source, peers_fn, on_close) {
 		handle.delete();
 		timer.cancel();
 		conn.close();
+		handle = timer = conn = null;
 		on_close(record);
+		record.close = () => null;
 	};
 	record.close = close;
 
 	let on_readable = function() {
+		if (closed)
+			return;
 		let chunk = conn.recv(MAX_REQUEST + 1 - length(buf), sock.MSG_DONTWAIT);
 		if (!chunk)
 			return close();

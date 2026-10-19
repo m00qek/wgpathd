@@ -1298,6 +1298,15 @@ describe('daemon: run', () => {
 		assert.match([ 0, 1500, 1500 ], map(r.loop.timers, (t) => t.ms));
 	});
 
+	// uloop keeps a timer that has fired until it is cancelled: one per cycle would pile up.
+	it('re-arms one timer for every cycle', () => {
+		let r = run(h.world(kernel_of(SPOKE_B)), MAIN);
+		tick(r);
+		tick(r);
+		tick(r);
+		assert.match([ 2, [ 0, 1500, 1500, 1500, 1500 ] ], [ r.loop.created, map(r.loop.timers, (t) => t.ms) ]);
+	});
+
 	it('accepts the ubus_rpc_session argument uhttpd adds to calls from LuCI', () => {
 		let w = h.world(kernel_of(SPOKE_B));
 		run(w, MAIN);

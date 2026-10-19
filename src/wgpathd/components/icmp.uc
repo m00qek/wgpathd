@@ -136,7 +136,9 @@ export function create(socket, uloop, random) {
 			}
 			if (length(waiting) == 0)
 				return;
-			uloop.timer(int(timeout * 1000), () => {
+			// uloop keeps a timer that has fired until it is cancelled; `this` is the timer.
+			uloop.timer(int(timeout * 1000), function() {
+				this.cancel();
 				for (let w in waiting) {
 					let p = w.socket.pending[w.key];
 					if (p == null)

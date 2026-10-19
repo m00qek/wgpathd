@@ -17,18 +17,19 @@ export function create(uloop) {
 		let timer = null;
 		let proc = null;
 
-		// The timer and the exit can land in the same loop iteration.
+		// The timer and the exit can land in the same loop iteration. The callbacks of
+		// each capture the other, so both are dropped here, or neither is ever freed;
+		// and uloop keeps a timer that has fired until it is cancelled.
 		let finish = function(res) {
 			if (done)
 				return;
 			done = true;
+			timer.cancel();
+			timer = proc = null;
 			cb(res);
 		};
 
-		proc = uloop.process('/bin/sh', [ '-c', WRAPPER, ...argv ], {}, (code) => {
-			timer.cancel();
-			finish(Result.ok({ code: code }));
-		});
+		proc = uloop.process('/bin/sh', [ '-c', WRAPPER, ...argv ], {}, (code) => finish(Result.ok({ code: code })));
 		timer = uloop.timer(int(timeout * 1000), () => {
 			proc.delete();
 			finish(Result.err(errors.EXEC_TIMEOUT, argv[0]));

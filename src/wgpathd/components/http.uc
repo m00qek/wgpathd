@@ -14,12 +14,16 @@ export function create(uclient, uloop) {
 			let body = '';
 			let done = false;
 
+			// The callbacks of the timer and the connection capture both, so both are
+			// dropped here, or neither is ever freed; and uloop keeps a timer that has
+			// fired until it is cancelled.
 			let finish = function(res) {
 				if (done)
 					return;
 				done = true;
 				timer.cancel();
 				con.disconnect();
+				timer = con = null;
 				cb(res);
 			};
 			let fail = (details) => finish(Result.err(errors.DISCOVERY_FETCH_FAILED, details));
@@ -42,7 +46,7 @@ export function create(uclient, uloop) {
 			// uclient's own timeout is per inactivity; the timer bounds a slowly dribbling server too.
 			timer = uloop.timer(timeout_ms, () => fail('timeout'));
 			con.set_timeout(timeout_ms);
-			if (!con.connect() || !con.request('GET', {}))
+			if (!con.connect() || (!done && !con.request('GET', {})))
 				fail('cannot connect');
 		},
 	};

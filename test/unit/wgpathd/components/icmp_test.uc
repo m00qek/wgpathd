@@ -41,9 +41,13 @@ function fake_uloop() {
 		push(l.handles, { sock: sock, cb: cb, flags: flags });
 		return { delete: () => true };
 	};
+	// A timer is its own entry, so `timers[i].cb()` runs the callback with the timer as
+	// `this`, as uloop does.
 	l.timer = function(ms, cb) {
-		push(l.timers, { ms: ms, cb: cb });
-		return { cancel: () => true };
+		let timer = { ms: ms, cb: cb, cancelled: false };
+		timer.cancel = function() { timer.cancelled = true; return true; };
+		push(l.timers, timer);
+		return timer;
 	};
 	return l;
 }
@@ -188,6 +192,15 @@ describe('components.icmp: answers', () => {
 		assert.match([ 350 ], map(t.uloop.timers, (x) => x.ms));
 		t.uloop.timers[0].cb();
 		assert.match([ [ '2001:db8::3', true ], [ '2001:db8::2', false ] ], t.answers());
+	});
+
+	// uloop keeps a timer that has fired until it is cancelled: one per send would pile up.
+	it('releases the timer of a batch once it has fired', () => {
+		let t = setup();
+		t.send([ { host: '10.0.0.2', size: 16, device: 'wg_mesh' } ]);
+		assert.match(false, t.uloop.timers[0].cancelled);
+		t.uloop.timers[0].cb();
+		assert.match(true, t.uloop.timers[0].cancelled);
 	});
 
 	it('reads every datagram waiting when the socket turns readable', () => {
