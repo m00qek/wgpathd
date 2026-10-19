@@ -58,6 +58,16 @@ make lint
 
 This compiles every ucode file, including the scripts in `files/usr/libexec/wgpathd/`, runs `sh -n` on the init script and the devenv scripts, parses the LuCI JSON and scripts, fails on LuCI code that could turn data into markup (`innerHTML` and the like, or `%s` in a `.format()` template), and checks pinned documentation links (see [Link check](../../reference/docs-publishing.md#link-check)). CI runs `make lint` and `make test` on every push.
 
+## Check for memory leaks
+
+```bash
+make leak
+```
+
+This runs the prober, a discovery fetch against the publisher and a command, each about a thousand times, on the real uloop in the development container, and fails if any keeps more than 64 bytes of memory per use. The daemon repeats each of them thousands of times a day, so a few kilobytes per use is a router out of memory within weeks. It takes a few seconds, and needs raw sockets, which Docker grants by default; the prober only reaches loopback, as the container has no other network.
+
+The usual cause is uloop's: it keeps a timer that has fired until the timer is cancelled, and a callback that captures its own timer, process or connection is never freed. Cancel a one-shot timer when it fires, and drop such references once the work is done.
+
 ## Test the docs tooling
 
 ```bash

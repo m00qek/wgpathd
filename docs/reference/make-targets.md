@@ -13,6 +13,7 @@ All targets run in Docker. Nothing is installed on the host.
 | `integration` | Run the integration suite only. |
 | `watch` | Run all tests, then re-run whenever a file under `src/`, `test/` or `files/` changes. |
 | `lint` | Compile-check every ucode file, `sh -n` every shell script, parse every JSON file under `luci/` with ucode and every LuCI script under `luci/` with quickjs (as the function body LuCI compiles it into), fail on `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` or `%s` in a `.format()` template in those scripts (`devenv/scripts/luci-dom-lint.sh`, which lint first proves still catches each), check the pinned documentation links with `devenv/scripts/docs-links.sh` (see [Link check](docs-publishing.md#link-check)), and run `test/feed/feed_makefile_test.sh` against the feed Makefile generator. Then check that `luci/po/templates/wgpathd.pot` is what `pot` would write, and that the scanner gave no warning. |
+| `leak` | Run `test/leak/leak.uc` in the development container: the prober against loopback, a discovery fetch against the publisher and a command, each on the real uloop, about a thousand times. Fails if any keeps more than 64 bytes of memory per use after a warm-up. Needs raw sockets for the prober. |
 | `shell` | Open a throwaway shell in the development image. |
 | `image` | Rebuild the development image, pulling the base image again. |
 | `package` | Build `bin/wgpathd-<version>-r<release>.apk` and `bin/luci-app-wgpathd-<version>-r<release>.apk` in the OpenWrt SDK. |

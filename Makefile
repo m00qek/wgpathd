@@ -16,12 +16,13 @@ RUN          = $(COMPOSE) --progress quiet run --rm $(if $(CI),-T) openwrt
 IMAGE_STAMP := devenv/.built-$(IMAGE_TAG)
 TEST_ARGS    = $(if $(FILTER),-f '$(FILTER)') $(if $(VERBOSE),-v) $(MODULES)
 
-.PHONY: test unit integration watch lint shell image e2e lab-up lab-down lab-shell lab-fault package package-check browser pot docs docs-mike docs-test docs-serve feed-makefile
+.PHONY: test unit integration watch lint shell image e2e lab-up lab-down lab-shell lab-fault package package-check browser pot docs docs-mike docs-test docs-serve feed-makefile leak
 
 test:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh all $(TEST_ARGS)
 unit:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh unit $(TEST_ARGS)
 integration: $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh integration $(TEST_ARGS)
 watch:       $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/test.sh watch $(TEST_ARGS)
+leak:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/leak.sh
 lint:        $(IMAGE_STAMP) ; @$(RUN) devenv/scripts/lint.sh && I18N_IMAGE=$(I18N_IMAGE) devenv/scripts/pot.sh check
 shell:       $(IMAGE_STAMP) ; @$(RUN) sh
 
