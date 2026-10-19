@@ -1081,6 +1081,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../developer/publish-to-feed/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Publishing to the Package Feed
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../developer/documentation/" class="md-nav__link">
         
   
@@ -1114,10 +1135,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3_5" >
         
           
-          <label class="md-nav__link" for="__nav_3_3_4" id="__nav_3_3_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_3_5" id="__nav_3_3_5_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -1128,8 +1149,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_3_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_3_4">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3_5">
             <span class="md-nav__icon md-icon"></span>
             Publishing the Documentation
           </label>
@@ -1940,15 +1961,15 @@
 <p>In the repository:</p>
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span>package
 </code></pre></div>
-<p>This builds <code>bin/wgpathd-0.1.0-r8.apk</code> in the OpenWrt SDK, inside Docker. See <a href="../developer/packaging/">How to build the package</a> for other versions and checks.</p>
+<p>This builds <code>bin/wgpathd-0.1.1-r1.apk</code> in the OpenWrt SDK, inside Docker. See <a href="../developer/packaging/">How to build the package</a> for other versions and checks.</p>
 <h2 id="2-copy-it-to-the-router">2. Copy it to the router<a class="headerlink" href="#2-copy-it-to-the-router" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>scp<span class="w"> </span>bin/wgpathd-0.1.0-r8.apk<span class="w"> </span>root@192.0.2.1:/tmp/
+<div class="highlight"><pre><span></span><code>scp<span class="w"> </span>bin/wgpathd-0.1.1-r1.apk<span class="w"> </span>root@192.0.2.1:/tmp/
 </code></pre></div>
 <p>If the router has no SFTP server, add <code>-O</code> to use the legacy SCP protocol.</p>
 <h2 id="3-install-it">3. Install it<a class="headerlink" href="#3-install-it" title="Permanent link">&para;</a></h2>
 <p>On the router:</p>
 <div class="highlight"><pre><span></span><code>apk<span class="w"> </span>update
-apk<span class="w"> </span>add<span class="w"> </span>--allow-untrusted<span class="w"> </span>/tmp/wgpathd-0.1.0-r8.apk
+apk<span class="w"> </span>add<span class="w"> </span>--allow-untrusted<span class="w"> </span>/tmp/wgpathd-0.1.1-r1.apk
 </code></pre></div>
 <p><code>--allow-untrusted</code> is needed because a locally built package is not signed with a key the router trusts. The dependencies come from the regular feeds; the full list is in <a href="../../reference/files/#dependencies">Files and dependencies</a>.</p>
 <h2 id="4-check-the-result">4. Check the result<a class="headerlink" href="#4-check-the-result" title="Permanent link">&para;</a></h2>

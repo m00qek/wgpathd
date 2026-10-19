@@ -2,242 +2,247 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/explanation/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/explanation/about/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/explanation/architecture/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/explanation/discovery/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/explanation/state-machine/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/explanation/trust-model/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/explanation/versioned-docs/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/explanation/why/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/apply-changes/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/check-paths-in-luci/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/configure-hub/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/configure-in-luci/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/configure-spoke/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/enable-steering/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/install/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/open-firewall/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/prepare-substrate/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/troubleshoot/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/tune-timing/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/uninstall/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/upgrade-peer-settings/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/developer/documentation/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/developer/fix-released-docs/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/developer/packaging/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/developer/publish-minor-docs/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/developer/publish-patch-docs/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://m00qek.github.io/wgpathd/latest/how-to/developer/publish-to-feed/</loc>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/developer/republish-docs/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/developer/setup-docs-publishing/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/how-to/developer/testing/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/discovery-api/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/docs-publishing/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/error-codes/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/files/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/firewall/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/log-messages/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/make-targets/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/parameters/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/service-commands/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/substrate/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/ubus-config-check/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/ubus-status/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/reference/uci-config/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/tutorials/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/tutorials/dev-onboarding/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://m00qek.github.io/wgpathd/latest/tutorials/first-failover/</loc>
-         <lastmod>2026-09-30</lastmod>
+         <lastmod>2026-10-19</lastmod>
          <changefreq>daily</changefreq>
     </url>
 </urlset>
