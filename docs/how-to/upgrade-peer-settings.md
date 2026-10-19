@@ -18,7 +18,7 @@ The package moves them for you. This guide shows how to check that it did, and h
 ## 1. Upgrade the package
 
 ```bash
-apk add --allow-untrusted /tmp/wgpathd-0.1.0-r*.apk
+apk add --allow-untrusted /tmp/wgpathd-*.apk
 ```
 
 During the upgrade, the package's post-upgrade script, through OpenWrt's `default_postinst`, runs `/etc/uci-defaults/50-wgpathd-peers`, which runs `/usr/libexec/wgpathd/migrate.uc`. For each WireGuard peer section in `/etc/config/network` with either option, it:
