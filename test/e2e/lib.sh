@@ -233,7 +233,7 @@ roam_to() { # new-address old-address
 }
 
 # Undoes whatever a scenario left behind, finished or not: faults, a stopped
-# daemon, a changed role file, a roamed address, and a given-up direct address,
+# daemon, a changed role file, a roamed address, a configured mesh endpoint, and a given-up direct address,
 # which would keep the next scenario off the direct path for give_up_pause.
 restore_all() {
 	clear_faults
@@ -246,6 +246,9 @@ restore_all() {
 	done
 	x spoke-b "ip -6 addr add $(transit6 spoke-b)/64 dev eth0 nodad 2>/dev/null
 		ip -6 addr del $ROAMED6/64 dev eth0 2>/dev/null; true"
+	x spoke-b 'uci -q get network.spoke_a.endpoint_host >/dev/null || exit 0
+		uci delete network.spoke_a.endpoint_host; uci -q delete network.spoke_a.endpoint_port
+		uci commit network && ifup wg_mesh'
 }
 
 converged() { both DIRECT; }

@@ -34,6 +34,7 @@ make e2e SCENARIO=kill-direct              # one (or several, space-separated)
 | `neither-reachable` | no anchor → both stay RELAY |
 | `one-way` | direct loss in one direction → never promoted, both give the address up |
 | `roam` | spoke-b changes its v6 → spoke-a follows |
+| `recreate` | netifd creates spoke-b's wg_mesh again with a stale configured endpoint for spoke-a → not taken for a roam, the direct endpoint asserted again, spoke-b stays DIRECT, both back on the direct path |
 | `hub-down` | hub dark → direct sessions survive, a roam is still followed |
 | `mixed` | one side DIRECT, the other held by backoff → no ping loss |
 | `observe` | observe mode → relay endpoints only, `ready` reported |

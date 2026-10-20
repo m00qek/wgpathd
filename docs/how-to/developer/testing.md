@@ -117,7 +117,7 @@ make e2e SCENARIO=kill-direct
 make e2e SCENARIO='baseline roam'
 ```
 
-This builds the package, then boots three OpenWrt containers (`hub`, `spoke-a`, `spoke-b`) with procd as PID 1, installs the package in each, and runs the failover scenarios against them: steady DIRECT, relay fallback with traffic surviving, a direct path that drops full-size packets, the anchor-only estate (also under steady traffic), a dead direct path under relay traffic, crash and hang recovery, roaming, hub loss, the mixed state and observe mode. The scenarios are listed in `test/e2e/README.md`. A full run takes several minutes.
+This builds the package, then boots three OpenWrt containers (`hub`, `spoke-a`, `spoke-b`) with procd as PID 1, installs the package in each, and runs the failover scenarios against them: steady DIRECT, relay fallback with traffic surviving, a direct path that drops full-size packets, the anchor-only estate (also under steady traffic), a dead direct path under relay traffic, crash and hang recovery, roaming, a mesh interface netifd creates again, hub loss, the mixed state and observe mode. The scenarios are listed in `test/e2e/README.md`. A full run takes several minutes.
 
 The containers get only `NET_ADMIN` and `NET_RAW`, share one internal docker network, and use the host kernel's WireGuard module, which the kernel loads on first use. The network is not IPv6-enabled in docker; netifd in each container configures the IPv6 addresses. An IPv6-enabled docker network would make docker switch on the host's `net.ipv6.conf.all.forwarding`, even for an internal network.
 
