@@ -2351,6 +2351,18 @@ peer spoke_c (SpokeCme): direct address given up endpoint=[2001:db8:c::30]:51820
 <td style="text-align: left;">The first successful read after a failure.</td>
 </tr>
 <tr>
+<td style="text-align: left;">notice</td>
+<td style="text-align: left;"><code>&lt;mesh_iface&gt; was created again: its endpoints are asserted again, none is taken as a roam</code></td>
+<td style="text-align: left;">spoke</td>
+<td style="text-align: left;">The interface has a new index between two reads, as when netifd recreates it on <code>ifup</code> or a network reload. It starts on the endpoints of its configuration, which no packet has proven, so this cycle sets every peer's endpoint again and treats none as a <a href="../../explanation/state-machine/#why-the-anchor-needs-roams">roam</a>.</td>
+</tr>
+<tr>
+<td style="text-align: left;">notice</td>
+<td style="text-align: left;"><code>&lt;mesh_iface&gt; may have been created again: its endpoints are asserted again, none is taken as a roam</code></td>
+<td style="text-align: left;">spoke</td>
+<td style="text-align: left;">The first good read after reads failed. The interface may have been recreated while it could not be read, so this cycle is treated the same way.</td>
+</tr>
+<tr>
 <td style="text-align: left;">warning</td>
 <td style="text-align: left;"><code>&lt;peer&gt;: absent from &lt;mesh_iface&gt;, skipped</code></td>
 <td style="text-align: left;">spoke</td>

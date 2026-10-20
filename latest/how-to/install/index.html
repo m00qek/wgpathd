@@ -1961,15 +1961,15 @@
 <p>In the repository:</p>
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span>package
 </code></pre></div>
-<p>This builds <code>bin/wgpathd-0.1.1-r1.apk</code> in the OpenWrt SDK, inside Docker. See <a href="../developer/packaging/">How to build the package</a> for other versions and checks.</p>
+<p>This builds <code>bin/wgpathd-0.1.2-r1.apk</code> in the OpenWrt SDK, inside Docker. See <a href="../developer/packaging/">How to build the package</a> for other versions and checks.</p>
 <h2 id="2-copy-it-to-the-router">2. Copy it to the router<a class="headerlink" href="#2-copy-it-to-the-router" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>scp<span class="w"> </span>bin/wgpathd-0.1.1-r1.apk<span class="w"> </span>root@192.0.2.1:/tmp/
+<div class="highlight"><pre><span></span><code>scp<span class="w"> </span>bin/wgpathd-0.1.2-r1.apk<span class="w"> </span>root@192.0.2.1:/tmp/
 </code></pre></div>
 <p>If the router has no SFTP server, add <code>-O</code> to use the legacy SCP protocol.</p>
 <h2 id="3-install-it">3. Install it<a class="headerlink" href="#3-install-it" title="Permanent link">&para;</a></h2>
 <p>On the router:</p>
 <div class="highlight"><pre><span></span><code>apk<span class="w"> </span>update
-apk<span class="w"> </span>add<span class="w"> </span>--allow-untrusted<span class="w"> </span>/tmp/wgpathd-0.1.1-r1.apk
+apk<span class="w"> </span>add<span class="w"> </span>--allow-untrusted<span class="w"> </span>/tmp/wgpathd-0.1.2-r1.apk
 </code></pre></div>
 <p><code>--allow-untrusted</code> is needed because a locally built package is not signed with a key the router trusts. The dependencies come from the regular feeds; the full list is in <a href="../../reference/files/#dependencies">Files and dependencies</a>.</p>
 <h2 id="4-check-the-result">4. Check the result<a class="headerlink" href="#4-check-the-result" title="Permanent link">&para;</a></h2>

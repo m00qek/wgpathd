@@ -1900,8 +1900,8 @@
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span>package
 </code></pre></div>
 <p>The first run builds a <code>wgpathd-sdk</code> image from <code>ghcr.io/openwrt/sdk</code> and updates the feed metadata (base, packages and luci), which takes a while. The packages land in <code>bin/</code>:</p>
-<div class="highlight"><pre><span></span><code>bin/wgpathd-0.1.1-r1.apk
-bin/luci-app-wgpathd-0.1.1-r1.apk
+<div class="highlight"><pre><span></span><code>bin/wgpathd-0.1.2-r1.apk
+bin/luci-app-wgpathd-0.1.2-r1.apk
 </code></pre></div>
 <p>For the full SDK build output, add <code>VERBOSE=1</code>.</p>
 <p>The build mounts <code>openwrt/wgpathd/Makefile</code>, <code>src/</code>, <code>files/</code> and <code>luci/</code> read-only into the SDK. Only the metadata of the runtime dependencies is used; none of them are compiled.</p>

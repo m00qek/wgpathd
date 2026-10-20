@@ -2027,12 +2027,12 @@ ls
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span>package
 </code></pre></div>
 <p>The first run builds an image from the OpenWrt SDK and fetches feed metadata; this takes longer than the test image did. At the end we should see a line like:</p>
-<div class="highlight"><pre><span></span><code>'bin/packages/x86_64/base/wgpathd-0.1.1-r1.apk' -&gt; '/artifacts/wgpathd-0.1.1-r1.apk'
+<div class="highlight"><pre><span></span><code>'bin/packages/x86_64/base/wgpathd-0.1.2-r1.apk' -&gt; '/artifacts/wgpathd-0.1.2-r1.apk'
 </code></pre></div>
 <p>Let's confirm the file is there:</p>
 <div class="highlight"><pre><span></span><code>ls<span class="w"> </span>bin/
 </code></pre></div>
-<div class="highlight"><pre><span></span><code>wgpathd-0.1.1-r1.apk
+<div class="highlight"><pre><span></span><code>wgpathd-0.1.2-r1.apk
 </code></pre></div>
 <p>That is the package an operator installs on a hub or a spoke.</p>
 <h2 id="step-6-install-it-on-a-fresh-openwrt">Step 6: Install it on a fresh OpenWrt<a class="headerlink" href="#step-6-install-it-on-a-fresh-openwrt" title="Permanent link">&para;</a></h2>

@@ -2192,6 +2192,10 @@
 <td style="text-align: left;">Its packets can pull the probe onto the relay; only an answer that came back from the target commits. See <a href="#relay-traffic-and-the-proof">relay traffic and the proof</a>.</td>
 </tr>
 <tr>
+<td style="text-align: left;">netifd creates <code>wg_mesh</code> again (<code>ifup</code>, a network reload)</td>
+<td style="text-align: left;">The interface starts on the endpoints of its configuration, possibly long stale. wgpathd reads that cycle's endpoints as unproven, not as roams: it sets every peer's endpoint again, and a DIRECT peer stays DIRECT if its path still answers.</td>
+</tr>
+<tr>
 <td style="text-align: left;">A spoke boots with the hub down and no cache</td>
 <td style="text-align: left;">Every peer is set to its relay endpoint, which comes from local configuration and never from the hub.</td>
 </tr>
