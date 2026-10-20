@@ -109,3 +109,14 @@ describe('wg: parse_status rules', () => {
 		assert.match(want, wg.parse_status(reply_of(table), 'wg_mesh').data);
 	});
 });
+
+describe('wg: interface_index', () => {
+	it('reads the index of the interface asked for', () => {
+		assert.match([ 3, 7 ], [ wg.interface_index(reply_of({}), 'wg_mesh'), wg.interface_index({ wg_hub: { ifindex: 7 } }, 'wg_hub') ]);
+	});
+
+	it('is null for a missing interface or an index that is not a number', () => {
+		assert.match([ null, null, null ], [ wg.interface_index(reply_of({}), 'wg_hub'),
+			wg.interface_index({ wg_mesh: { ifindex: '3' } }, 'wg_mesh'), wg.interface_index(null, 'wg_mesh') ]);
+	});
+});

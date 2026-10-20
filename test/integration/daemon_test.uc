@@ -1284,6 +1284,47 @@ function reload(r, main, conf) {
 	r.loop.signals.SIGHUP();
 }
 
+// netifd creates the interface again on ifup, and it starts on the endpoint of its
+// configuration: here a stale one, as when the peer's address changed since.
+describe('daemon: a mesh interface created again', () => {
+	const STALE = '[2001:db8::77]:51820';
+
+	function recreated_direct(how) {
+		let r = direct_one();
+		if (how == 'gone') {
+			r.w.status_ok = false;
+			cycle(r.w, r.d);
+		}
+		else {
+			r.w.ifindex = 4;
+		}
+		r.w.kernel[SPOKE_B].endpoint = STALE;
+		r.w.status_ok = true;
+		cycle(r.w, r.d);
+		return r;
+	}
+
+	for (let how in [ 'gone', 'new index' ]) {
+		it(`keeps DIRECT on its target and asserts it again, after the interface was ${how}`, () => {
+			let r = recreated_direct(how);
+			assert.match([ 'DIRECT', SPOKE_B_DIRECT ], [ r.d.status().peers[SPOKE_B].state, r.w.kernel[SPOKE_B].endpoint ]);
+			assert.match([], r.w.logs.matching(/roamed/));
+			assert.match(1, length(r.w.logs.matching((how == 'gone') ? /wg_mesh may have been created again/ : /wg_mesh was created again/)));
+			cycles(r.w, r.d, 3);
+			assert.match([ 'DIRECT', 0 ], [ r.d.status().peers[SPOKE_B].state, r.d.status().peers[SPOKE_B].down_streak ]);
+		});
+	}
+
+	it('still takes a roam on the interface once it is back', () => {
+		let r = recreated_direct('gone');
+		r.w.kernel[SPOKE_B].endpoint = SPOKE_B_ROAMED;
+		r.w.reachable['2001:db8::99'] = true;
+		cycle(r.w, r.d);
+		assert.match([ 'DIRECT', SPOKE_B_ROAMED ], [ r.d.status().peers[SPOKE_B].state, r.w.kernel[SPOKE_B].endpoint ]);
+		assert.match(1, length(r.w.logs.matching(/roamed/)));
+	});
+});
+
 describe('daemon: run', () => {
 	it('publishes status on ubus, runs a first cycle and arms the next one', () => {
 		let w = h.world(kernel_of(SPOKE_B));

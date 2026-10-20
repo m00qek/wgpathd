@@ -25,6 +25,12 @@ function parse_peer(value) {
 	return { endpoint: canonical(value.endpoint), last_hs_ts: hs ? hs : null };
 }
 
+// netifd deletes and creates an interface again on ifup, and the new one has a new index.
+export function interface_index(reply, iface) {
+	let status = (type(reply) == 'object') ? reply[iface] : null;
+	return (type(status) == 'object' && type(status.ifindex) == 'int') ? status.ifindex : null;
+};
+
 // An endpoint we cannot canonicalize (e.g. scoped link-local) reads as none, which
 // decide never treats as a roam.
 export function parse_status(reply, iface) {

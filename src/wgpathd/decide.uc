@@ -7,9 +7,11 @@ import * as state from 'wgpathd.state';
 import * as fx from 'wgpathd.effects';
 
 // A kernel endpoint we did not set, other than the relay, is an authenticated roam.
+// Not on an interface netifd has just created again: it starts on the endpoint of
+// its configuration, which no packet has proven and which may be long stale.
 function derive_roam(ctl, obs) {
 	let cur = obs.cur_endpoint;
-	if (ctl.asserted == null || cur == null || cur == ctl.asserted || cur == obs.relay_endpoint)
+	if (obs.interface_recreated || ctl.asserted == null || cur == null || cur == ctl.asserted || cur == obs.relay_endpoint)
 		return null;
 	return cur;
 }

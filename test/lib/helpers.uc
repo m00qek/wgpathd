@@ -296,14 +296,14 @@ export function uloop() {
 	return fake;
 };
 
-export function status_reply(iface, kernel) {
+export function status_reply(iface, kernel, ifindex) {
 	let peers = {};
 	for (let key, p in kernel) {
 		peers[key] = { allowed_ips: [ '10.9.0.2/32' ], last_handshake: p.hs ?? 0, rx_bytes: 0, tx_bytes: 0 };
 		if (p.endpoint != null)
 			peers[key].endpoint = p.endpoint;
 	}
-	return { [iface]: { ifindex: 3, listen_port: -13716, peers: peers } };
+	return { [iface]: { ifindex: ifindex ?? 3, listen_port: -13716, peers: peers } };
 };
 
 // A fake kernel and network. `kernel` maps pubkey -> { endpoint, hs } and is what
@@ -330,6 +330,7 @@ export function world(kernel, opts) {
 		max_size: null,
 		send_error: {},
 		mtu: 1360,
+		ifindex: 3,
 		payload: null,
 		http_status: 200,
 		status_ok: true,
@@ -363,7 +364,7 @@ export function world(kernel, opts) {
 	let ubus_answer = function(obj, method) {
 		if (obj == 'wireguard' && method == 'status')
 			return (w.status_ok && (w.answer_read_ok || !w.answered))
-				? Result.ok(status_reply(w.iface, w.kernel))
+				? Result.ok(status_reply(w.iface, w.kernel, w.ifindex))
 				: Result.err('UBUS_CALL_FAILED', 'wireguard status: status 4');
 		if (obj == 'service' && method == 'watchdog') {
 			w.answered = false;

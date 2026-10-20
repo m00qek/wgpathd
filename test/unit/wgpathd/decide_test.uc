@@ -172,6 +172,15 @@ describe('decide: RELAY', () => {
 		assert.match([ { event: 'transition', from: state.RELAY, to: state.TRIALING, reason: 'trial_start' } ], logs(out));
 	});
 
+	it('a recreated interface in RELAY: its configured endpoint starts no trial, the relay is asserted again', () => {
+		let s = sim();
+		s.cycle({});
+		let out = s.cycle({ cur_endpoint: ROAM, underlay_ok: false, interface_recreated: true });
+		assert.match(state.RELAY, out.ctl.state);
+		assert.match(RELAY_EP, endpoint(out));
+		assert.match(false, of_kind(out.effects, 'metric')[0].ready);
+	});
+
 	it('a roam trials as soon as the backoff expires', () => {
 		let s = sim();
 		s.cycle({});
@@ -397,6 +406,16 @@ describe('decide: DIRECT', () => {
 		assert.match([ { event: 'roam', from: state.DIRECT, to: state.DIRECT, reason: 'roam_adopted' } ], logs(out));
 		assert.match(before, out.ctl.last_change);
 		assert.match(ROAM, endpoint(s.cycle({ tunnel_ok: true })));
+	});
+
+	it('a recreated interface in DIRECT: its configured endpoint is not a roam, the target is asserted again', () => {
+		let s = sim();
+		to_direct(s);
+		let out = s.cycle({ tunnel_ok: null, cur_endpoint: ROAM, interface_recreated: true });
+		assert.match(state.DIRECT, out.ctl.state);
+		assert.match([ CAND, CAND ], [ out.ctl.target, endpoint(out) ]);
+		assert.match([], logs(out));
+		assert.match(state.DIRECT, s.cycle({ tunnel_ok: true }).ctl.state);
 	});
 
 	it('follows successive roams', () => {

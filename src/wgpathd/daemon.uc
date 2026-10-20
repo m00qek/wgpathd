@@ -34,9 +34,10 @@ function command_error(res, code) {
 	return null;
 }
 
+// cb(peers, ifindex): the parsed peer table, and the interface's index when it was read.
 function read_peers(deps, iface, cb) {
 	deps.ubus.defer('wireguard', 'status', {}, (res) => {
-		cb(res.ok ? wg.parse_status(res.data, iface) : res);
+		cb(res.ok ? wg.parse_status(res.data, iface) : res, res.ok ? wg.interface_index(res.data, iface) : null);
 	});
 }
 
@@ -345,11 +346,27 @@ function create_spoke(deps, cfg, params) {
 		probe_all(underlay_probes(), (p, answered, finish) => {
 			underlay[p.rec.peer.pubkey] = answered;
 			finish();
-		}, () => read_peers(deps, cfg.mesh_iface, (read) => cb(read, underlay)));
+		}, () => read_peers(deps, cfg.mesh_iface, (read, ifindex) => cb(read, underlay, ifindex)));
+	};
+
+	// netifd recreates the interface on ifup with the endpoints of its configuration.
+	// It shows as a new index between two reads, or may hide behind reads that failed
+	// while it was gone: either way this cycle takes no kernel endpoint as a roam.
+	let mesh_index = null;
+	let mesh_gone = false;
+	let recreated = function(read, ifindex) {
+		let renumbered = read.ok && mesh_index != null && ifindex != null && ifindex != mesh_index;
+		let again = renumbered || (read.ok && mesh_gone);
+		mesh_gone = !read.ok;
+		if (read.ok && ifindex != null)
+			mesh_index = ifindex;
+		if (again)
+			deps.log('notice', `${cfg.mesh_iface} ${renumbered ? 'was created again' : 'may have been created again'}: its endpoints are asserted again, none is taken as a roam`);
+		return again;
 	};
 
 	// tunnel_ok answers the previous cycle's probe only, so it is consumed even for a skipped peer.
-	let build_obs = function(rec, kernel_peers, underlay_ok) {
+	let build_obs = function(rec, kernel_peers, underlay_ok, interface_recreated) {
 		let tunnel_ok = rec.tunnel_ok;
 		let answered_via = rec.answered_via;
 		rec.tunnel_ok = null;
@@ -371,6 +388,7 @@ function create_spoke(deps, cfg, params) {
 			tunnel_ok: tunnel_ok,
 			answered_via: answered_via,
 			cur_endpoint: kernel.endpoint,
+			interface_recreated: interface_recreated,
 			last_hs_ts: kernel.last_hs_ts,
 			direct_cand: candidate(rec),
 			relay_endpoint: rec.peer.relay,
@@ -570,14 +588,15 @@ function create_spoke(deps, cfg, params) {
 			recheck_relays();
 			vet_candidates();
 			probe_outcome = null;
-			gather((read, underlay) => {
+			gather((read, underlay, ifindex) => {
 				report_read(read);
+				let again = recreated(read, ifindex);
 				let kernel_peers = read.ok ? read.data : null;
 				let now = deps.clock.now();
 				let wants_refresh = false;
 				let steps = [];
 				for (let rec in records) {
-					let obs = build_obs(rec, kernel_peers, underlay[rec.peer.pubkey]);
+					let obs = build_obs(rec, kernel_peers, underlay[rec.peer.pubkey], again);
 					if (obs == null)
 						continue;
 					let target = trial_target(rec.ctl, obs);

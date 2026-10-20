@@ -160,6 +160,8 @@ peer spoke_c (SpokeCme): direct address given up endpoint=[2001:db8:c::30]:51820
 | :--- | :--- | :--- | :--- |
 | warning | `reading <iface> failed: <CODE> (<detail>)` | both | `ubus call wireguard status` failed or did not contain the interface. A spoke decides nothing while this lasts; a hub keeps its last snapshot. |
 | notice | `reading <iface> recovered` | both | The first successful read after a failure. |
+| notice | `<mesh_iface> was created again: its endpoints are asserted again, none is taken as a roam` | spoke | The interface has a new index between two reads, as when netifd recreates it on `ifup` or a network reload. It starts on the endpoints of its configuration, which no packet has proven, so this cycle sets every peer's endpoint again and treats none as a [roam](../explanation/state-machine.md#why-the-anchor-needs-roams). |
+| notice | `<mesh_iface> may have been created again: its endpoints are asserted again, none is taken as a roam` | spoke | The first good read after reads failed. The interface may have been recreated while it could not be read, so this cycle is treated the same way. |
 | warning | `<peer>: absent from <mesh_iface>, skipped` | spoke | A managed peer is not in the kernel's peer table. Logged once each time it disappears; the peer is skipped until it returns. |
 | notice | `<peer>: back in <mesh_iface>` | spoke | The absent peer is in the kernel's peer table again and is steered from this cycle. |
 | warning | `setting endpoints on <mesh_iface> failed: WG_COMMAND_FAILED (<detail>)` | spoke | The cycle's `wg set`, which sets every peer's endpoint in one command, failed. The detail is `exit <code>`, or `EXEC_TIMEOUT (wg)` if it took more than 2 seconds. No tunnel probe is sent while it fails. |

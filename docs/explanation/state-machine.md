@@ -174,6 +174,7 @@ The rules above were worked out against the ways a mesh breaks. What a spoke doe
 | The direct path drops large packets only | The full-size tunnel probe fails, so the peer stays on, or returns to, the relay. |
 | The direct path flaps | Each demotion grows the [backoff](#fast-down-slow-up), and the peer ends up parked on the relay. |
 | The other side sends through the relay during a trial | Its packets can pull the probe onto the relay; only an answer that came back from the target commits. See [relay traffic and the proof](#relay-traffic-and-the-proof). |
+| netifd creates `wg_mesh` again (`ifup`, a network reload) | The interface starts on the endpoints of its configuration, possibly long stale. wgpathd reads that cycle's endpoints as unproven, not as roams: it sets every peer's endpoint again, and a DIRECT peer stays DIRECT if its path still answers. |
 | A spoke boots with the hub down and no cache | Every peer is set to its relay endpoint, which comes from local configuration and never from the hub. |
 | The daemon crashes | procd starts it again, and every peer starts in RELAY. |
 | The daemon hangs | It stops pinging the procd watchdog, procd restarts it after 30 seconds, and every peer starts in RELAY. See [architecture](architecture.md#one-spoke-cycle). |
