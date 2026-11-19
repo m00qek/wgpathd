@@ -39,7 +39,7 @@ describe('wg: is_pubkey', () => {
 
 	it('rejects anything else', () => {
 		for (let v in [ null, '', substr(PEER_B, 1), PEER_B + '=', replace(PEER_B, '=', 'A'),
-			replace(PEER_B, 'O', '-'), ' ' + substr(PEER_B, 1), 42 ])
+			replace(PEER_B, 'O', '-'), ' ' + substr(PEER_B, 1), PEER_B + '\nx', 'x\n' + PEER_B, 42 ])
 			assert.match(false, wg.is_pubkey(v));
 	});
 });

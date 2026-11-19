@@ -2,6 +2,8 @@
 
 // Timing parameters: the design defaults, overridable per option in the `main` section.
 
+import { match_line } from 'wgpathd.text';
+
 export const DEFAULTS = {
 	cycle: 3,
 	n_up: 5,
@@ -42,7 +44,7 @@ export function bounds_text(name) {
 // Decimal digits with an optional fraction, nothing else; null out of bounds.
 export function parse(name, s) {
 	let b = BOUNDS[name];
-	if (type(s) != 'string' || match(s, b.whole ? /^[0-9]+$/ : /^[0-9]+(\.[0-9]+)?$/) == null)
+	if (match_line(s, b.whole ? /^[0-9]+$/ : /^[0-9]+(\.[0-9]+)?$/) == null)
 		return null;
 	let v = +s;
 	return (v >= b.min && v <= b.max) ? v : null;

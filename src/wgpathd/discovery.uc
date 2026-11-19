@@ -7,6 +7,7 @@ import * as errors from 'wgpathd.errors';
 import * as endpoint from 'wgpathd.endpoint';
 import * as address from 'wgpathd.address';
 import { is_pubkey } from 'wgpathd.wg';
+import { match_line } from 'wgpathd.text';
 
 export const MAX_BYTES = 65536;
 const MAX_ENTRIES = 64;
@@ -17,7 +18,7 @@ export const UNREADABLE_URL = '(unreadable url)';
 // { scheme, authority: host[:port], host, port, path }, or null for anything else. The
 // authority ends at the first /, ? or #, and its userinfo at the last @ within it.
 export function parse_url(url) {
-	let m = (type(url) == 'string') ? match(url, /^([A-Za-z][A-Za-z0-9+.-]*):\/\/([^\/?#]*)([^?#]*)/) : null;
+	let m = match_line(url, /^([A-Za-z][A-Za-z0-9+.-]*):\/\/([^\/?#]*)([^?#]*)/);
 	if (m == null || match(m[3], /^[!-~]*$/) == null)
 		return null;
 	let authority = replace(m[2], /^.*@/, '');

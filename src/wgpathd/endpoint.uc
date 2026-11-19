@@ -2,13 +2,13 @@
 
 // The one canonical endpoint form (`[v6]:port` or `v4:port`, as `wg` prints it).
 
+import { match_line } from 'wgpathd.text';
+
 function split_endpoint(s) {
-	if (type(s) != 'string')
-		return null;
-	let m = match(s, /^\[([^\]]+)\]:([0-9]{1,5})$/);
+	let m = match_line(s, /^\[([^\]]+)\]:([0-9]{1,5})$/);
 	if (m)
 		return { host: m[1], port: m[2], v6: true };
-	m = match(s, /^([0-9.]+):([0-9]{1,5})$/);
+	m = match_line(s, /^([0-9.]+):([0-9]{1,5})$/);
 	return m ? { host: m[1], port: m[2], v6: false } : null;
 }
 

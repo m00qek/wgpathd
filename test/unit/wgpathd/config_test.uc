@@ -206,7 +206,7 @@ describe('config: hub', () => {
 
 	// socket.listen reads `0` as any free port, `0x50` as 80 and ` 22 ` as 22.
 	it('refuses a serve_port that is not a decimal port number', () => {
-		for (let bad in [ '0', '00', '0x50', ' 22 ', '22 ', '07780', '65536', '70000', '-1', '80.5', '1e3', 'http' ])
+		for (let bad in [ '0', '00', '0x50', ' 22 ', '22 ', '07780', '65536', '70000', '-1', '80.5', '1e3', 'http', '22\n', 'x\n22' ])
 			assert.match(contains({ ok: false, error: 'CONFIG_INVALID_OPTION', details: 'serve_port must be a port number from 1 to 65535' }),
 				load({ ...HUB_ROLE, serve_port: bad }), bad);
 		for (let good in [ '1', '7780', '65535' ])

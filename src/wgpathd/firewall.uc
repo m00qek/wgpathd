@@ -8,6 +8,7 @@
 // 'tcp', port, and iface: the interface it arrives on, or zone: the zone it comes from }.
 
 import { family as address_family } from 'wgpathd.icmp';
+import { match_line } from 'wgpathd.text';
 
 export const ACCEPTED = 'accepted';
 export const MISSING  = 'missing';
@@ -98,7 +99,7 @@ function port_covers(v, port) {
 	if (!is_set(v))
 		return YES;
 	for (let p in items(v)) {
-		let m = match(p, /^([0-9]{1,5})([-:]([0-9]{1,5}))?$/);
+		let m = match_line(p, /^([0-9]{1,5})([-:]([0-9]{1,5}))?$/);
 		if (m == null)
 			return MAYBE;
 		if (port >= +m[1] && port <= +(m[3] ?? m[1]))
@@ -114,7 +115,7 @@ function echo_covers(v, family, rule_family) {
 	if (!is_set(v))
 		return YES;
 	for (let t in items(v)) {
-		let m = match(t, /^([0-9]+)(\/([0-9]+))?$/);
+		let m = match_line(t, /^([0-9]+)(\/([0-9]+))?$/);
 		if (t in [ 'echo-request', 'ping' ] || (m && +m[1] == ECHO_TYPE[family] && (m[3] == null || +m[3] == 0)))
 			return YES;
 		if (m == null && rule_family == 0)
@@ -192,7 +193,7 @@ function walk(rules, flow, zone, policy) {
 
 // A device of a zone: a name, or a prefix with a trailing `+`. fw4 skips any other use of `+`.
 function device_matches(pattern, device) {
-	let m = match(pattern, /^([^+]*)(\+)?$/);
+	let m = match_line(pattern, /^([^+]*)(\+)?$/);
 	if (m == null)
 		return false;
 	return m[2] ? substr(device, 0, length(m[1])) == m[1] : pattern == device;
@@ -244,7 +245,7 @@ function zone_for(zones, flow) {
 // whether custom nftables rules may add to them. Returns { verdict, zone, reason }:
 // zone is the name of the flow's zone, or null.
 export function verdict(fw, flow) {
-	let zones = filter(fw.zones, (z) => enabled(z) && match(z.name, IDENTIFIER) != null);
+	let zones = filter(fw.zones, (z) => enabled(z) && match_line(z.name, IDENTIFIER) != null);
 	let found = zone_for(zones, flow);
 	let zone = found.zone?.name;
 	if (found.unsure != null)
@@ -264,7 +265,7 @@ function families(iface) {
 }
 
 function port_number(s) {
-	return (type(s) == 'string' && match(s, /^[0-9]{1,5}$/) && +s <= 65535) ? +s : null;
+	return (match_line(s, /^[0-9]{1,5}$/) && +s <= 65535) ? +s : null;
 }
 
 // The flows a role needs accepted. ifaces: { <name>: { addresses, listen_port } } for the

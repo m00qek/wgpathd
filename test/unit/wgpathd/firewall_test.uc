@@ -134,6 +134,7 @@ describe('firewall: a rule of the zone', () => {
 			[ { proto: 'udp', dest_port: '51821-51830' }, RELAY, fw.MISSING ],
 			[ { proto: 'udp', dest_port: '!53' }, RELAY, fw.UNSURE ],
 			[ { proto: 'udp', dest_port: 'wireguard' }, RELAY, fw.UNSURE ],
+			[ { proto: 'udp', dest_port: '51820\nx' }, RELAY, fw.UNSURE ],
 			[ { proto: 'icmp', dest_port: '53' }, TUNNEL, fw.ACCEPTED ],
 			[ { proto: 'all', dest_port: '53' }, RELAY, fw.ACCEPTED ],
 		]);

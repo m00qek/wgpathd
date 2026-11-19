@@ -116,6 +116,7 @@ If the configuration is invalid by the time the daemon reads it, the daemon logs
 | `probe.uc`, `icmp.uc` | What each probe is (host, size, device), and ICMP echo on the wire |
 | `deps.uc`, `components/` | Real I/O: ubus, syslog, rtnl, uclient HTTP, command runner, ICMP prober, clock |
 | `result.uc`, `errors.uc` | The ok/err result type and the [error codes](../reference/error-codes.md) |
+| `text.uc` | Matching a value as one whole line, the same on every ucode release |
 
 Endpoints are compared as plain strings, so every endpoint that enters the core — from the kernel, discovery, the cache or the `peer` sections — is first put in one canonical form (`[v6]:port` or `v4:port`, lowercase and compressed, as `wg` prints it). Without that, the same address written two ways would look like a roam every cycle.
 
