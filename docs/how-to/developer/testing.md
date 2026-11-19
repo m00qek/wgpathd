@@ -115,7 +115,7 @@ The rootfs image ships the ucode of its release, but its package index may carry
 make test UCODE=feed
 ```
 
-CI runs the suites both ways.
+CI runs the suites both ways. `make e2e UCODE=feed` runs the failover scenarios the same way.
 
 ## Run the end-to-end failover suite
 

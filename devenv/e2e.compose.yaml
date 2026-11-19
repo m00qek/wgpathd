@@ -11,7 +11,7 @@
 name: ${E2E_PROJECT:-wgpathd-e2e}
 
 x-image: &image
-  image: wgpathd-e2e:${OPENWRT_ARCH:-x86_64}-${OPENWRT_VERSION:-25.12.5}
+  image: wgpathd-e2e:${OPENWRT_ARCH:-x86_64}-${OPENWRT_VERSION:-25.12.5}-${UCODE:-stock}
 
 # procd is PID 1; it treats SIGTERM as a reboot request, which a container cannot honour.
 x-node: &node
@@ -39,6 +39,7 @@ services:
         OPENWRT_ARCH: ${OPENWRT_ARCH:-x86_64}
         OPENWRT_VERSION: ${OPENWRT_VERSION:-25.12.5}
         PKG_DEPENDS: ${PKG_DEPENDS}
+        UCODE: ${UCODE:-stock}
     network_mode: none
     entrypoint: [/bin/sh, /e2e/keygen.sh]
     volumes:
