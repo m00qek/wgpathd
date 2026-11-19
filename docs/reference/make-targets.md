@@ -31,13 +31,14 @@ All targets run in Docker. Nothing is installed on the host.
 | `docs-test` | Test the docs publishing tooling (same as `make -C docs test`). |
 | `docs-serve` | Serve the documentation with live reload (same as `make -C docs serve`). |
 
-`test`, `unit`, `integration`, `watch`, `lint` and `shell` run in the `wgpathd-openwrt:<arch>-<version>-<hash>` image, which is built on first use from `devenv/services/openwrt/Dockerfile` and rebuilt when that file or `openwrt/wgpathd/Makefile` changes. `<hash>` is taken from the Dockerfile and the daemon's dependencies, so two checkouts that need different images never overwrite each other's; images left behind by older hashes can be removed with `docker image rm`. The container has no network.
+`test`, `unit`, `integration`, `watch`, `lint` and `shell` run in the `wgpathd-openwrt:<arch>-<version>-<ucode>-<hash>` image, which is built on first use from `devenv/services/openwrt/Dockerfile` and rebuilt when that file or `openwrt/wgpathd/Makefile` changes. `<hash>` is taken from the Dockerfile and the daemon's dependencies, so two checkouts that need different images never overwrite each other's; images left behind by older hashes can be removed with `docker image rm`. The container has no network.
 
 ### Variables
 
 | Variable | Default | Applies to | Description |
 | :--- | :--- | :--- | :--- |
 | `OPENWRT_VERSION` | `25.12.5` | all | OpenWrt release of the rootfs and SDK images. |
+| `UCODE` | `stock` | `test`, `unit`, `integration`, `watch`, `leak`, `lint`, `shell` | `stock` keeps the ucode the rootfs ships; `feed` upgrades it from the release's package index, as a device installed or upgraded now has it. The two differ in how regular expressions treat newlines. |
 | `OPENWRT_ARCH` | `x86_64` | all | Target architecture; selects the `ghcr.io/openwrt/rootfs` and `ghcr.io/openwrt/sdk` image tags. The package itself is architecture-independent. |
 | `FILTER` | — | `test`, `unit`, `integration`, `watch`, `browser` | Run only tests whose name matches this regular expression. |
 | `VERBOSE` | — | tests, `package` | Tests: detailed reporter with one line per test. `package`: verbose SDK build (`V=s`). |

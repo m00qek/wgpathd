@@ -109,6 +109,14 @@ make test OPENWRT_VERSION=25.12.5
 
 `OPENWRT_VERSION` and `OPENWRT_ARCH` select the rootfs image. Each combination gets its own development image.
 
+The rootfs image ships the ucode of its release, but its package index may carry a newer one. To test against that, as a device installed or upgraded now runs it:
+
+```bash
+make test UCODE=feed
+```
+
+CI runs the suites both ways.
+
 ## Run the end-to-end failover suite
 
 ```bash

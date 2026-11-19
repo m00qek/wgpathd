@@ -7,6 +7,11 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ucode: [stock, feed]
+    env:
+      UCODE: ${{ matrix.ucode }}
     steps:
       - uses: actions/checkout@v4
       - run: make lint
