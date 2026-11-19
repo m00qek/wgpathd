@@ -5,9 +5,10 @@
 import * as Result from 'wgpathd.result';
 import * as errors from 'wgpathd.errors';
 import { canonical } from 'wgpathd.endpoint';
+import { match_line } from 'wgpathd.text';
 
 export function is_pubkey(s) {
-	return type(s) == 'string' && match(s, /^[A-Za-z0-9+\/]{43}=$/) != null;
+	return match_line(s, /^[A-Za-z0-9+\/]{43}=$/) != null;
 };
 
 // One command for every peer: sets: [ { pubkey, endpoint } ].

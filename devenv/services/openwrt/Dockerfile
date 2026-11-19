@@ -6,6 +6,8 @@ ARG OPENWRT_VERSION
 ARG PKG_DEPENDS
 ARG UTEST_VERSION=1.5.1
 ARG UTEST_FEED=https://m00qek.github.io/packages.ucode.dev
+# stock: the ucode the rootfs ships. feed: the one a device installed or upgraded now gets.
+ARG UCODE=stock
 
 RUN mkdir -p /var/lock /etc/apk/keys /etc/apk/repositories.d && \
     feed="$UTEST_FEED/$(echo "$OPENWRT_VERSION" | cut -d. -f1,2)" && \
@@ -14,6 +16,8 @@ RUN mkdir -p /var/lock /etc/apk/keys /etc/apk/repositories.d && \
     apk update && \
     apk add --no-cache $PKG_DEPENDS ucode-utest inotifywait quickjs && \
     apk list -I 2>/dev/null | grep -q "^ucode-utest-$UTEST_VERSION-" || \
-      { echo "expected ucode-utest $UTEST_VERSION" >&2; exit 1; }
+      { echo "expected ucode-utest $UTEST_VERSION" >&2; exit 1; } && \
+    if [ "$UCODE" = feed ]; then apk upgrade --no-cache $(apk info 2>/dev/null | grep -E '^(lib)?ucode'); fi && \
+    apk list -I 2>/dev/null | grep '^libucode'
 
 WORKDIR /wgpathd

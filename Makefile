@@ -1,5 +1,6 @@
 OPENWRT_ARCH    ?= x86_64
 OPENWRT_VERSION ?= 25.12.5
+UCODE           ?= stock
 # The feed packages a package in openwrt/wgpathd/Makefile depends on: not kmods, not its sibling.
 feed_depends = $(shell sed -n '/^define Package\/$(1)$$/,/^endef/s/^[[:space:]]*DEPENDS:=//p' openwrt/wgpathd/Makefile \
 	| tr ' ' '\n' | sed 's/^+//' | grep -v -e '^kmod-' -e '^wgpathd$$')
@@ -8,8 +9,8 @@ PKG_FULLVERSION := $(call pkg_field,VERSION)-r$(call pkg_field,RELEASE)
 PKG_DEPENDS     := $(call feed_depends,wgpathd)
 APP_DEPENDS     := $(call feed_depends,luci-app-wgpathd)
 # Keyed by the image's inputs, so worktrees with different Dockerfiles don't overwrite each other's image.
-IMAGE_TAG       := $(OPENWRT_ARCH)-$(OPENWRT_VERSION)-$(shell { cat devenv/services/openwrt/Dockerfile; echo '$(PKG_DEPENDS)'; } | sha256sum | cut -c1-12)
-export OPENWRT_ARCH OPENWRT_VERSION PKG_DEPENDS IMAGE_TAG
+IMAGE_TAG       := $(OPENWRT_ARCH)-$(OPENWRT_VERSION)-$(UCODE)-$(shell { cat devenv/services/openwrt/Dockerfile; echo '$(PKG_DEPENDS)'; } | sha256sum | cut -c1-12)
+export OPENWRT_ARCH OPENWRT_VERSION UCODE PKG_DEPENDS IMAGE_TAG
 
 COMPOSE     := docker compose -f devenv/docker-compose.yaml
 RUN          = $(COMPOSE) --progress quiet run --rm $(if $(CI),-T) openwrt

@@ -38,7 +38,8 @@ function reply(status, value) {
 }
 
 export function respond(request, peers) {
-	let m = match(request, /^([A-Z]+) ([^ \r\n]+) HTTP\/1\.[01]\r?\n/);
+	let end = index(request, '\n');
+	let m = (end < 0) ? null : match(substr(request, 0, end), /^([A-Z]+) ([^ \r]+) HTTP\/1\.[01]\r?$/);
 	if (!m)
 		return reply(400, { error: 'bad request' });
 	if (m[1] != 'GET')

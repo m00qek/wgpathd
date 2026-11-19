@@ -6,6 +6,7 @@ x-openwrt-build: &openwrt-build
     OPENWRT_ARCH: ${OPENWRT_ARCH}
     OPENWRT_VERSION: ${OPENWRT_VERSION}
     PKG_DEPENDS: ${PKG_DEPENDS}
+    UCODE: ${UCODE}
 
 services:
   openwrt:

@@ -11,6 +11,7 @@ import * as address from 'wgpathd.address';
 import { parse_url } from 'wgpathd.discovery';
 import { is_pubkey } from 'wgpathd.wg';
 import * as parameters from 'wgpathd.params';
+import { match_line } from 'wgpathd.text';
 
 const REQUIRED = {
 	spoke: [ 'mesh_iface', 'hub_iface', 'discovery' ],
@@ -31,7 +32,7 @@ function invalid(option, reason) {
 // UCI reads a name like `@interface[0]` as a lookup by position, so only a plain
 // name may reach a cursor.
 export function is_name(s) {
-	return type(s) == 'string' && match(s, /^[A-Za-z0-9_]+$/) != null;
+	return match_line(s, /^[A-Za-z0-9_]+$/) != null;
 };
 
 function missing_option(main, role) {
@@ -43,7 +44,7 @@ function missing_option(main, role) {
 
 // Decimal digits only: `socket.listen` would read `0x50` as 80 and ` 22 ` as 22.
 function is_port(s) {
-	return match(s, /^[1-9][0-9]{0,4}$/) != null && +s <= 65535;
+	return match_line(s, /^[1-9][0-9]{0,4}$/) != null && +s <= 65535;
 }
 
 // uclient reads the scheme case-sensitively, and https would need a TLS context the

@@ -72,7 +72,8 @@ describe('publisher: respond', () => {
 
 	it('answers 400 for an unparseable request', () => {
 		for (let req in [ '', 'garbage\r\n\r\n', 'GET /peers\r\n\r\n', 'get /peers HTTP/1.0\r\n\r\n',
-			'GET /peers HTTP/2.0\r\n\r\n', 'GET  /peers HTTP/1.0\r\n\r\n' ])
+			'GET /peers HTTP/2.0\r\n\r\n', 'GET  /peers HTTP/1.0\r\n\r\n',
+			'garbage\nGET /peers HTTP/1.0\r\n\r\n', 'GET /peers HTTP/1.0\r' ])
 			assert.match(headers(400, 'Bad Request', '{ "error": "bad request" }'), publisher.respond(req, SNAPSHOT), req);
 	});
 });

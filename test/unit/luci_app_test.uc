@@ -24,8 +24,10 @@ function scripts(dir) {
 	return out;
 }
 
+// On one line: newer ucode stops [^}] at a newline.
 function declared_calls(file) {
-	return map(match(readfile(file), /rpc\.declare\(\{[^}]*\}/g), (m) => ({
+	let src = join(' ', split(readfile(file), '\n'));
+	return map(match(src, /rpc\.declare\(\{[^}]*\}/g), (m) => ({
 		object: match(m[0], /object: '([^']+)'/)[1],
 		method: match(m[0], /method: '([^']+)'/)[1],
 	}));
