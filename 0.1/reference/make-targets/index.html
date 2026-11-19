@@ -1941,7 +1941,7 @@
 </tr>
 <tr>
 <td style="text-align: left;"><code>e2e</code></td>
-<td style="text-align: left;">Run <code>package</code>, then the end-to-end failover scenarios against a hub and two spokes in OpenWrt containers (procd as PID 1, kernel WireGuard, fw4), compose project <code>wgpathd-e2e</code>, image <code>wgpathd-e2e:&lt;arch&gt;-&lt;version&gt;</code>. Refuses to start while another project's containers run, guards the host's Wi-Fi interface for the whole run, and always tears down. Results in <code>bin/e2e/</code>.</td>
+<td style="text-align: left;">Run <code>package</code>, then the end-to-end failover scenarios against a hub and two spokes in OpenWrt containers (procd as PID 1, kernel WireGuard, fw4), compose project <code>wgpathd-e2e</code>, image <code>wgpathd-e2e:&lt;arch&gt;-&lt;version&gt;-&lt;ucode&gt;</code>. Refuses to start while another project's containers run, guards the host's Wi-Fi interface for the whole run, and always tears down. Results in <code>bin/e2e/</code>.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>lab-up</code></td>
@@ -1981,7 +1981,7 @@
 </tr>
 </tbody>
 </table>
-<p><code>test</code>, <code>unit</code>, <code>integration</code>, <code>watch</code>, <code>lint</code> and <code>shell</code> run in the <code>wgpathd-openwrt:&lt;arch&gt;-&lt;version&gt;-&lt;hash&gt;</code> image, which is built on first use from <code>devenv/services/openwrt/Dockerfile</code> and rebuilt when that file or <code>openwrt/wgpathd/Makefile</code> changes. <code>&lt;hash&gt;</code> is taken from the Dockerfile and the daemon's dependencies, so two checkouts that need different images never overwrite each other's; images left behind by older hashes can be removed with <code>docker image rm</code>. The container has no network.</p>
+<p><code>test</code>, <code>unit</code>, <code>integration</code>, <code>watch</code>, <code>lint</code> and <code>shell</code> run in the <code>wgpathd-openwrt:&lt;arch&gt;-&lt;version&gt;-&lt;ucode&gt;-&lt;hash&gt;</code> image, which is built on first use from <code>devenv/services/openwrt/Dockerfile</code> and rebuilt when that file or <code>openwrt/wgpathd/Makefile</code> changes. <code>&lt;hash&gt;</code> is taken from the Dockerfile and the daemon's dependencies, so two checkouts that need different images never overwrite each other's; images left behind by older hashes can be removed with <code>docker image rm</code>. The container has no network.</p>
 <h3 id="variables">Variables<a class="headerlink" href="#variables" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -1998,6 +1998,12 @@
 <td style="text-align: left;"><code>25.12.5</code></td>
 <td style="text-align: left;">all</td>
 <td style="text-align: left;">OpenWrt release of the rootfs and SDK images.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>UCODE</code></td>
+<td style="text-align: left;"><code>stock</code></td>
+<td style="text-align: left;"><code>test</code>, <code>unit</code>, <code>integration</code>, <code>watch</code>, <code>leak</code>, <code>lint</code>, <code>shell</code>, <code>e2e</code>, <code>lab-up</code></td>
+<td style="text-align: left;"><code>stock</code> keeps the ucode the rootfs ships; <code>feed</code> upgrades it from the release's package index, as a device installed or upgraded now has it. The two differ in how regular expressions treat newlines.</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>OPENWRT_ARCH</code></td>

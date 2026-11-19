@@ -2076,6 +2076,10 @@ make<span class="w"> </span>browser<span class="w"> </span><span class="nv">FILT
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="nv">OPENWRT_VERSION</span><span class="o">=</span><span class="m">25</span>.12.5
 </code></pre></div>
 <p><code>OPENWRT_VERSION</code> and <code>OPENWRT_ARCH</code> select the rootfs image. Each combination gets its own development image.</p>
+<p>The rootfs image ships the ucode of its release, but its package index may carry a newer one. To test against that, as a device installed or upgraded now runs it:</p>
+<div class="highlight"><pre><span></span><code>make<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="nv">UCODE</span><span class="o">=</span>feed
+</code></pre></div>
+<p>CI runs the suites both ways. <code>make e2e UCODE=feed</code> runs the failover scenarios the same way.</p>
 <h2 id="run-the-end-to-end-failover-suite">Run the end-to-end failover suite<a class="headerlink" href="#run-the-end-to-end-failover-suite" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>make<span class="w"> </span>e2e
 make<span class="w"> </span>e2e<span class="w"> </span><span class="nv">SCENARIO</span><span class="o">=</span>kill-direct

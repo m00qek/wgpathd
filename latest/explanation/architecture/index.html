@@ -2135,6 +2135,10 @@
 <td style="text-align: left;"><code>result.uc</code>, <code>errors.uc</code></td>
 <td style="text-align: left;">The ok/err result type and the <a href="../../reference/error-codes/">error codes</a></td>
 </tr>
+<tr>
+<td style="text-align: left;"><code>text.uc</code></td>
+<td style="text-align: left;">Matching a value as one whole line, the same on every ucode release</td>
+</tr>
 </tbody>
 </table>
 <p>Endpoints are compared as plain strings, so every endpoint that enters the core — from the kernel, discovery, the cache or the <code>peer</code> sections — is first put in one canonical form (<code>[v6]:port</code> or <code>v4:port</code>, lowercase and compressed, as <code>wg</code> prints it). Without that, the same address written two ways would look like a roam every cycle.</p>
